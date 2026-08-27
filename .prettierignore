@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.expo/
+dist/
+build/
+package-lock.json
+CASH-9921
+*.apks
+*.aab
+*.ipa
+mysql_data/
+redis_data/

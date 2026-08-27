@@ -1,0 +1,50 @@
+import http from 'http';
+import { Server } from 'socket.io';
+import app from './app';
+import { connectDatabase } from './config/sequelize';
+
+const PORT = process.env.PORT || 5000;
+
+const server = http.createServer(app);
+
+// Initialize Socket.IO with CORS settings
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+});
+
+// Configure Socket.IO health-check namespace
+const healthNamespace = io.of('/health-check');
+healthNamespace.on('connection', (socket) => {
+  console.log(`Client connected to health-check namespace: ${socket.id}`);
+
+  socket.emit('health_status', {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+  });
+
+  socket.on('ping', () => {
+    socket.emit('pong', { timestamp: new Date().toISOString() });
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`Client disconnected from health-check namespace: ${socket.id}`);
+  });
+});
+
+// Listen on server
+async function startServer() {
+  // Connect database
+  await connectDatabase();
+
+  server.listen(PORT, () => {
+    console.log(`BFAM Backend Server listening on port ${PORT}`);
+    console.log(
+      `Socket.IO health-check namespace listening at ws://localhost:${PORT}/health-check`,
+    );
+  });
+}
+
+startServer();

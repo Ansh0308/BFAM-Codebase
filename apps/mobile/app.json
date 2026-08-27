@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "BFAM Mobile",
+    "slug": "bfam-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bfam.mobile"
+    },
+    "android": {
+      "package": "com.bfam.mobile"
+    },
+    "plugins": [
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "bfam-sports",
+          "project": "bfam-mobile"
+        }
+      ]
+    ]
+  }
+}

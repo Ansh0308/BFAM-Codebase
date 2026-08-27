@@ -1,0 +1,34 @@
+name: BFAM CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  audit:
+    name: Lint, Type Check & Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Codebase
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: Run ESLint Checks
+      run: npm run lint
+
+    - name: Run TypeScript Compile Verification
+      run: npm run type-check
+
+    - name: Run Unit & Integration Tests
+      run: npm run test
