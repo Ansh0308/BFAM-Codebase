@@ -11,6 +11,8 @@
     "db:migrate": "sequelize-cli db:migrate",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:seed:phase1": "ts-node-dev --exit-child --transpile-only src/seed/phase1Seed.ts",
+    "seed": "npm run db:seed:phase1",
+    "db:seed": "npm run db:seed:phase1",
     "test": "jest"
   },
   "dependencies": {
@@ -25,6 +27,7 @@
     "razorpay": "^2.9.8",
     "sequelize": "^6.37.3",
     "socket.io": "^4.7.5",
+    "umzug": "^3.8.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {

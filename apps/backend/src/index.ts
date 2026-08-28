@@ -2,6 +2,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import app from './app';
 import { connectDatabase } from './config/sequelize';
+import { runMigrations } from './config/migrate';
 
 const PORT = process.env.PORT || 5000;
 
@@ -38,6 +39,13 @@ healthNamespace.on('connection', (socket) => {
 async function startServer() {
   // Connect database
   await connectDatabase();
+
+  // Bring the schema up to date automatically — no manual `db:migrate` step
+  // needed when hosting and pointing the backend at a fresh/updated DB.
+  // Skipped in test env, where tests manage their own DB state/mocks.
+  if (process.env.NODE_ENV !== 'test') {
+    await runMigrations();
+  }
 
   server.listen(PORT, () => {
     console.log(`BFAM Backend Server listening on port ${PORT}`);

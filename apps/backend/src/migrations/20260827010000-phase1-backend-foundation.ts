@@ -64,7 +64,7 @@ const enumCol = (values: readonly string[], allowNull = false, defaultValue?: st
 });
 
 module.exports = {
-  up: async (queryInterface: QueryInterface, sequelize: Sequelize) => {
+  up: async (queryInterface: QueryInterface, _sequelize: Sequelize) => {
     await queryInterface.createTable('users', {
       user_id: uuidPk(),
       phone_number: { type: DataTypes.STRING(15), allowNull: false, unique: true },
@@ -138,7 +138,13 @@ module.exports = {
 
     await queryInterface.createTable('team_members', {
       team_member_id: uuidPk(),
-      team_id: uuid({ model: 'teams', key: 'team_id' }),
+      team_id: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        references: { model: 'teams', key: 'team_id' },
+        onUpdate: 'RESTRICT',
+        onDelete: 'RESTRICT',
+      },
       player_id: uuid({ model: 'players', key: 'player_id' }),
       role_in_team: enumCol(TEAM_MEMBER_ROLES, false),
       membership_status: enumCol(MEMBERSHIP_STATUSES, false, 'ACTIVE'),
@@ -150,8 +156,8 @@ module.exports = {
       type: 'unique',
       name: 'uk_team_members_team_player',
     });
-    await sequelize.query(
-      "ALTER TABLE team_members ADD COLUMN active_captain_team_id CHAR(36) GENERATED ALWAYS AS (CASE WHEN role_in_team = 'CAPTAIN' AND membership_status = 'ACTIVE' THEN team_id ELSE NULL END) STORED",
+    await queryInterface.sequelize.query(
+      "ALTER TABLE team_members ADD COLUMN active_captain_team_id CHAR(36) BINARY GENERATED ALWAYS AS (CASE WHEN role_in_team = 'CAPTAIN' AND membership_status = 'ACTIVE' THEN team_id ELSE NULL END) STORED",
     );
     await queryInterface.addIndex('team_members', ['active_captain_team_id'], {
       unique: true,
@@ -264,10 +270,23 @@ module.exports = {
       created_at: ts(),
       updated_at: ts(),
     });
-    await queryInterface.addConstraint('bookings', {
-      fields: ['turf_id', 'booking_date', 'start_time'],
-      type: 'unique',
-      name: 'uk_bookings_turf_date_slot',
+    // Composite unique constraint (turf_id, booking_date, start_time) applies
+    // only while booking_status IN ('PENDING','CONFIRMED') — the no-double-
+    // booking guarantee. Same idea as the one-active-captain-per-team pattern
+    // above (a generated column that is NULL unless the condition holds, with
+    // a unique index on it), but VIRTUAL rather than STORED: MySQL 8.0's
+    // ALGORITHM=INPLACE table rebuild for a STORED generated column fails
+    // with "Cannot add foreign key constraint" (errno 150) on `bookings`
+    // because it has multiple FK constraints referencing the same parent
+    // table (`users`, via booked_by and cancelled_by) — reproduced directly
+    // against MySQL 8.0.40. VIRTUAL generated columns don't require that
+    // rebuild and are fully indexable, so they sidestep the bug.
+    await queryInterface.sequelize.query(
+      "ALTER TABLE bookings ADD COLUMN active_booking_slot_key VARCHAR(191) GENERATED ALWAYS AS (CASE WHEN booking_status IN ('PENDING','CONFIRMED') THEN CONCAT(turf_id, ':', booking_date, ':', start_time) ELSE NULL END) VIRTUAL",
+    );
+    await queryInterface.addIndex('bookings', ['active_booking_slot_key'], {
+      unique: true,
+      name: 'uk_active_booking_slot',
     });
 
     await queryInterface.createTable('matches', {
@@ -369,6 +388,13 @@ module.exports = {
       initiated_by: uuid({ model: 'users', key: 'user_id' }),
       created_at: ts(),
       completed_at: ts(true),
+    });
+    await queryInterface.createTable('payment_events', {
+      event_id: uuidPk(),
+      payment_id: uuid({ model: 'payments', key: 'payment_id' }),
+      event_type: { type: DataTypes.STRING(50), allowNull: false },
+      raw_payload: { type: DataTypes.JSON, allowNull: false },
+      received_at: ts(),
     });
 
     await queryInterface.createTable('innings', {
@@ -532,6 +558,7 @@ module.exports = {
       'match_results',
       'score_events',
       'innings',
+      'payment_events',
       'refunds',
       'payment_allocations',
       'payments',

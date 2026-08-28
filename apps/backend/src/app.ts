@@ -1,11 +1,19 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
 import * as Sentry from '@sentry/node';
 import { initSentry } from './config/sentry';
 import { USER_ROLES } from './domain/constants';
 import { authenticateJwt, requireRoles } from './middleware/auth';
 import { issueJwt, UserRole } from './services/authService';
-import { acknowledgeRazorpayWebhook } from './services/razorpayService';
+import { allocateBfamId } from './services/bfamIdAllocator';
+import { sequelize } from './config/sequelize';
+import { registerUserSchema } from './validation/schemas';
+import {
+  acknowledgeRazorpayWebhook,
+  persistRazorpayWebhookEvent,
+} from './services/razorpayService';
 import { registerExpoPushToken } from './services/pushNotificationService';
 
 // Initialize Sentry before anything else
@@ -41,6 +49,68 @@ app.get('/', (req: Request, res: Response) => {
   res.send('BFAM Backend API is active');
 });
 
+// Real registration flow: validates input, hashes the password, atomically
+// allocates a BFAM ID and inserts the `users` row while the allocator lock
+// is held (see services/bfamIdAllocator.ts), then issues a JWT. Satisfies
+// PRD §12.59 ("BFAM ID issued automatically at registration"). No email/OTP
+// verification or OAuth — out of scope for this phase.
+app.post('/auth/register', async (req: Request, res: Response) => {
+  const parsed = registerUserSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: {
+        message: 'Invalid registration payload',
+        status: 400,
+        details: parsed.error.flatten(),
+      },
+    });
+  }
+
+  const { password, ...profile } = parsed.data;
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 10);
+    const now = new Date();
+    const userId = randomUUID();
+
+    const { bfamId } = await allocateBfamId(async (bfamId, transaction) => {
+      await sequelize.getQueryInterface().bulkInsert(
+        'users',
+        [
+          {
+            user_id: userId,
+            phone_number: profile.phone_number,
+            email: profile.email ?? null,
+            password_hash: passwordHash,
+            role: profile.role,
+            account_status: 'ACTIVE',
+            phone_verified_at: null,
+            profile_photo_url: null,
+            city: profile.city ?? null,
+            preferred_language: profile.preferred_language ?? 'en',
+            bfam_id: bfamId,
+            google_id: null,
+            apple_id: null,
+            is_minor: profile.is_minor ?? false,
+            last_login_at: null,
+            created_at: now,
+            updated_at: now,
+            deleted_at: null,
+          },
+        ],
+        { transaction },
+      );
+      return userId;
+    });
+
+    const token = issueJwt({ userId, role: profile.role, bfamId });
+    return res.status(201).json({ token, user_id: userId, bfam_id: bfamId });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Registration failed';
+    return res.status(409).json({ error: { message, status: 409 } });
+  }
+});
+
 app.post('/auth/dev-token', (req: Request, res: Response) => {
   const role = req.body?.role as UserRole;
   if (!USER_ROLES.includes(role)) {
@@ -69,8 +139,14 @@ app.get(
   },
 );
 
-app.post('/payments/razorpay/webhook', (req: Request, res: Response) => {
-  return res.status(202).json(acknowledgeRazorpayWebhook(req.body));
+app.post('/payments/razorpay/webhook', async (req: Request, res: Response) => {
+  try {
+    const persisted = await persistRazorpayWebhookEvent(req.body);
+    return res.status(202).json({ ...acknowledgeRazorpayWebhook(req.body), ...persisted });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid webhook payload';
+    return res.status(400).json({ error: { message, status: 400 } });
+  }
 });
 
 app.post('/push/expo-token', authenticateJwt, (req: Request, res: Response) => {

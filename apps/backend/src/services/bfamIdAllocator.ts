@@ -1,11 +1,6 @@
 import { QueryTypes, Transaction } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 
-export interface BfamIdStore {
-  getCurrentNumber(): Promise<number | null>;
-  persistAllocatedId(nextNumber: number): Promise<void>;
-}
-
 export const BFAM_ID_START = 1000;
 const LOCK_NAME = 'bfam_id_allocator';
 
@@ -13,29 +8,22 @@ export function formatBfamId(number: number) {
   return `BF${number}`;
 }
 
-export async function allocateBfamIdFromStore(store: BfamIdStore) {
-  const current = await store.getCurrentNumber();
-  const next = current == null ? BFAM_ID_START : current + 1;
-  await store.persistAllocatedId(next);
-  return formatBfamId(next);
-}
-
-export class AtomicBfamIdAllocator {
-  private chain = Promise.resolve();
-
-  constructor(private readonly store: BfamIdStore) {}
-
-  allocate() {
-    const nextAllocation = this.chain.then(() => allocateBfamIdFromStore(this.store));
-    this.chain = nextAllocation.then(
-      () => undefined,
-      () => undefined,
-    );
-    return nextAllocation;
-  }
-}
-
-export async function allocateBfamId() {
+/**
+ * Atomically allocates the next BFAM ID and, while still holding the MySQL
+ * named lock, invokes `insertRow` so the caller can insert the row that
+ * consumes the ID (typically the new `users` row) inside the same
+ * transaction. The lock is only released in the `finally` block AFTER that
+ * transaction has committed (or rolled back), so no concurrent caller can
+ * ever compute the same MAX(bfam_id) and allocate a duplicate ID.
+ *
+ * This replaces the previous implementation, which released the lock before
+ * any caller had a chance to persist the allocated ID — leaving a window in
+ * which two concurrent registrations could both compute the same next
+ * number.
+ */
+export async function allocateBfamId<T>(
+  insertRow: (bfamId: string, transaction: Transaction) => Promise<T>,
+): Promise<{ bfamId: string; result: T }> {
   const [{ locked }]: Array<{ locked: number }> = await sequelize.query(
     'SELECT GET_LOCK(:lockName, 10) AS locked',
     {
@@ -56,7 +44,11 @@ export async function allocateBfamId() {
       );
       const current = rows[0]?.max_id == null ? null : Number(rows[0].max_id);
       const next = current == null ? BFAM_ID_START : current + 1;
-      return formatBfamId(next);
+      const bfamId = formatBfamId(next);
+
+      const result = await insertRow(bfamId, transaction);
+
+      return { bfamId, result };
     });
   } finally {
     await sequelize.query('SELECT RELEASE_LOCK(:lockName)', {

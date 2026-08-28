@@ -62,11 +62,11 @@ const boxShadow = {
 
 module.exports = {
   theme: {
-    colors,
-    spacing,
-    borderRadius,
-    boxShadow,
     extend: {
+      colors,
+      spacing,
+      borderRadius,
+      boxShadow,
       fontFamily: {
         display: ['Anton', 'Archivo Black', 'Impact', 'sans-serif'],
         ui: ['Inter', '-apple-system', 'SF Pro Display', 'Roboto', 'sans-serif'],
