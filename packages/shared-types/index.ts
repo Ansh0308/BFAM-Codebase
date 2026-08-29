@@ -1,6 +1,45 @@
-export type UserRole = 'PLAYER' | 'OWNER' | 'STAFF' | 'ADMIN';
+// Fixed to match apps/backend/src/domain/constants.ts USER_ROLES exactly.
+// Was previously 'PLAYER' | 'OWNER' | 'STAFF' | 'ADMIN' — stale/wrong values
+// that never matched the DB's `role` ENUM or the backend's zod schemas.
+export type UserRole = 'PLAYER' | 'TURF_OWNER' | 'TURF_STAFF' | 'ADMIN';
 
-export type AccountStatus = 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
+// Roles a user may self-select during signup/social-signup (excludes ADMIN,
+// which is never a self-service signup role).
+export type SelfServiceUserRole = Exclude<UserRole, 'ADMIN'>;
+
+export type AccountStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED';
+
+export type OtpPurpose = 'SIGNUP' | 'LOGIN' | 'RESET_PASSWORD';
+
+export type SocialProvider = 'google' | 'apple';
+
+// Response shape for POST /auth/google and /auth/apple when the verified
+// social identity does not yet map to an existing BFAM user — the client
+// must collect a phone number + role and call /auth/social/complete with
+// this ticket before an account is created.
+export interface SocialTicketResponse {
+  social_ticket: string;
+  email?: string | null;
+  name?: string | null;
+}
+
+// Common shape for a successful login (password, OTP, or existing-user
+// social auth) — always issued via the same issueJwt() call server-side so
+// downstream role/permission logic never branches by login method.
+export interface AuthSuccessResponse {
+  token: string;
+  user_id: string;
+  // Only set for PLAYER accounts (PRD §12.59, updated) — null for
+  // TURF_OWNER/TURF_STAFF/ADMIN.
+  bfam_id: string | null;
+  role: UserRole;
+}
+
+export interface Cricketer {
+  name: string;
+  external_id: string;
+  photo_url: string | null;
+}
 
 export interface User {
   user_id: string;
@@ -8,7 +47,9 @@ export interface User {
   email?: string;
   role: UserRole;
   account_status: AccountStatus;
-  bfam_id: string;
+  // Only set for PLAYER accounts (PRD §12.59, updated) — null for
+  // TURF_OWNER/TURF_STAFF/ADMIN.
+  bfam_id: string | null;
   google_id?: string;
   apple_id?: string;
   is_minor: boolean;

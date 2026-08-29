@@ -39,6 +39,9 @@ jest.mock('../config/sequelize', () => {
           const max = numbers.length ? Math.max(...numbers) : null;
           return [{ max_id: max === null ? null : String(max) }];
         }
+        if (sql.includes('SELECT reservation_id FROM reserved_bfam_ids')) {
+          return [];
+        }
         throw new Error(`Unexpected query in test fake: ${sql}`);
       },
       transaction: async (fn: (transaction: unknown) => Promise<unknown>) => fn({}),

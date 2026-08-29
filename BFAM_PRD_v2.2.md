@@ -1270,13 +1270,15 @@ Helps players physically get to the turf.
 
 Gives every player a unique, permanent, India-wide public identity — distinct from any internal account ID — similar in spirit to a jersey number.
 
-- Issued automatically at registration, sequential starting from BF1000 (e.g., BF1000, BF1001, BF1002)
+- Issued automatically at registration to PLAYER accounts only — TURF_OWNER, TURF_STAFF, and ADMIN accounts never receive a BFAM ID
 
-- Immutable once assigned
+- Sequential starting from BF1000 (e.g., BF1000, BF1001, BF1002)
+
+- Immutable once assigned to a player through the normal registration flow
 
 - Displayed on Player Profile, Live Score, Scorecard, Statistics, and Rankings/Leaderboards
 
-- Premium BFAM IDs (e.g., BF7, BF18, BF45, BF99) are reserved for a future marketplace, which is explicitly out of scope for now — no marketplace is designed at this stage
+- **Updated 2026-08-28 (supersedes the note below):** an admin can LOCK a specific premium BFAM ID (e.g. BF7, BF18, BF45, BF99) so the sequential allocator skips it, then manually ASSIGN it to a specific existing player — overriding that player's previously auto-allocated ID. This is a deliberate, admin-initiated exception to "immutable once assigned," not something a player can trigger themselves. See `reserved_bfam_ids` in BFAM_dbData_v2_compact.md and `apps/backend/src/services/adminBfamIdService.ts`. ~~Premium BFAM IDs (e.g., BF7, BF18, BF45, BF99) are reserved for a future marketplace, which is explicitly out of scope for now — no marketplace is designed at this stage~~ — no self-service marketplace (players buying/trading premium IDs) is in scope yet; only the admin-lock/assign mechanism above is built.
 
 #### **12.60 Favorite Cricketer**
 
@@ -1290,7 +1292,7 @@ Lets a player personalize their profile during onboarding without BFAM building 
 
 - BFAM stores only the selected player's name and an external reference ID
 
-- Optional and skippable during registration
+- **Updated 2026-08-28 (supersedes the line below):** mandatory for PLAYER signup, not skippable — a player must select a favorite cricketer to complete registration. ~~Optional and skippable during registration~~
 
 #### **12.61 Cinematic Match Countdown Intro**
 

@@ -7,7 +7,9 @@ export type UserRole = (typeof USER_ROLES)[number];
 export interface AuthTokenPayload {
   sub: string;
   role: UserRole;
-  bfam_id: string;
+  // Only PLAYER accounts have one (PRD §12.59, updated) — TURF_OWNER/
+  // TURF_STAFF/ADMIN carry bfam_id: null.
+  bfam_id: string | null;
   scopes: string[];
 }
 
@@ -26,11 +28,11 @@ export const ROLE_SCOPES: Record<UserRole, string[]> = {
 
 const defaultSecret = 'bfam-phase1-local-secret';
 
-export function issueJwt(input: { userId?: string; role: UserRole; bfamId?: string }) {
+export function issueJwt(input: { userId?: string; role: UserRole; bfamId?: string | null }) {
   const payload: AuthTokenPayload = {
     sub: input.userId ?? randomUUID(),
     role: input.role,
-    bfam_id: input.bfamId ?? 'BF1000',
+    bfam_id: input.bfamId ?? null,
     scopes: ROLE_SCOPES[input.role],
   };
 

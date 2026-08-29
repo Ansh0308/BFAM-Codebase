@@ -39,6 +39,7 @@ import {
   TEAM_STATUSES,
   TURF_STATUSES,
   USER_ROLES,
+  RESERVATION_STATUSES,
   WICKET_TYPES,
   NOTIFICATION_TYPES,
 } from '../domain/constants';
@@ -108,7 +109,8 @@ export const tableModelDefinitions: TableModelDefinition[] = [
       profile_photo_url: str(500, true),
       city: str(100, true),
       preferred_language: str(10, true),
-      bfam_id: str(15),
+      // Nullable — only PLAYER accounts get a BFAM ID (PRD §12.59, updated).
+      bfam_id: str(15, true),
       google_id: str(255, true),
       apple_id: str(255, true),
       is_minor: bool(false, false),
@@ -632,6 +634,22 @@ export const tableModelDefinitions: TableModelDefinition[] = [
       resolved_at: date(true),
     },
   },
+  {
+    tableName: 'reserved_bfam_ids',
+    primaryKey: 'reservation_id',
+    attributes: {
+      reservation_id: id(true),
+      bfam_id: str(15),
+      status: enumCol(RESERVATION_STATUSES, false, 'LOCKED'),
+      locked_by: id(),
+      locked_at: date(),
+      notes: str(255, true),
+      assigned_to_user_id: id(false, true),
+      assigned_at: date(true),
+      created_at: date(),
+      updated_at: date(),
+    },
+  },
 ];
 
 // ---- associations ----
@@ -957,6 +975,20 @@ const associationDefinitions: AssociationDefinition[] = [
     to: 'users',
     as: 'assignedToUser',
     hasManyAs: 'assignedSupportTickets',
+  },
+  {
+    from: 'reserved_bfam_ids',
+    fk: 'locked_by',
+    to: 'users',
+    as: 'lockedByUser',
+    hasManyAs: 'lockedBfamIds',
+  },
+  {
+    from: 'reserved_bfam_ids',
+    fk: 'assigned_to_user_id',
+    to: 'users',
+    as: 'assignedToUser',
+    hasManyAs: 'assignedBfamIdReservations',
   },
 ];
 

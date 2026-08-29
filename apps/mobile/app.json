@@ -5,9 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "scheme": "bfam",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bfam.mobile"
+      "bundleIdentifier": "com.bfam.mobile",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.bfam.mobile"
@@ -19,7 +21,10 @@
           "organization": "bfam-sports",
           "project": "bfam-mobile"
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-router",
+      "expo-apple-authentication"
     ]
   }
 }

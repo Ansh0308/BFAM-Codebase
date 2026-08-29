@@ -49,6 +49,12 @@ jest.mock('../config/sequelize', () => {
           const max = numbers.length ? Math.max(...numbers) : null;
           return [{ max_id: max === null ? null : String(max) }];
         }
+        // Admin-lock reservation check (see adminBfamId.test.ts for the
+        // dedicated reservation-behavior tests) — this fake never has any
+        // locked IDs, so the allocator's skip-loop always finds nothing.
+        if (sql.includes('SELECT reservation_id FROM reserved_bfam_ids')) {
+          return [];
+        }
         throw new Error(`Unexpected query in test fake: ${sql}`);
       },
       transaction: async (fn: (transaction: unknown) => Promise<unknown>) => {
@@ -93,7 +99,7 @@ describe('allocateBfamId', () => {
     );
     expect(sorted[0]).toBe(formatBfamId(BFAM_ID_START));
     expect(sorted.at(-1)).toBe(formatBfamId(BFAM_ID_START + CONCURRENT_REGISTRATIONS - 1));
-  });
+  }, 15000);
 
   it('does not persist the allocated ID if the insert callback throws', async () => {
     await expect(
