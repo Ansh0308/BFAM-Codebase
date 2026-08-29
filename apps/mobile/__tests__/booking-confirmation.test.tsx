@@ -1,15 +1,27 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { BookingConfirmationScreen } from '../BookingConfirmationScreen';
-import { apiClient } from '../../../lib/apiClient';
+import { apiClient } from '../src/lib/apiClient';
 
-jest.mock('../../../lib/apiClient', () => ({
+jest.mock('../src/lib/apiClient', () => ({
   apiClient: { getBookingDetails: jest.fn() },
+}));
+
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+  useLocalSearchParams: () => ({ bookingId: 'b1' }),
 }));
 
 const mockGetBookingDetails = apiClient.getBookingDetails as jest.Mock;
 
-describe('BookingConfirmationScreen (module 2.3)', () => {
+import BookingConfirmation from '../app/(tabs)/discover/booking/[bookingId]/confirmation';
+
+describe('BookingConfirmation screen (module 2.3)', () => {
+  beforeEach(() => {
+    mockGetBookingDetails.mockReset();
+    mockPush.mockReset();
+  });
+
   it('hands off to the payment stub only — never marks the booking confirmed itself', async () => {
     mockGetBookingDetails.mockResolvedValueOnce({
       booking_id: 'b1',
@@ -20,19 +32,11 @@ describe('BookingConfirmationScreen (module 2.3)', () => {
       booking_status: 'PENDING',
     });
 
-    const navigation = { navigate: jest.fn() };
-    const route = {
-      key: 'BookingConfirmation',
-      name: 'BookingConfirmation' as const,
-      params: { bookingId: 'b1' },
-    };
-    const { getByTestId } = render(
-      <BookingConfirmationScreen navigation={navigation as never} route={route as never} />,
-    );
+    const { getByTestId } = render(<BookingConfirmation />);
 
     await waitFor(() => expect(getByTestId('proceed-to-payment-button')).toBeTruthy());
     fireEvent.press(getByTestId('proceed-to-payment-button'));
 
-    expect(navigation.navigate).toHaveBeenCalledWith('PaymentStub', { bookingId: 'b1' });
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/discover/booking/b1/payment');
   });
 });

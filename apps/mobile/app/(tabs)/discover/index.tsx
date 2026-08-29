@@ -1,17 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, ScrollView, Text, TextInput, View } from 'react-native';
-import type { StackScreenProps } from '@react-navigation/stack';
+import { useRouter } from 'expo-router';
 import type { TurfListItem } from '@bfam/shared-types';
-import { apiClient } from '../../lib/apiClient';
-import { colors } from '../../theme/tokens';
-import { TurfCard } from '../../components/TurfCard';
-import type { DiscoverStackParamList } from '../../navigation/types';
-
-type Props = StackScreenProps<DiscoverStackParamList, 'TurfListing'>;
+import { apiClient } from '../../../src/lib/apiClient';
+import { colors } from '../../../src/theme/tokens';
+import { TurfCard } from '../../../src/components/TurfCard';
+import { ScreenContainer } from '../../../src/components/ScreenContainer';
 
 // Turf Listing: search/filter only (PRD §12.7). Map view is explicitly
 // deferred for this module.
-export function TurfListingScreen({ navigation }: Props) {
+export default function TurfListing() {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<TurfListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,11 +33,13 @@ export function TurfListingScreen({ navigation }: Props) {
     fetchTurfs('');
   }, [fetchTurfs]);
 
-  const openDetails = (turfId: string) => navigation.navigate('TurfDetails', { turfId });
+  const openDetails = (turfId: string) => router.push(`/(tabs)/discover/turf/${turfId}`);
 
   return (
-    <View className="flex-1 bg-surface-alt px-6 pt-6">
-      <Text className="font-display text-title-xl text-ink-black uppercase mb-4">Discover</Text>
+    <ScreenContainer>
+      <Text className="font-display text-title-xl text-ink-black uppercase mt-6 mb-4">
+        Discover
+      </Text>
 
       <TextInput
         value={query}
@@ -96,6 +97,6 @@ export function TurfListingScreen({ navigation }: Props) {
           />
         </>
       )}
-    </View>
+    </ScreenContainer>
   );
 }

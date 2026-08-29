@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
-import type { StackScreenProps } from '@react-navigation/stack';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { TurfDetails } from '@bfam/shared-types';
-import { apiClient } from '../../lib/apiClient';
-import { colors } from '../../theme/tokens';
-import type { DiscoverStackParamList } from '../../navigation/types';
-
-type Props = StackScreenProps<DiscoverStackParamList, 'TurfDetails'>;
+import { apiClient } from '../../../../../src/lib/apiClient';
+import { colors } from '../../../../../src/theme/tokens';
 
 // Turf Details: full-bleed hero + facilities icon row + availability slot
 // grid preview, following Design §3.3's pattern exactly.
-export function TurfDetailsScreen({ route, navigation }: Props) {
-  const { turfId } = route.params;
+export default function TurfDetailsScreen() {
+  const { turfId } = useLocalSearchParams<{ turfId: string }>();
+  const router = useRouter();
   const [details, setDetails] = useState<TurfDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,19 +36,22 @@ export function TurfDetailsScreen({ route, navigation }: Props) {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-surface items-center justify-center">
+      <SafeAreaView className="flex-1 bg-surface items-center justify-center" edges={['bottom']}>
         <ActivityIndicator size="large" color={colors.brandRed} testID="turf-details-loading" />
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (error || !details) {
     return (
-      <View className="flex-1 bg-surface items-center justify-center px-6">
+      <SafeAreaView
+        className="flex-1 bg-surface items-center justify-center px-6"
+        edges={['bottom']}
+      >
         <Text className="text-text-secondary text-body text-center">
           {error ?? 'Turf not found.'}
         </Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -142,7 +144,10 @@ export function TurfDetailsScreen({ route, navigation }: Props) {
 
           <Pressable
             onPress={() =>
-              navigation.navigate('TurfAvailability', { turfId, turfName: details.turf_name })
+              router.push({
+                pathname: '/(tabs)/discover/turf/[turfId]/availability',
+                params: { turfId, turfName: details.turf_name },
+              })
             }
             className="mt-3 bg-surface border border-border-strong rounded-md py-3 items-center"
             testID="view-full-availability-button"
@@ -155,7 +160,10 @@ export function TurfDetailsScreen({ route, navigation }: Props) {
 
         <Pressable
           onPress={() =>
-            navigation.navigate('TurfAvailability', { turfId, turfName: details.turf_name })
+            router.push({
+              pathname: '/(tabs)/discover/turf/[turfId]/availability',
+              params: { turfId, turfName: details.turf_name },
+            })
           }
           className="bg-brand-red rounded-md py-4 items-center mb-8"
           testID="book-this-turf-button"

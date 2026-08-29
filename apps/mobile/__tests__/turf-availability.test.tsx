@@ -1,28 +1,23 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { TurfAvailabilityScreen } from '../TurfAvailabilityScreen';
-import { apiClient } from '../../../lib/apiClient';
+import { apiClient } from '../src/lib/apiClient';
 import { BFAMApiError } from '@bfam/api-client';
 
-jest.mock('../../../lib/apiClient', () => ({
+jest.mock('../src/lib/apiClient', () => ({
   apiClient: { getTurfAvailability: jest.fn(), createBooking: jest.fn() },
+}));
+
+const mockReplace = jest.fn();
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ replace: mockReplace }),
+  useLocalSearchParams: () => ({ turfId: 't1', turfName: 'Green Park Box Cricket' }),
+  useNavigation: () => ({ setOptions: jest.fn() }),
 }));
 
 const mockGetAvailability = apiClient.getTurfAvailability as jest.Mock;
 const mockCreateBooking = apiClient.createBooking as jest.Mock;
 
-function renderScreen() {
-  const navigation = { navigate: jest.fn(), replace: jest.fn() };
-  const route = {
-    key: 'TurfAvailability',
-    name: 'TurfAvailability' as const,
-    params: { turfId: 't1', turfName: 'Green Park Box Cricket', date: '2026-09-10' },
-  };
-  return {
-    ...render(<TurfAvailabilityScreen navigation={navigation as never} route={route as never} />),
-    navigation,
-  };
-}
+import TurfAvailability from '../app/(tabs)/discover/turf/[turfId]/availability';
 
 const SAMPLE_AVAILABILITY = {
   turf_id: 't1',
@@ -44,15 +39,16 @@ const SAMPLE_AVAILABILITY = {
   ],
 };
 
-describe('TurfAvailabilityScreen (module 2.3)', () => {
+describe('TurfAvailability screen (module 2.3)', () => {
   beforeEach(() => {
     mockGetAvailability.mockReset();
     mockCreateBooking.mockReset();
+    mockReplace.mockReset();
   });
 
   it('visually distinguishes AVAILABLE from BOOKED slots and disables the booked one', async () => {
     mockGetAvailability.mockResolvedValueOnce(SAMPLE_AVAILABILITY);
-    const { getByTestId } = renderScreen();
+    const { getByTestId } = render(<TurfAvailability />);
 
     await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
     const availableSlot = getByTestId('slot-18:00:00');
@@ -64,7 +60,7 @@ describe('TurfAvailabilityScreen (module 2.3)', () => {
 
   it('opens the booking confirmation modal only for an available slot', async () => {
     mockGetAvailability.mockResolvedValueOnce(SAMPLE_AVAILABILITY);
-    const { getByTestId, queryByTestId } = renderScreen();
+    const { getByTestId, queryByTestId } = render(<TurfAvailability />);
 
     await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
     fireEvent.press(getByTestId('slot-18:00:00'));
@@ -76,14 +72,14 @@ describe('TurfAvailabilityScreen (module 2.3)', () => {
     mockGetAvailability.mockResolvedValueOnce(SAMPLE_AVAILABILITY);
     mockCreateBooking.mockResolvedValueOnce({ booking_id: 'b1' });
 
-    const { getByTestId, navigation } = renderScreen();
+    const { getByTestId } = render(<TurfAvailability />);
     await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
     fireEvent.press(getByTestId('slot-18:00:00'));
     await waitFor(() => expect(getByTestId('confirm-booking-button')).toBeTruthy());
     fireEvent.press(getByTestId('confirm-booking-button'));
 
     await waitFor(() =>
-      expect(navigation.replace).toHaveBeenCalledWith('BookingConfirmation', { bookingId: 'b1' }),
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/discover/booking/b1/confirmation'),
     );
   });
 
@@ -93,7 +89,7 @@ describe('TurfAvailabilityScreen (module 2.3)', () => {
       new BFAMApiError('This slot is no longer available. Please choose another time.', 409),
     );
 
-    const { getByTestId } = renderScreen();
+    const { getByTestId } = render(<TurfAvailability />);
     await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
     fireEvent.press(getByTestId('slot-18:00:00'));
     await waitFor(() => expect(getByTestId('confirm-booking-button')).toBeTruthy());

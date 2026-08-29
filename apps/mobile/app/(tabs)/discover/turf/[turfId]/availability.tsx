@@ -8,15 +8,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import type { StackScreenProps } from '@react-navigation/stack';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { AvailabilitySlot, TurfAvailability } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
-import { apiClient } from '../../lib/apiClient';
-import { colors } from '../../theme/tokens';
-import { SlotRow } from '../../components/SlotRow';
-import type { DiscoverStackParamList } from '../../navigation/types';
-
-type Props = StackScreenProps<DiscoverStackParamList, 'TurfAvailability'>;
+import { apiClient } from '../../../../../src/lib/apiClient';
+import { colors } from '../../../../../src/theme/tokens';
+import { SlotRow } from '../../../../../src/components/SlotRow';
 
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -36,10 +34,12 @@ const PAYMENT_MODES = ['UPI', 'GATEWAY', 'CASH', 'CAPTAIN_PAYS', 'SPLIT_PAYMENT'
 // Turf Availability: calendar/slot grid, visually distinguishing available
 // vs. booked slots (Design §1.2/§1.3 — booked = disabled gray surface,
 // available = brand-red text/dot, never green).
-export function TurfAvailabilityScreen({ route, navigation }: Props) {
-  const { turfId, turfName, date: initialDate } = route.params;
+export default function TurfAvailabilityScreen() {
+  const { turfId, turfName } = useLocalSearchParams<{ turfId: string; turfName?: string }>();
+  const router = useRouter();
+  const navigation = useNavigation();
   const dates = useMemo(() => nextSevenDays(), []);
-  const [selectedDate, setSelectedDate] = useState(initialDate ?? dates[0]);
+  const [selectedDate, setSelectedDate] = useState(dates[0]);
   const [availability, setAvailability] = useState<TurfAvailability | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +47,10 @@ export function TurfAvailabilityScreen({ route, navigation }: Props) {
   const [paymentMode, setPaymentMode] = useState<(typeof PAYMENT_MODES)[number]>('UPI');
   const [booking, setBooking] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (turfName) navigation.setOptions({ title: turfName });
+  }, [navigation, turfName]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,7 +94,7 @@ export function TurfAvailabilityScreen({ route, navigation }: Props) {
         payment_mode: paymentMode,
       });
       setPendingSlot(null);
-      navigation.replace('BookingConfirmation', { bookingId: created.booking_id });
+      router.replace(`/(tabs)/discover/booking/${created.booking_id}/confirmation`);
     } catch (err) {
       if (err instanceof BFAMApiError && err.status === 409) {
         // PRD §15: no-double-booking — surface the backend's clean message
@@ -108,14 +112,7 @@ export function TurfAvailabilityScreen({ route, navigation }: Props) {
   };
 
   return (
-    <View className="flex-1 bg-surface-alt">
-      <View className="px-6 pt-6 pb-2">
-        <Text className="font-display text-title-xl text-ink-black uppercase" numberOfLines={1}>
-          {turfName}
-        </Text>
-        <Text className="text-text-secondary text-body mt-1">Select a slot to book</Text>
-      </View>
-
+    <SafeAreaView className="flex-1 bg-surface-alt" edges={['bottom']}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-6 py-3">
         {dates.map((d) => {
           const isSelected = d === selectedDate;
@@ -241,6 +238,6 @@ export function TurfAvailabilityScreen({ route, navigation }: Props) {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
