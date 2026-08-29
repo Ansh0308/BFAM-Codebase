@@ -388,3 +388,41 @@ export const tableSchemas = {
     request_id: uuid.nullable().optional(),
   }),
 };
+
+// ---- API request-shape schemas (module 2.3: Turf Discovery & Booking) ----
+// These validate what a caller may send, not a table's full column set —
+// same pattern as registerUserSchema above.
+
+export const turfListQuerySchema = z.object({
+  city: z.string().max(100).optional(),
+  q: z.string().max(150).optional(),
+  ball_type: z.enum(BALL_TYPES).optional(),
+  min_price: z.coerce.number().nonnegative().optional(),
+  max_price: z.coerce.number().nonnegative().optional(),
+  // Drives "Near You" distance sorting only — map view is explicitly
+  // deferred (PRD §12.7 / module 2.3 scope note).
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  page_size: z.coerce.number().int().min(1).max(50).optional(),
+});
+
+export const turfAvailabilityQuerySchema = z.object({
+  date: dateOnly,
+});
+
+export const createBookingSchema = z.object({
+  turf_id: uuid,
+  booking_date: dateOnly,
+  start_time: timeOnly,
+  duration_minutes: z.number().int().min(30).max(480),
+  payment_mode: z.enum(PAYMENT_MODES),
+});
+
+export const cancelBookingSchema = z.object({
+  cancellation_reason: z.string().max(255).optional(),
+});
+
+export const listMyBookingsQuerySchema = z.object({
+  scope: z.enum(['upcoming', 'past', 'all']).optional(),
+});

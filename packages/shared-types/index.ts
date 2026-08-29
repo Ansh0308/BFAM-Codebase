@@ -103,10 +103,113 @@ export interface Turf {
   ball_types_supported: string[];
   stadium_sound_enabled: boolean;
   turf_status: string;
-  averagerating?: number;
+  // Matches the actual DB/model column name (average_rating) — the previous
+  // `averagerating` field name here didn't match the schema.
+  average_rating?: number | null;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string;
+}
+
+// ---- Module 2.3: Turf Discovery & Booking ----
+
+export interface TurfListItem {
+  turf_id: string;
+  turf_name: string;
+  city: string;
+  address_line: string;
+  ball_types_supported: string[];
+  average_rating: number | null;
+  cover_image_url: string | null;
+  min_price_per_hour: number | null;
+  distance_km: number | null;
+}
+
+export interface TurfListResponse {
+  page: number;
+  page_size: number;
+  results: TurfListItem[];
+}
+
+export interface TurfImage {
+  image_id: string;
+  image_url: string;
+  display_order: number;
+}
+
+export interface TurfFacility {
+  facility_id: string;
+  facility_name: string;
+}
+
+export interface TurfOperatingHours {
+  hours_id: string;
+  day_of_week: number;
+  open_time: string;
+  close_time: string;
+}
+
+export interface TurfPricingRule {
+  pricing_id: string;
+  day_type: 'WEEKDAY' | 'WEEKEND' | 'HOLIDAY';
+  start_time: string;
+  end_time: string;
+  price_per_hour: string;
+  currency: string;
+}
+
+export type SlotStatus = 'AVAILABLE' | 'BOOKED' | 'BLOCKED';
+
+export interface AvailabilitySlot {
+  start_time: string;
+  end_time: string;
+  status: SlotStatus;
+  price_per_hour: number | null;
+}
+
+export interface TurfAvailability {
+  turf_id: string;
+  date: string;
+  day_type: 'WEEKDAY' | 'WEEKEND';
+  slots: AvailabilitySlot[];
+}
+
+export interface TurfDetails extends Turf {
+  images: TurfImage[];
+  facilities: TurfFacility[];
+  operating_hours: TurfOperatingHours[];
+  pricing: TurfPricingRule[];
+  availability_preview: { date: string; slots: AvailabilitySlot[] } | null;
+}
+
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+
+export interface Booking {
+  booking_id: string;
+  turf_id: string;
+  booked_by: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number;
+  booking_amount: number | string;
+  booking_status: BookingStatus;
+  payment_mode: string;
+  cancellation_reason?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
   created_at: string;
   updated_at: string;
-  deleted_at?: string;
+  turf_name?: string;
+  city?: string;
+}
+
+export interface CreateBookingInput {
+  turf_id: string;
+  booking_date: string;
+  start_time: string;
+  duration_minutes: number;
+  payment_mode: string;
 }
 
 export interface MatchIntro {

@@ -15,6 +15,8 @@ import {
   persistRazorpayWebhookEvent,
 } from './services/razorpayService';
 import { registerExpoPushToken } from './services/pushNotificationService';
+import turfsRouter from './routes/turfs';
+import bookingsRouter from './routes/bookings';
 
 // Initialize Sentry before anything else
 initSentry();
@@ -158,6 +160,10 @@ app.post('/push/expo-token', authenticateJwt, (req: Request, res: Response) => {
     return res.status(400).json({ error: { message, status: 400 } });
   }
 });
+
+// Module 2.3 — Turf Discovery & Booking (PRD §12.7, §15).
+app.use('/turfs', turfsRouter);
+app.use('/bookings', bookingsRouter);
 
 // Sentry Error Handler setup for v8
 if (process.env.SENTRY_DSN) {

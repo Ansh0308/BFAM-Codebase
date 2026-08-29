@@ -6,6 +6,7 @@ import { Anton_400Regular } from '@expo-google-fonts/anton';
 import { ArchivoBlack_400Regular } from '@expo-google-fonts/archivo-black';
 import { Inter_500Medium, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
+import { RootNavigator } from './src/navigation/RootNavigator';
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 if (SENTRY_DSN) {
@@ -35,6 +36,7 @@ function App() {
   return (
     <View style={styles.container}>
       <StatusBar style="auto" />
+      <RootNavigator />
     </View>
   );
 }
