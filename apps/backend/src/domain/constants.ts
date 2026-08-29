@@ -90,3 +90,5 @@ export const SUPPORT_CATEGORIES = [
   'OTHER',
 ] as const;
 export const SUPPORT_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const;
+
+export const RESERVATION_STATUSES = ['LOCKED', 'ASSIGNED'] as const;

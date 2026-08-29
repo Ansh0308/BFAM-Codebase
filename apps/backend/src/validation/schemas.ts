@@ -84,6 +84,65 @@ export const registerUserSchema = z.object({
   city: z.string().max(100).nullable().optional(),
   preferred_language: z.string().max(10).nullable().optional(),
   is_minor: z.boolean().optional(),
+  // Optional signup ticket (from POST /auth/otp/verify, purpose=SIGNUP).
+  // When present and valid, marks phone_verified_at on insert.
+  signup_token: z.string().optional(),
+  // Optional Favorite Cricketer Search selection (PLAYER role only) —
+  // persisted onto the `players` row created alongside `users`.
+  favorite_cricketer_name: z.string().max(100).nullable().optional(),
+  favorite_cricketer_external_id: z.string().max(50).nullable().optional(),
+});
+
+// --- Module 2.1 auth/onboarding schemas ---
+
+export const OTP_PURPOSES = ['SIGNUP', 'LOGIN', 'RESET_PASSWORD'] as const;
+
+export const otpSendSchema = z.object({
+  identifier: z.string().min(3).max(255),
+  purpose: z.enum(OTP_PURPOSES),
+});
+
+export const otpVerifySchema = z.object({
+  identifier: z.string().min(3).max(255),
+  otp: z.string().length(6),
+  purpose: z.enum(OTP_PURPOSES),
+});
+
+export const loginSchema = z.object({
+  identifier: z.string().min(3).max(255),
+  password: z.string().min(1).max(72),
+});
+
+export const forgotPasswordSchema = z.object({
+  identifier: z.string().min(3).max(255),
+});
+
+export const resetPasswordSchema = z.object({
+  reset_token: z.string().min(1),
+  new_password: z.string().min(8).max(72),
+});
+
+export const googleAuthSchema = z.object({
+  id_token: z.string().min(1),
+});
+
+export const appleAuthSchema = z.object({
+  identity_token: z.string().min(1),
+  // Apple only supplies a display name once, natively, on first sign-in —
+  // the client passes it through here if it has it (never present on
+  // subsequent sign-ins).
+  name: z.string().max(150).nullable().optional(),
+});
+
+// Self-service signup roles only — ADMIN is never a self-service signup.
+export const SELF_SERVICE_ROLES = USER_ROLES.filter((role) => role !== 'ADMIN');
+
+export const socialCompleteSchema = z.object({
+  social_ticket: z.string().min(1),
+  phone_number: z.string().min(7).max(15),
+  role: z.enum(SELF_SERVICE_ROLES as [string, ...string[]]),
+  favorite_cricketer_name: z.string().max(100).nullable().optional(),
+  favorite_cricketer_external_id: z.string().max(50).nullable().optional(),
 });
 
 export const playerSchema = z.object({
@@ -425,4 +484,19 @@ export const cancelBookingSchema = z.object({
 
 export const listMyBookingsQuerySchema = z.object({
   scope: z.enum(['upcoming', 'past', 'all']).optional(),
+});
+
+// ---- Module 2.1: BFAM ID player-only + admin reservation schemas ----
+
+const bfamIdFormat = z
+  .string()
+  .regex(/^BF\d+$/, 'BFAM ID must match the format BF<digits>, e.g. BF7');
+
+export const lockBfamIdSchema = z.object({
+  bfam_id: bfamIdFormat,
+  notes: z.string().max(255).nullable().optional(),
+});
+
+export const assignBfamIdSchema = z.object({
+  user_id: uuid,
 });

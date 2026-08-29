@@ -43,7 +43,21 @@ export async function allocateBfamId<T>(
         { type: QueryTypes.SELECT, transaction },
       );
       const current = rows[0]?.max_id == null ? null : Number(rows[0].max_id);
-      const next = current == null ? BFAM_ID_START : current + 1;
+      let next = current == null ? BFAM_ID_START : current + 1;
+
+      // Skip any number an admin has LOCKED for manual/premium assignment
+      // (see reserved_bfam_ids — admin-lock feature, PRD §12.59 updated).
+      // Bounded by a sane retry count so a pathological run of consecutive
+      // locked IDs can't loop forever.
+      for (let attempts = 0; attempts < 10_000; attempts++) {
+        const [locked] = await sequelize.query<{ reservation_id: string }>(
+          "SELECT reservation_id FROM reserved_bfam_ids WHERE bfam_id = :bfamId AND status = 'LOCKED'",
+          { type: QueryTypes.SELECT, transaction, replacements: { bfamId: formatBfamId(next) } },
+        );
+        if (!locked) break;
+        next++;
+      }
+
       const bfamId = formatBfamId(next);
 
       const result = await insertRow(bfamId, transaction);

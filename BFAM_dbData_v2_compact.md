@@ -60,6 +60,27 @@ _Purpose: Separates cricket attributes (playing role, skill rating, reliability)
 | updated_at | TIMES<br>TAMP | Yes | 2026-08-<br>20T10:20<br>:00Z | Last<br>modification<br>timestamp<br>(UTC)  | Must<br>reference an<br>existing — | System | Referential<br>integrity<br>enforced by FK<br>constraint; see<br>Section 16. |
 | deleted_at | TIMES<br>TAMP | No  | NULL                         | Soft-delete<br>marker<br>(NULL =<br>active) | Must<br>reference an<br>existing — | System | Referential<br>integrity<br>enforced by FK<br>constraint; see<br>Section 16. |
 
+### **Update — 2026-08-28: BFAM ID player-only + reservation system**
+
+Two changes to the BFAM ID system, both requested by the product owner and reflected in `apps/backend/src/migrations/20260828120000-bfam-id-player-only-and-reservations.ts` (superseding the "premium IDs... out of scope for now" line in PRD §12.59 — see the updated §12.59 in `BFAM_PRD_v2.2.md`):
+
+1. **`users.bfam_id` is now nullable.** It was previously Required ("Yes") for every row regardless of role. BFAM IDs are only ever issued to `PLAYER` accounts — `TURF_OWNER`/`TURF_STAFF`/`ADMIN` rows always carry `bfam_id: NULL`. `players.bfam_id` is unaffected (still Required — every `players` row belongs to a user who, by definition, has one).
+
+2. **New table `reserved_bfam_ids — MVP`** — lets an admin lock a specific BFAM ID (e.g. a premium/jersey number like `BF7`, `BF18`) out of the normal sequential allocator, then later manually assign it to a specific existing player, overriding that player's previously auto-allocated ID (a deliberate, admin-initiated exception to "immutable once assigned" — not something a player can trigger).
+
+| Column              | Type         | PK  | FK            | Req | Example                | Description                                                           |
+| ------------------- | ------------ | --- | ------------- | --- | ---------------------- | --------------------------------------------------------------------- |
+| reservation_id      | UUID(36)     | YES |               | Yes | 7c1a...                | Unique reservation identifier                                         |
+| bfam_id             | VARCHAR(15)  |     |               | Yes | BF7                    | The locked/reserved BFAM ID (unique)                                  |
+| status              | ENUM         |     |               | Yes | LOCKED                 | `LOCKED` (skipped by the allocator) or `ASSIGNED` (given to a player) |
+| locked_by           | UUID(36)     |     | users.user_id | Yes | 3fae...                | Admin who locked this ID                                              |
+| locked_at           | TIMESTAMP    |     |               | Yes | 2026-08-28T12:00:00Z   | When it was locked                                                    |
+| notes               | VARCHAR(255) |     |               | No  | Reserved for a sponsor | Free-text admin note                                                  |
+| assigned_to_user_id | UUID(36)     |     | users.user_id | No  | 8b2e...                | Player it was manually assigned to (NULL until assigned)              |
+| assigned_at         | TIMESTAMP    |     |               | No  | 2026-08-29T09:00:00Z   | When it was assigned                                                  |
+| created_at          | TIMESTAMP    |     |               | Yes | 2026-08-28T12:00:00Z   | Row creation timestamp (UTC)                                          |
+| updated_at          | TIMESTAMP    |     |               | Yes | 2026-08-28T12:00:00Z   | Last modification timestamp (UTC)                                     |
+
 ### **teams — MVP**
 
 A persistent group of players that can be booked, matched, and tracked as a unit. _Purpose: Lets players organize recurring groups rather than re-forming a side for every single match, and gives Captains a stable object to_ _<u>manage.</u>_

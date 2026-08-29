@@ -1,27 +1,23 @@
-// Standard Expo + npm-workspaces monorepo recipe (see
-// https://docs.expo.dev/guides/monorepos/) — the minimal official version.
-// An earlier attempt also set resolver.nodeModulesPaths and
-// disableHierarchicalLookup, which appeared to cause Metro to stall
-// indefinitely while resolving the symlinked @bfam/* workspace packages
-// (a resolution loop between apps/mobile/node_modules and the monorepo
-// root's node_modules). watchFolders alone is sufficient for Metro to see
-// packages/* through the npm workspace symlinks.
+/* global __dirname */
 const { getDefaultConfig } = require('expo/metro-config');
+const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
 
-// process.cwd() rather than __dirname — this repo's eslint config doesn't
-// list __dirname as a known global, and expo start always runs from this
-// directory anyway.
-const projectRoot = process.cwd();
+const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
+// Standard Expo + npm-workspaces monorepo recipe (see
+// https://docs.expo.dev/guides/monorepos/): only watch what apps/mobile
+// actually imports across the workspace boundary (packages/*), not the
+// whole monorepo root — that would also pull apps/backend and apps/web's
+// own (much larger, irrelevant) node_modules into Metro's file crawl.
 config.watchFolders = [path.resolve(monorepoRoot, 'packages')];
 // This sandboxed environment appears to kill Metro's parallel jest-worker
 // transform processes (SIGTERM, exitCode=143), likely a process/resource
 // limit — forcing a single in-band worker avoids spawning the pool that
-// gets killed.
+// gets killed. Harmless (just slower) on a normal machine.
 config.maxWorkers = 1;
 
-module.exports = config;
+module.exports = withNativeWind(config, { input: './global.css' });

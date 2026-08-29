@@ -1,17 +1,13 @@
 module.exports = function (api) {
-  const isTest = api.env('test');
-  api.cache.using(() => isTest);
+  api.cache(true);
   return {
-    presets: ['babel-preset-expo'],
-    // Under Jest, NativeWind v2's babel plugin either crashes during
-    // compile-time style extraction ("Use process(css).then(cb) to work
-    // with async plugins", a known NativeWind v2 issue) or, in
-    // `transformOnly` mode, resolves styles at runtime on every render,
-    // which is slow enough with this module's nested card/list components
-    // to blow past Jest's test timeout. Component tests only need to
-    // assert behavior, not verify computed styles, so skip the plugin
-    // entirely under test — `className` becomes an inert, unused prop
-    // (no error) and Metro (the real app bundle) is unaffected.
-    plugins: isTest ? [] : ['nativewind/babel'],
+    // nativewind v4 replaces the old `nativewind/babel` plugin (which did
+    // synchronous PostCSS style extraction at Babel-transform time — the
+    // approach that made nativewind v2 fundamentally incompatible with any
+    // real tailwindcss v3, whose plugin main function is unconditionally
+    // async) with a Metro-level CSS transform (see metro.config.js's
+    // withNativeWind) plus this jsxImportSource, which just annotates JSX
+    // so react-native-css-interop can resolve className props at runtime.
+    presets: [['babel-preset-expo', { jsxImportSource: 'nativewind' }]],
   };
 };

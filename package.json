@@ -17,7 +17,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "type-check": "npm run type-check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "prepare": "husky"
+    "prepare": "husky",
+    "postinstall": "node scripts/fix-ajv-keywords.js && npm run build --workspace=packages/shared-types --workspace=packages/api-client --if-present"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
