@@ -8,12 +8,14 @@ import {
   BATTING_STYLES,
   BLOCK_REASONS,
   BOOKING_STATUSES,
+  BOWLING_ARMS,
   DAY_TYPES,
   DELIVERY_CHANNELS,
   DELIVERY_STATUSES,
   DUE_STATUSES,
   EXPERIENCE_LEVELS,
   EXTRA_TYPES,
+  GENDERS,
   INNINGS_STATUSES,
   INVITATION_STATUSES,
   MATCH_STATUSES,
@@ -459,4 +461,43 @@ export const lockBfamIdSchema = z.object({
 
 export const assignBfamIdSchema = z.object({
   user_id: uuid,
+});
+
+// PATCH /profile/me — `users` fields apply to every role; the player-only
+// fields are silently ignored server-side for non-PLAYER accounts (see
+// services/profileService.ts) rather than rejected, since a client sending
+// a full form payload shouldn't need to know the caller's role.
+export const updateProfileSchema = z.object({
+  // A real photo URL (S3) OR a `preset:<id>` sentinel selecting one of the
+  // bundled icon avatars (see mobile's AvatarPresets.ts) — no separate
+  // column exists for "which preset" so it's encoded into the same
+  // VARCHAR(500) column rather than inventing a new one.
+  profile_photo_url: z.string().max(500).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  preferred_language: z.string().max(10).nullable().optional(),
+  // Required in Profile Setup for future analytics (product decision,
+  // 2026-08-30) — enforced client-side (see profile-setup.tsx); the API
+  // itself still accepts null so partial saves elsewhere don't break.
+  date_of_birth: dateOnly.nullable().optional(),
+  // Required in Profile Setup, same reasoning/pattern as date_of_birth
+  // above (product decision, 2026-08-30).
+  gender: z.enum(GENDERS).nullable().optional(),
+  playing_role: z.enum(PLAYING_ROLES).nullable().optional(),
+  batting_style: z.enum(BATTING_STYLES).nullable().optional(),
+  bowling_style: z.enum(BOWLING_ARMS).nullable().optional(),
+  experience_level: z.enum(EXPERIENCE_LEVELS).optional(),
+});
+
+// POST /profile/email/send-otp and /verify-otp — optional post-signup
+// secondary contact (PRD update — no longer collected at signup), but must
+// be proven via OTP before it's saved (product decision, 2026-08-30). Not
+// part of updateProfileSchema above — that path never accepts an
+// unverified email.
+export const sendEmailOtpSchema = z.object({
+  email: z.string().email().max(255),
+});
+
+export const verifyEmailOtpSchema = z.object({
+  email: z.string().email().max(255),
+  otp: z.string().length(6),
 });

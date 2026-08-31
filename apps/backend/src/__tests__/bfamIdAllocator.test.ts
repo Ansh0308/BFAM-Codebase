@@ -31,7 +31,7 @@ function releaseLock(): void {
 jest.mock('../config/sequelize', () => {
   return {
     sequelize: {
-      query: async (sql: string, _options: unknown) => {
+      query: async (sql: string, options: { replacements?: Record<string, unknown> } = {}) => {
         // Random micro-delay to emulate real network/IO latency and increase
         // the odds of exposing a race if the lock were held incorrectly.
         await new Promise((resolve) => setTimeout(resolve, Math.floor(Math.random() * 3)));
@@ -48,6 +48,10 @@ jest.mock('../config/sequelize', () => {
           const numbers = usersTable.map((u) => Number(u.bfam_id.replace('BF', '')));
           const max = numbers.length ? Math.max(...numbers) : null;
           return [{ max_id: max === null ? null : String(max) }];
+        }
+        if (sql.startsWith('SELECT user_id FROM users WHERE bfam_id')) {
+          const taken = usersTable.some((u) => u.bfam_id === options.replacements?.bfamId);
+          return taken ? [{ user_id: 'fake' }] : [];
         }
         // Admin-lock reservation check (see adminBfamId.test.ts for the
         // dedicated reservation-behavior tests) — this fake never has any
@@ -114,5 +118,48 @@ describe('allocateBfamId', () => {
       return bfamId;
     });
     expect(next.bfamId).toBe(formatBfamId(BFAM_ID_START));
+  });
+
+  it('prefers a BFAM ID ending in the given jersey number over sequential allocation', async () => {
+    const { bfamId } = await allocateBfamId(async (bfamId) => {
+      usersTable.push({ bfam_id: bfamId });
+      return bfamId;
+    }, '18');
+
+    expect(bfamId).toBe('BF1018');
+  });
+
+  it('tries the next jersey-ending candidate if the first is already taken', async () => {
+    usersTable.push({ bfam_id: 'BF1018' });
+
+    const { bfamId } = await allocateBfamId(async (bfamId) => {
+      usersTable.push({ bfam_id: bfamId });
+      return bfamId;
+    }, '18');
+
+    expect(bfamId).toBe('BF1118');
+  });
+
+  it('falls back to plain sequential allocation when no jersey number is given', async () => {
+    const { bfamId } = await allocateBfamId(async (bfamId) => {
+      usersTable.push({ bfam_id: bfamId });
+      return bfamId;
+    }, null);
+
+    expect(bfamId).toBe(formatBfamId(BFAM_ID_START));
+  });
+
+  it('a jersey-ending allocation moves the sequential counter forward to match (accepted tradeoff, not a bug)', async () => {
+    const jerseyAllocation = await allocateBfamId(async (bfamId) => {
+      usersTable.push({ bfam_id: bfamId });
+      return bfamId;
+    }, '18');
+    expect(jerseyAllocation.bfamId).toBe('BF1018');
+
+    const sequentialAllocation = await allocateBfamId(async (bfamId) => {
+      usersTable.push({ bfam_id: bfamId });
+      return bfamId;
+    });
+    expect(sequentialAllocation.bfamId).toBe('BF1019');
   });
 });

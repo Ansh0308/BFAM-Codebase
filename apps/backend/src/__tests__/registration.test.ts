@@ -25,7 +25,7 @@ function releaseLock(): void {
 jest.mock('../config/sequelize', () => {
   return {
     sequelize: {
-      query: async (sql: string) => {
+      query: async (sql: string, options: { replacements?: Record<string, unknown> } = {}) => {
         if (sql.includes('GET_LOCK')) {
           await acquireLock();
           return [{ locked: 1 }];
@@ -38,6 +38,10 @@ jest.mock('../config/sequelize', () => {
           const numbers = usersTable.map((u) => Number(String(u.bfam_id).replace('BF', '')));
           const max = numbers.length ? Math.max(...numbers) : null;
           return [{ max_id: max === null ? null : String(max) }];
+        }
+        if (sql.startsWith('SELECT user_id FROM users WHERE bfam_id')) {
+          const found = usersTable.find((u) => u.bfam_id === options.replacements?.bfamId);
+          return found ? [found] : [];
         }
         if (sql.includes('SELECT reservation_id FROM reserved_bfam_ids')) {
           return [];
@@ -84,6 +88,19 @@ describe('POST /auth/register', () => {
     expect(response.body.bfam_id).toMatch(/^BF\d+$/);
     expect(usersTable).toHaveLength(1);
     expect(usersTable[0].password_hash).not.toBe('SuperSecret123');
+  });
+
+  it("assigns a BFAM ID ending in the favorite cricketer's jersey number when known", async () => {
+    const response = await request(app).post('/auth/register').send({
+      phone_number: '+919876543299',
+      password: 'SuperSecret123',
+      role: 'PLAYER',
+      favorite_cricketer_name: 'Virat Kohli',
+      favorite_cricketer_external_id: 'fixture-virat-kohli',
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.bfam_id).toBe('BF1018');
   });
 
   it('rejects an invalid payload before touching the allocator', async () => {

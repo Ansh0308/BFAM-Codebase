@@ -8,6 +8,8 @@ import {
   SocialTicketResponse,
   AuthSuccessResponse,
   Cricketer,
+  MyProfile,
+  UpdateProfilePayload,
 } from '@bfam/shared-types';
 
 export interface SendOtpResponse {
@@ -84,7 +86,13 @@ export class BFAMApiClient {
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => '');
-      throw new Error(`BFAM API error: ${response.status} ${response.statusText}. ${errorBody}`);
+      const error = new Error(
+        `BFAM API error: ${response.status} ${response.statusText}. ${errorBody}`,
+      ) as Error & {
+        status?: number;
+      };
+      error.status = response.status;
+      throw error;
     }
 
     if (response.status === 204) {
@@ -180,6 +188,83 @@ export class BFAMApiClient {
 
   async searchCricketers(query: string): Promise<Cricketer[]> {
     return this.request<Cricketer[]>(`/cricketers/search?q=${encodeURIComponent(query)}`);
+  }
+
+  // --- Module 2.2 Player Profile ---
+
+  async getMyProfile(): Promise<MyProfile> {
+    return this.request<MyProfile>('/profile/me');
+  }
+
+  async updateMyProfile(payload: UpdateProfilePayload): Promise<MyProfile> {
+    return this.request<MyProfile>('/profile/me', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // Uploads a picked photo (as a React Native file-uri blob) to S3 and
+  // returns the hosted URL. Throws (with a `status` on the error) if the
+  // server has no photo storage configured (501) — callers should catch
+  // that specifically and fall back gracefully rather than surfacing a
+  // generic failure.
+  async uploadProfilePhoto(
+    fileUri: string,
+    mimeType: string,
+  ): Promise<{ profile_photo_url: string }> {
+    const headers = new Headers();
+    if (this.token) {
+      headers.set('Authorization', `Bearer ${this.token}`);
+    }
+
+    const extension = mimeType.split('/')[1] ?? 'jpg';
+    const formData = new FormData();
+    // React Native's fetch/FormData accepts this {uri, name, type} shape for
+    // a file field — it is not a real Blob/File, but RN's networking layer
+    // knows how to stream it from the given uri.
+    formData.append('photo', {
+      uri: fileUri,
+      name: `photo.${extension}`,
+      type: mimeType,
+    } as unknown as Blob);
+
+    const response = await fetch(`${this.baseUrl}/profile/photo`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
+      const error = new Error(
+        `BFAM API error: ${response.status} ${response.statusText}. ${errorBody}`,
+      ) as Error & {
+        status?: number;
+      };
+      error.status = response.status;
+      throw error;
+    }
+
+    return response.json() as Promise<{ profile_photo_url: string }>;
+  }
+
+  // Sends a 6-digit verification code to the given email — it is NOT saved
+  // to the profile until verifyEmailOtp succeeds.
+  async sendEmailOtp(
+    email: string,
+  ): Promise<{ message: string; dev_otp?: string; dev_email_error?: string }> {
+    return this.request('/profile/email/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  // Verifies the code and, only then, persists the email onto the profile.
+  async verifyEmailOtp(email: string, otp: string): Promise<MyProfile> {
+    return this.request<MyProfile>('/profile/email/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    });
   }
 }
 

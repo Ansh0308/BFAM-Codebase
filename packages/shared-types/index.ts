@@ -35,6 +35,47 @@ export interface AuthSuccessResponse {
   role: UserRole;
 }
 
+// GET/PATCH /profile/me (Module 2.2 — Player Profile / Profile Setup).
+// Player-only fields are null for TURF_OWNER/TURF_STAFF/ADMIN accounts.
+export interface MyProfile {
+  user_id: string;
+  bfam_id: string | null;
+  role: UserRole;
+  phone_number: string;
+  email: string | null;
+  // Set only once the email has been proven via OTP (POST
+  // /profile/email/verify-otp) — NULL for an unverified/no email.
+  email_verified_at: string | null;
+  profile_photo_url: string | null;
+  city: string | null;
+  preferred_language: string | null;
+  playing_role: string | null;
+  batting_style: string | null;
+  bowling_style: string | null;
+  experience_level: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  skill_rating: number | null;
+  reliability_score: string | null;
+  favorite_cricketer_name: string | null;
+  favorite_cricketer_external_id: string | null;
+}
+
+// `email` is deliberately not part of this payload — it can only be set via
+// the verified-email flow (sendEmailOtp / verifyEmailOtp below), never a
+// plain PATCH, so an unverified email can never reach a profile.
+export interface UpdateProfilePayload {
+  profile_photo_url?: string | null;
+  city?: string | null;
+  preferred_language?: string | null;
+  playing_role?: string | null;
+  batting_style?: string | null;
+  bowling_style?: string | null;
+  experience_level?: string;
+  date_of_birth?: string | null;
+  gender?: string | null;
+}
+
 export interface Cricketer {
   name: string;
   external_id: string;

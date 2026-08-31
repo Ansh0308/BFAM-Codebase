@@ -81,6 +81,38 @@ Two changes to the BFAM ID system, both requested by the product owner and refle
 | created_at          | TIMESTAMP    |     |               | Yes | 2026-08-28T12:00:00Z   | Row creation timestamp (UTC)                                          |
 | updated_at          | TIMESTAMP    |     |               | Yes | 2026-08-28T12:00:00Z   | Last modification timestamp (UTC)                                     |
 
+### **Update — 2026-08-30: OTP storage, cricketer registry, and player date_of_birth**
+
+Three changes, all requested/confirmed by the product owner:
+
+1. **New table `otp_codes — MVP`** — moves OTP state out of an in-memory Map (production-unsafe: wiped on restart, doesn't work across multiple server instances) into MySQL. See `apps/backend/src/migrations/20260829090000-otp-codes-table.ts`.
+
+| Column      | Type         | PK  | FK  | Req | Example              | Description                                              |
+| ----------- | ------------ | --- | --- | --- | -------------------- | -------------------------------------------------------- |
+| otp_id      | UUID(36)     | YES |     | Yes | 9c1a...              | Unique OTP record identifier                             |
+| identifier  | VARCHAR(255) |     |     | Yes | +919876543210        | Phone/email the code was sent to (normalized lowercase)  |
+| purpose     | ENUM         |     |     | Yes | SIGNUP               | `SIGNUP` \| `LOGIN` \| `RESET_PASSWORD`                  |
+| code_hash   | VARCHAR(255) |     |     | Yes | $2b$10$...           | bcrypt hash of the 6-digit code — never stored plaintext |
+| expires_at  | TIMESTAMP    |     |     | Yes | 2026-08-29T13:40:26Z | 5 minutes after generation                               |
+| consumed_at | TIMESTAMP    |     |     | No  | NULL                 | Set on successful verify (single-use enforcement)        |
+| created_at  | TIMESTAMP    |     |     | Yes | 2026-08-29T13:35:26Z | Row creation timestamp (UTC)                             |
+
+2. **New table `cricketers — MVP`** — replaces the pure-API-proxy Favorite Cricketer search with a local reference table seeded from Cricsheet's openly-licensed player registry (Open Data Commons Attribution License, cricsheet.org/register/ — attribution shown in-app on the Favorite Cricketer screen). ~18,500 players, real "all-time" coverage no live cricket API offers on a free tier. See `apps/backend/src/migrations/20260830100000-cricketers-table.ts` and `apps/backend/src/seed/cricketersSeed.ts`. `jersey_number` is a small, honestly-curated subset (no comprehensive open jersey-number database exists) that powers the BFAM ID allocator's "try to end in the favorite cricketer's jersey number" step — intended to be expanded over time, kept as a directly-editable column for exactly that reason rather than a hardcoded list in code.
+
+| Column        | Type         | PK  | FK  | Req | Example              | Description                                                                                                           |
+| ------------- | ------------ | --- | --- | --- | -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| cricketer_id  | UUID(36)     | YES |     | Yes | 5a52...              | Unique row identifier                                                                                                 |
+| source        | VARCHAR(20)  |     |     | Yes | cricsheet            | Data source this row came from                                                                                        |
+| source_id     | VARCHAR(50)  |     |     | Yes | ba607b88             | The source's own identifier for this player                                                                           |
+| external_id   | VARCHAR(60)  |     |     | Yes | cricsheet-ba607b88   | Stable ID persisted on `players.favorite_cricketer_external_id`                                                       |
+| name          | VARCHAR(255) |     |     | Yes | V Kohli              | Raw name as provided by the source                                                                                    |
+| display_name  | VARCHAR(255) |     |     | Yes | Virat Kohli          | Search/display name — overridden for curated entries with a friendlier full name than the source's abbreviated format |
+| jersey_number | VARCHAR(5)   |     |     | No  | 18                   | Curated, partial coverage only — see note above                                                                       |
+| created_at    | TIMESTAMP    |     |     | Yes | 2026-08-30T18:39:07Z | Row creation timestamp (UTC)                                                                                          |
+| updated_at    | TIMESTAMP    |     |     | Yes | 2026-08-30T18:39:07Z | Last modification timestamp (UTC)                                                                                     |
+
+3. **`players.date_of_birth` is now collected** (required in the Profile Setup UI, product decision for future analytics — not age-gating). The column already existed in the schema but was never surfaced to a write path until now; no migration needed.
+
 ### **teams — MVP**
 
 A persistent group of players that can be booked, matched, and tracked as a unit. _Purpose: Lets players organize recurring groups rather than re-forming a side for every single match, and gives Captains a stable object to_ _<u>manage.</u>_

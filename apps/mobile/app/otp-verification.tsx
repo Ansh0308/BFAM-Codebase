@@ -107,7 +107,7 @@ export default function OtpVerification() {
           bfam_id: auth.bfam_id,
           role: auth.role,
         });
-        router.replace('/session-active');
+        router.replace('/(tabs)/home');
         return;
       }
 

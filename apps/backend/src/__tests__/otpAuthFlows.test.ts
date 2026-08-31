@@ -18,8 +18,19 @@ interface FakeUserRow {
   last_login_at: Date | null;
 }
 
+interface FakeOtpRow {
+  otp_id: string;
+  identifier: string;
+  purpose: string;
+  code_hash: string;
+  expires_at: Date;
+  consumed_at: Date | null;
+  created_at: Date;
+}
+
 let usersTable: FakeUserRow[] = [];
 let playersTable: Array<Record<string, unknown>> = [];
+let otpCodesTable: FakeOtpRow[] = [];
 let lockHeld = false;
 const lockWaiters: Array<() => void> = [];
 
@@ -62,6 +73,10 @@ jest.mock('../config/sequelize', () => {
         if (sql.includes('SELECT reservation_id FROM reserved_bfam_ids')) {
           return [];
         }
+        if (sql.startsWith('SELECT user_id FROM users WHERE bfam_id')) {
+          const found = usersTable.find((u) => u.bfam_id === replacements.bfamId);
+          return found ? [found] : [];
+        }
         if (sql.includes('SELECT') && sql.includes('WHERE (phone_number')) {
           const identifier = replacements.identifier as string;
           const found = usersTable.find(
@@ -85,6 +100,49 @@ jest.mock('../config/sequelize', () => {
         if (sql.includes('UPDATE users SET password_hash')) {
           const user = usersTable.find((u) => u.user_id === replacements.userId);
           if (user) user.password_hash = replacements.passwordHash as string;
+          return [{}];
+        }
+        if (sql.startsWith('DELETE FROM otp_codes WHERE identifier')) {
+          otpCodesTable = otpCodesTable.filter(
+            (row) =>
+              !(
+                row.identifier === replacements.identifier &&
+                row.purpose === replacements.purpose &&
+                row.consumed_at === null
+              ),
+          );
+          return [{}];
+        }
+        if (sql.startsWith('DELETE FROM otp_codes')) {
+          otpCodesTable = [];
+          return [{}];
+        }
+        if (sql.startsWith('INSERT INTO otp_codes')) {
+          otpCodesTable.push({
+            otp_id: replacements.otpId as string,
+            identifier: replacements.identifier as string,
+            purpose: replacements.purpose as string,
+            code_hash: replacements.codeHash as string,
+            expires_at: replacements.expiresAt as Date,
+            consumed_at: null,
+            created_at: replacements.now as Date,
+          });
+          return [{}];
+        }
+        if (sql.includes('SELECT otp_id, code_hash, expires_at FROM otp_codes')) {
+          const matches = otpCodesTable
+            .filter(
+              (row) =>
+                row.identifier === replacements.identifier &&
+                row.purpose === replacements.purpose &&
+                row.consumed_at === null,
+            )
+            .sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+          return matches.length ? [matches[0]] : [];
+        }
+        if (sql.startsWith('UPDATE otp_codes SET consumed_at')) {
+          const row = otpCodesTable.find((r) => r.otp_id === replacements.otpId);
+          if (row) row.consumed_at = replacements.now as Date;
           return [{}];
         }
         throw new Error(`Unexpected query in test fake: ${sql}`);
@@ -114,12 +172,13 @@ import app from '../app';
 import { _clearOtpStoreForTests } from '../services/otpService';
 
 describe('OTP-based signup / login / forgot-password flows', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     usersTable = [];
     playersTable = [];
+    otpCodesTable = [];
     lockHeld = false;
     lockWaiters.length = 0;
-    _clearOtpStoreForTests();
+    await _clearOtpStoreForTests();
   });
 
   it('completes SIGNUP: send -> verify -> register with a phone_verified_at set and a players row', async () => {

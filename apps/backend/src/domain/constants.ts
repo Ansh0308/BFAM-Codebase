@@ -3,7 +3,9 @@ export const ACCOUNT_STATUSES = ['ACTIVE', 'SUSPENDED', 'DELETED'] as const;
 
 export const PLAYING_ROLES = ['BATTER', 'BOWLER', 'ALL_ROUNDER', 'WICKET_KEEPER'] as const;
 export const BATTING_STYLES = ['RIGHT_HANDED', 'LEFT_HANDED'] as const;
+export const BOWLING_ARMS = ['LEFT_ARM', 'RIGHT_ARM'] as const;
 export const EXPERIENCE_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as const;
+export const GENDERS = ['MALE', 'FEMALE', 'OTHER'] as const;
 
 export const TEAM_SKILL_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'MIXED'] as const;
 export const TEAM_STATUSES = ['ACTIVE', 'INACTIVE', 'ARCHIVED'] as const;

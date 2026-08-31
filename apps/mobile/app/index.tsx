@@ -32,7 +32,7 @@ export default function Splash() {
     async function decideRoute() {
       if (token) {
         // Already signed in — skip onboarding/login entirely.
-        router.replace('/session-active');
+        router.replace('/(tabs)/home');
         return;
       }
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotiView } from 'moti';
 
 interface AuthScreenBackgroundProps {
   children: React.ReactNode;
@@ -41,7 +42,14 @@ export function AuthScreenBackground({ children, scroll = false }: AuthScreenBac
       />
 
       <Wrapper className="flex-1 px-5" contentContainerStyle={scroll ? { flexGrow: 1 } : undefined}>
-        {children}
+        <MotiView
+          from={{ opacity: 0, translateY: 12 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 320 }}
+          style={{ flex: scroll ? undefined : 1 }}
+        >
+          {children}
+        </MotiView>
       </Wrapper>
     </SafeAreaView>
   );

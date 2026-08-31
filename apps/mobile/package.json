@@ -21,13 +21,13 @@
     "@expo-google-fonts/archivo-black": "^0.2.3",
     "@expo-google-fonts/inter": "^0.2.3",
     "@expo/metro-runtime": "~3.2.3",
+    "@expo/vector-icons": "^14.0.0",
     "@react-navigation/bottom-tabs": "^6.5.0",
     "@react-navigation/native": "^6.1.0",
     "@react-navigation/stack": "^6.3.0",
     "@sentry/react-native": "^5.25.0",
     "axios": "^1.7.0",
     "date-fns": "^3.0.0",
-    "@expo/vector-icons": "^14.0.0",
     "expo": "~51.0.28",
     "expo-apple-authentication": "~6.4.2",
     "expo-auth-session": "~5.5.2",
@@ -35,12 +35,14 @@
     "expo-camera": "^14.0.0",
     "expo-crypto": "~13.0.2",
     "expo-font": "~12.0.9",
+    "expo-image-picker": "~15.0.7",
     "expo-location": "^17.0.0",
     "expo-notifications": "^0.28.0",
     "expo-router": "^3.0.0",
     "expo-secure-store": "~13.0.2",
     "expo-status-bar": "~1.12.1",
     "expo-web-browser": "~13.0.3",
+    "moti": "^0.30.0",
     "nativewind": "^4.2.6",
     "react": "18.2.0",
     "react-hook-form": "^7.51.0",
@@ -71,12 +73,5 @@
     "prettier": "^3.3.3",
     "tailwindcss": "^3.3.2",
     "typescript": "^5.3.3"
-  },
-  "jest": {
-    "preset": "jest-expo",
-    "moduleNameMapper": {
-      "^@bfam/api-client$": "<rootDir>/../../packages/api-client/index.ts",
-      "^@bfam/shared-types$": "<rootDir>/../../packages/shared-types/index.ts"
-    }
   }
 }

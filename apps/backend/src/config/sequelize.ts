@@ -3,6 +3,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// A hardcoded default password would be a real vulnerability if someone
+// forgot to set DB_PASSWORD in production — same reasoning as JWT_SECRET's
+// fail-fast check in app.ts.
+if (process.env.NODE_ENV === 'production' && !process.env.DB_PASSWORD) {
+  throw new Error('DB_PASSWORD must be set in production');
+}
+
 const dbHost = process.env.DB_HOST || '127.0.0.1';
 const dbPort = parseInt(process.env.DB_PORT || '3306', 10);
 const dbName = process.env.DB_NAME || 'bfam_dev';

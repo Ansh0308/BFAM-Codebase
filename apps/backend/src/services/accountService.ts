@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { Transaction } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { allocateBfamId } from './bfamIdAllocator';
+import { lookupJerseyNumber } from './cricketerSearchService';
 import { UserRole } from './authService';
 
 export interface CreateAccountInput {
@@ -63,6 +64,11 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
     return { userId, bfamId: null };
   }
 
+  // Try to land a BFAM ID ending in the player's favorite cricketer's
+  // jersey number first (product request, 2026-08-30) — see
+  // bfamIdAllocator.ts for the full algorithm and its fallback behavior.
+  const jerseyNumberSuffix = await lookupJerseyNumber(input.favoriteCricketerExternalId);
+
   const { bfamId } = await allocateBfamId(async (bfamId, transaction: Transaction) => {
     await sequelize
       .getQueryInterface()
@@ -94,7 +100,7 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
     );
 
     return userId;
-  });
+  }, jerseyNumberSuffix);
 
   return { userId, bfamId };
 }
