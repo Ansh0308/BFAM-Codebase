@@ -40,12 +40,20 @@ import {
   AdminBfamIdError,
 } from './services/adminBfamIdService';
 import {
-  acknowledgeRazorpayWebhook,
   persistRazorpayWebhookEvent,
+  verifyRazorpayWebhookSignature,
 } from './services/razorpayService';
+import { confirmGatewayPayment } from './services/paymentService';
+import {
+  GatewayNotConfiguredError,
+  InvalidWebhookSignatureError,
+  PaymentNotFoundError,
+} from './domain/errors';
 import { registerExpoPushToken } from './services/pushNotificationService';
 import turfsRouter from './routes/turfs';
 import bookingsRouter from './routes/bookings';
+import paymentsRouter from './routes/payments';
+import teamsRouter from './routes/teams';
 
 interface UserRow {
   user_id: string;
@@ -94,7 +102,17 @@ const app = express();
 
 // Standard middlewares
 app.use(cors());
-app.use(express.json());
+// `verify` stashes the raw request bytes on req.rawBody alongside the
+// parsed req.body — the Razorpay webhook handler needs the exact raw bytes
+// to verify the HMAC signature (re-serializing req.body would not
+// necessarily byte-match what Razorpay actually signed).
+app.use(
+  express.json({
+    verify: (req: Request, _res: Response, buf: Buffer) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 
 // Sentry request handler (if DSN was configured, Sentry will capture HTTP requests)
 // In newer Sentry Node SDK (v8+), Sentry.setupExpressErrorHandler(app) is typically used.
@@ -704,11 +722,62 @@ app.get(
   },
 );
 
+// Module 2.4 — Razorpay webhook: verifies the signature, drives the
+// payment_status state machine (PENDING -> SUCCESS/FAILED), allocates a
+// SUCCESS payment across the obligations named in the order's `notes`
+// (set at order-creation time — see services/paymentService.ts), and
+// appends the raw event to payment_events for reconciliation regardless.
 app.post('/payments/razorpay/webhook', async (req: Request, res: Response) => {
   try {
-    const persisted = await persistRazorpayWebhookEvent(req.body);
-    return res.status(202).json({ ...acknowledgeRazorpayWebhook(req.body), ...persisted });
+    verifyRazorpayWebhookSignature(
+      req.rawBody ?? Buffer.from(JSON.stringify(req.body)),
+      req.headers['x-razorpay-signature'] as string | undefined,
+    );
   } catch (error) {
+    if (error instanceof GatewayNotConfiguredError) {
+      return res.status(503).json({ error: { message: error.message, status: 503 } });
+    }
+    if (error instanceof InvalidWebhookSignatureError) {
+      return res.status(400).json({ error: { message: error.message, status: 400 } });
+    }
+    throw error;
+  }
+
+  const event = req.body?.event;
+  const paymentEntity = req.body?.payload?.payment?.entity;
+
+  if (typeof event !== 'string' || !paymentEntity?.order_id || !paymentEntity?.id) {
+    return res.status(400).json({ error: { message: 'Malformed webhook payload', status: 400 } });
+  }
+
+  try {
+    let internalPaymentId: string | undefined;
+
+    if (event === 'payment.captured' || event === 'payment.failed') {
+      const notes = (paymentEntity.notes ?? {}) as Record<string, string>;
+      const obligationIds: string[] = notes.obligation_ids ? JSON.parse(notes.obligation_ids) : [];
+      const updated = await confirmGatewayPayment(
+        paymentEntity.order_id,
+        paymentEntity.id,
+        event,
+        obligationIds,
+      );
+      internalPaymentId = updated?.payment_id;
+    }
+
+    const persisted = await persistRazorpayWebhookEvent({
+      ...req.body,
+      event,
+      payment_id: internalPaymentId ?? paymentEntity.id,
+    });
+    return res.status(202).json({ received: true, ...persisted });
+  } catch (error) {
+    if (error instanceof PaymentNotFoundError) {
+      // An order we don't recognize — acknowledge anyway so Razorpay stops
+      // retrying. Can legitimately happen for events from a shared test
+      // account that aren't for a BFAM-created order.
+      return res.status(202).json({ received: true, ignored: true });
+    }
     const message = error instanceof Error ? error.message : 'Invalid webhook payload';
     return res.status(400).json({ error: { message, status: 400 } });
   }
@@ -727,6 +796,10 @@ app.post('/push/expo-token', authenticateJwt, (req: Request, res: Response) => {
 // Module 2.3 — Turf Discovery & Booking (PRD §12.7, §15).
 app.use('/turfs', turfsRouter);
 app.use('/bookings', bookingsRouter);
+// Module 2.4 — Payments (PRD §17, §12.16).
+app.use('/payments', paymentsRouter);
+// Module 2.5 — Teams (PRD §12.3, §12.4).
+app.use('/teams', teamsRouter);
 
 // Sentry Error Handler setup for v8
 if (process.env.SENTRY_DSN) {

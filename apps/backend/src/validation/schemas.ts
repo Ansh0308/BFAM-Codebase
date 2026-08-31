@@ -500,3 +500,55 @@ export const lockBfamIdSchema = z.object({
 export const assignBfamIdSchema = z.object({
   user_id: uuid,
 });
+
+// ---- Module 2.4: Payments ----
+
+export const createObligationsSchema = z.object({
+  shares: z
+    .array(
+      z.object({
+        player_id: uuid.nullable(),
+        amount: z.number().positive(),
+      }),
+    )
+    .min(1)
+    .optional(),
+});
+
+export const initiateGatewayPaymentSchema = z.object({
+  obligation_ids: z.array(uuid).min(1),
+  payment_method: z.enum(['UPI', 'RAZORPAY']),
+});
+
+export const cashPaymentSchema = z.object({
+  obligation_ids: z.array(uuid).min(1),
+  cash_reference: z.string().max(100).optional(),
+});
+
+// ---- Module 2.5: Teams ----
+
+export const createTeamSchema = z.object({
+  team_name: z.string().min(2).max(100),
+  team_logo_url: z.string().url().max(500).nullable().optional(),
+  description: z.string().nullable().optional(),
+  skill_level: z.enum(TEAM_SKILL_LEVELS).nullable().optional(),
+  home_city: z.string().max(100).nullable().optional(),
+  is_open_for_players: z.boolean().optional(),
+});
+
+export const inviteToTeamSchema = z.object({
+  player_id: uuid,
+});
+
+export const respondToInvitationSchema = z.object({
+  accept: z.boolean(),
+});
+
+export const changeCaptainSchema = z.object({
+  new_captain_player_id: uuid,
+});
+
+export const openTeamsQuerySchema = z.object({
+  skill_level: z.enum(TEAM_SKILL_LEVELS).optional(),
+  city: z.string().max(100).optional(),
+});

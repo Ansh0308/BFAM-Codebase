@@ -80,24 +80,9 @@ export interface Player {
   deleted_at?: string;
 }
 
-export type PaymentMethod = 'UPI' | 'CASH' | 'CAPTAIN_PAYS' | 'SPLIT' | 'CARD';
-export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
-
-export interface Payment {
-  payment_id: string;
-  payer_id: string;
-  amount: number;
-  currency: string;
-  payment_method: PaymentMethod;
-  gateway: string;
-  gateway_order_id: string;
-  gateway_payment_id?: string;
-  payment_status: PaymentStatus;
-  collected_by?: string;
-  cash_reference?: string;
-  initiated_at: string;
-  completed_at?: string;
-}
+// (Payment / PaymentMethodType / PaymentStatusType are defined below, under
+// "Module 2.4: Payments" — this used to be a Phase 0 placeholder with a
+// payment_method enum that didn't match the real DB/domain constants.)
 
 export type AudioTriggerType =
   | 'SIX'
@@ -251,6 +236,115 @@ export interface CreateBookingInput {
   start_time: string;
   duration_minutes: number;
   payment_mode: string;
+}
+
+// ---- Module 2.4: Payments ----
+
+export type ObligationDueStatus = 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
+
+export interface PaymentObligation {
+  obligation_id: string;
+  booking_id: string;
+  player_id: string | null;
+  amount_due: number | string;
+  due_status: ObligationDueStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PaymentMethodType = 'UPI' | 'RAZORPAY' | 'CASH' | 'CAPTAIN_PAYS' | 'SPLIT';
+export type PaymentStatusType = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
+
+export interface Payment {
+  payment_id: string;
+  payer_id: string;
+  amount: number | string;
+  currency: string;
+  payment_method: PaymentMethodType;
+  gateway: string;
+  gateway_order_id: string;
+  gateway_payment_id?: string | null;
+  collected_by?: string | null;
+  cash_reference?: string | null;
+  payment_status: PaymentStatusType;
+  initiated_at: string;
+  completed_at?: string | null;
+}
+
+export interface CreateObligationsInput {
+  shares?: { player_id: string | null; amount: number }[];
+}
+
+export interface GatewayPaymentOrder {
+  payment_id: string;
+  order_id: string;
+  amount: number;
+  currency: string;
+  key_id: string;
+}
+
+// ---- Module 2.5: Teams ----
+
+export type TeamSkillLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'MIXED';
+export type TeamStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+export type TeamMemberRole = 'CAPTAIN' | 'MEMBER';
+export type MembershipStatus = 'ACTIVE' | 'LEFT' | 'REMOVED';
+
+export interface Team {
+  team_id: string;
+  team_name: string;
+  team_logo_url: string | null;
+  description: string | null;
+  skill_level: TeamSkillLevel | null;
+  home_city: string | null;
+  is_open_for_players: boolean;
+  team_status: TeamStatus;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeamMember {
+  team_member_id: string;
+  team_id: string;
+  player_id: string;
+  role_in_team: TeamMemberRole;
+  membership_status: MembershipStatus;
+  joined_at: string;
+  left_at: string | null;
+  bfam_id?: string;
+  favorite_cricketer_name?: string | null;
+}
+
+export interface TeamDetails extends Team {
+  members: TeamMember[];
+}
+
+export interface MyTeam extends Team {
+  role_in_team: TeamMemberRole;
+}
+
+export interface OpenTeam extends Team {
+  active_member_count: number;
+}
+
+export interface CreateTeamInput {
+  team_name: string;
+  team_logo_url?: string | null;
+  description?: string | null;
+  skill_level?: TeamSkillLevel | null;
+  home_city?: string | null;
+  is_open_for_players?: boolean;
+}
+
+export interface JoinRequest {
+  request_id: string;
+  team_id: string;
+  player_id: string;
+  status: string;
+  requested_at: string;
+  responded_by: string | null;
+  bfam_id?: string;
 }
 
 export interface MatchIntro {

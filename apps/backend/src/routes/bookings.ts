@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import {
   cancelBookingSchema,
   createBookingSchema,
+  createObligationsSchema,
   listMyBookingsQuerySchema,
 } from '../validation/schemas';
 import {
@@ -13,11 +14,18 @@ import {
   listBookingsForUser,
 } from '../services/bookingService';
 import {
+  createObligationsForBooking,
+  getObligationsForBooking,
+  listPaymentsForBooking,
+} from '../services/paymentService';
+import {
+  AllocationExceedsObligationError,
   BookingNotFoundError,
   ForbiddenActionError,
   InvalidBookingStateError,
   InvalidSlotAlignmentError,
   NoPricingConfiguredError,
+  ObligationsAlreadyExistError,
   OutsideOperatingHoursError,
   SlotBlockedError,
   SlotUnavailableError,
@@ -140,6 +148,67 @@ router.post(
       }
       throw error;
     }
+  }),
+);
+
+// POST /bookings/:bookingId/obligations — module 2.4: sets up the
+// obligation structure (who owes what) for a booking's payment. Only the
+// booker may do this, and only once (module 2.6's roster-aware split calls
+// into this same surface later).
+router.post(
+  '/:bookingId/obligations',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = createObligationsSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'Invalid obligations payload', status: 400 } });
+    }
+
+    try {
+      const shares = parsed.data.shares?.map((s) => ({ playerId: s.player_id, amount: s.amount }));
+      const obligations = await createObligationsForBooking(
+        req.params.bookingId,
+        req.auth!.sub,
+        shares,
+      );
+      return res.status(201).json({ results: obligations });
+    } catch (error) {
+      if (error instanceof BookingNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      if (error instanceof ForbiddenActionError) {
+        return res.status(403).json({ error: { message: error.message, status: 403 } });
+      }
+      if (
+        error instanceof ObligationsAlreadyExistError ||
+        error instanceof AllocationExceedsObligationError
+      ) {
+        return res.status(422).json({ error: { message: error.message, status: 422 } });
+      }
+      throw error;
+    }
+  }),
+);
+
+// GET /bookings/:bookingId/obligations — who owes what and its due_status.
+router.get(
+  '/:bookingId/obligations',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const obligations = await getObligationsForBooking(req.params.bookingId);
+    return res.status(200).json({ results: obligations });
+  }),
+);
+
+// GET /bookings/:bookingId/payments — Payment History scoped to one booking.
+router.get(
+  '/:bookingId/payments',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const payments = await listPaymentsForBooking(req.params.bookingId);
+    return res.status(200).json({ results: payments });
   }),
 );
 

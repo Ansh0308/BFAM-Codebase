@@ -13,6 +13,7 @@ import {
   TurfNotFoundError,
 } from '../domain/errors';
 import { SLOT_DURATION_MINUTES, resolveDayType } from './turfService';
+import { refundPaymentsForBooking } from './paymentService';
 
 export interface CreateBookingInput {
   turfId: string;
@@ -272,6 +273,17 @@ export async function cancelBooking(
       created_at: now,
     },
   ]);
+
+  // Module 2.4: refund whatever was already paid, per the cancellation-
+  // timing policy (PRD §12.17). A refund-processing failure must never
+  // block the cancellation itself — the booking is cancelled either way;
+  // any refund that couldn't be completed is recorded FAILED in `refunds`
+  // for manual follow-up rather than silently lost.
+  try {
+    await refundPaymentsForBooking(bookingId, now, actor.userId);
+  } catch {
+    // Deliberately swallowed — see comment above.
+  }
 
   return {
     ...booking,

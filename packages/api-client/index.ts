@@ -1,6 +1,15 @@
 import {
   Booking,
   CreateBookingInput,
+  CreateObligationsInput,
+  CreateTeamInput,
+  GatewayPaymentOrder,
+  JoinRequest,
+  MyTeam,
+  OpenTeam,
+  Payment,
+  PaymentObligation,
+  TeamDetails,
   TurfAvailability,
   TurfDetails,
   TurfListResponse,
@@ -259,6 +268,116 @@ export class BFAMApiClient {
 
   async searchCricketers(query: string): Promise<Cricketer[]> {
     return this.request<Cricketer[]>(`/cricketers/search?q=${encodeURIComponent(query)}`);
+  }
+
+  // ---- Module 2.4: Payments ----
+
+  async createObligations(
+    bookingId: string,
+    input: CreateObligationsInput = {},
+  ): Promise<{ results: PaymentObligation[] }> {
+    return this.request<{ results: PaymentObligation[] }>(`/bookings/${bookingId}/obligations`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async getObligations(bookingId: string): Promise<{ results: PaymentObligation[] }> {
+    return this.request<{ results: PaymentObligation[] }>(`/bookings/${bookingId}/obligations`);
+  }
+
+  async initiateGatewayPayment(
+    obligationIds: string[],
+    paymentMethod: 'UPI' | 'RAZORPAY',
+  ): Promise<GatewayPaymentOrder> {
+    return this.request<GatewayPaymentOrder>('/payments/razorpay/order', {
+      method: 'POST',
+      body: JSON.stringify({ obligation_ids: obligationIds, payment_method: paymentMethod }),
+    });
+  }
+
+  async recordCashPayment(obligationIds: string[], cashReference?: string): Promise<Payment> {
+    return this.request<Payment>('/payments/cash', {
+      method: 'POST',
+      body: JSON.stringify({ obligation_ids: obligationIds, cash_reference: cashReference }),
+    });
+  }
+
+  async getMyPaymentHistory(): Promise<{ results: Payment[] }> {
+    return this.request<{ results: Payment[] }>('/payments/mine');
+  }
+
+  async getBookingPayments(bookingId: string): Promise<{ results: Payment[] }> {
+    return this.request<{ results: Payment[] }>(`/bookings/${bookingId}/payments`);
+  }
+
+  // ---- Module 2.5: Teams ----
+
+  async createTeam(input: CreateTeamInput): Promise<TeamDetails> {
+    return this.request<TeamDetails>('/teams', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async getMyTeams(): Promise<{ results: MyTeam[] }> {
+    return this.request<{ results: MyTeam[] }>('/teams/mine');
+  }
+
+  async getOpenTeams(
+    filters: { skill_level?: string; city?: string } = {},
+  ): Promise<{ results: OpenTeam[] }> {
+    return this.request<{ results: OpenTeam[] }>(`/teams/open${toQueryString(filters)}`);
+  }
+
+  async getTeamDetails(teamId: string): Promise<TeamDetails> {
+    return this.request<TeamDetails>(`/teams/${teamId}`);
+  }
+
+  async inviteToTeam(teamId: string, playerId: string): Promise<{ invitation_id: string }> {
+    return this.request<{ invitation_id: string }>(`/teams/${teamId}/invitations`, {
+      method: 'POST',
+      body: JSON.stringify({ player_id: playerId }),
+    });
+  }
+
+  async respondToTeamInvitation(
+    invitationId: string,
+    accept: boolean,
+  ): Promise<{ status: string }> {
+    return this.request<{ status: string }>(`/teams/invitations/${invitationId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ accept }),
+    });
+  }
+
+  async removeTeamMember(teamId: string, playerId: string): Promise<void> {
+    await this.request<void>(`/teams/${teamId}/members/${playerId}`, { method: 'DELETE' });
+  }
+
+  async leaveTeam(teamId: string): Promise<void> {
+    await this.request<void>(`/teams/${teamId}/leave`, { method: 'POST' });
+  }
+
+  async changeCaptain(teamId: string, newCaptainPlayerId: string): Promise<void> {
+    await this.request<void>(`/teams/${teamId}/captain`, {
+      method: 'POST',
+      body: JSON.stringify({ new_captain_player_id: newCaptainPlayerId }),
+    });
+  }
+
+  async requestToJoinTeam(teamId: string): Promise<{ request_id: string }> {
+    return this.request<{ request_id: string }>(`/teams/${teamId}/join-requests`, {
+      method: 'POST',
+    });
+  }
+
+  async getJoinRequests(teamId: string): Promise<{ results: JoinRequest[] }> {
+    return this.request<{ results: JoinRequest[] }>(`/teams/${teamId}/join-requests`);
+  }
+
+  async respondToJoinRequest(requestId: string, accept: boolean): Promise<{ status: string }> {
+    return this.request<{ status: string }>(`/teams/join-requests/${requestId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ accept }),
+    });
   }
 }
 
