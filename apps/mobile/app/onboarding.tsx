@@ -54,7 +54,7 @@ export default function Onboarding() {
       >
         {SLIDES.map((slide) => (
           <View key={slide.title} style={{ width: width - 40 }} className="justify-center">
-            <Text className="font-display text-title-xl text-ink-black uppercase mb-4">
+            <Text className="font-ui font-bold text-title-xl text-ink-black mb-4">
               {slide.title}
             </Text>
             <Text className="font-ui text-body text-text-secondary">{slide.body}</Text>

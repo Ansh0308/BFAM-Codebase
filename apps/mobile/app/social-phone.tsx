@@ -38,7 +38,7 @@ export default function SocialPhone() {
   return (
     <ScreenContainer scroll>
       <View className="mt-10 mb-8">
-        <Text className="font-display text-title-xl uppercase text-ink-black">Add Your Phone</Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black">Add Your Phone</Text>
         <Text className="font-ui text-body text-text-secondary mt-2">
           BFAM needs a phone number to finish setting up your account.
         </Text>

@@ -9,7 +9,7 @@ export function PlaceholderScreen({ title }: { title: string }) {
   return (
     <ScreenContainer>
       <View className="flex-1 items-center justify-center">
-        <Text className="font-display text-title-xl text-ink-black uppercase">{title}</Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black">{title}</Text>
         <Text className="font-ui text-body text-text-secondary text-center mt-2">
           Built in a later module.
         </Text>

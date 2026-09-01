@@ -48,9 +48,7 @@ export default function TeamDetailsScreen() {
   return (
     <ScrollView className="flex-1 bg-surface" testID="team-details-screen">
       <View className="px-6 pt-6">
-        <Text className="font-display text-title-xl text-ink-black uppercase">
-          {team.team_name}
-        </Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black">{team.team_name}</Text>
         <Text className="text-text-secondary text-body mt-1">
           {team.home_city ?? 'No home city set'} {team.skill_level ? `· ${team.skill_level}` : ''}
         </Text>

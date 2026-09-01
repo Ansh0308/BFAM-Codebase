@@ -29,7 +29,7 @@ export function TurfCard({ turf, onPress, variant = 'vertical' }: Props) {
         </View>
       )}
       <View className="p-3">
-        <Text className="font-display text-card-title text-ink-black uppercase" numberOfLines={1}>
+        <Text className="font-ui font-semibold text-card-title text-ink-black" numberOfLines={1}>
           {turf.turf_name}
         </Text>
         <Text className="text-text-secondary text-body mt-1" numberOfLines={1}>

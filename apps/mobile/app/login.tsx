@@ -112,7 +112,7 @@ export default function Login() {
 
       <View className="flex-row items-center justify-center mb-8">
         <View className="h-px w-8 bg-brand-red" />
-        <Text className="font-display text-section-header text-ink-black uppercase mx-3">
+        <Text className="font-ui font-bold text-section-header text-ink-black uppercase tracking-wide mx-3">
           Log In
         </Text>
         <View className="h-px w-8 bg-brand-red" />

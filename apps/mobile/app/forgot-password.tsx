@@ -45,7 +45,7 @@ export default function ForgotPassword() {
   return (
     <ScreenContainer scroll>
       <View className="mt-10 mb-8">
-        <Text className="font-display text-title-xl uppercase text-ink-black">Forgot Password</Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black">Forgot Password</Text>
         <Text className="font-ui text-body text-text-secondary mt-2">
           We&apos;ll send a code to reset your password.
         </Text>

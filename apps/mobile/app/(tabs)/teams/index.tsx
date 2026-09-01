@@ -31,7 +31,7 @@ export default function MyTeamsScreen() {
   return (
     <ScreenContainer>
       <View className="pt-6 flex-1" testID="my-teams-screen">
-        <Text className="font-display text-title-xl text-ink-black uppercase mb-4">My Teams</Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black mb-4">My Teams</Text>
 
         <View className="mb-4">
           <Button

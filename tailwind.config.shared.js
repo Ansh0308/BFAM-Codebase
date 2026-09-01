@@ -75,11 +75,11 @@ module.exports = {
         // Hero Display: 56-64px
         hero: ['56px', { lineHeight: '1.1', fontWeight: '900' }],
         // Screen Title: 40-44px
-        'title-xl': ['40px', { lineHeight: '1.1', fontWeight: '900' }],
+        'title-xl': ['36px', { lineHeight: '1.15', fontWeight: '700' }],
         // Section Header: 22-26px
-        'section-header': ['24px', { lineHeight: '1.2', fontWeight: '800' }],
+        'section-header': ['22px', { lineHeight: '1.2', fontWeight: '700' }],
         // Card Title: 20-22px
-        'card-title': ['20px', { lineHeight: '1.2', fontWeight: '800' }],
+        'card-title': ['19px', { lineHeight: '1.25', fontWeight: '600' }],
         // Stat Number (large): 40-48px
         'stat-lg': ['44px', { lineHeight: '1', fontWeight: '800' }],
         // Stat Number (small): 18-22px

@@ -46,7 +46,7 @@ export default function ResetPassword() {
   return (
     <ScreenContainer scroll>
       <View className="mt-10 mb-8">
-        <Text className="font-display text-title-xl uppercase text-ink-black">New Password</Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black">New Password</Text>
       </View>
 
       {success ? (

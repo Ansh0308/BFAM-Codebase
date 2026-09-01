@@ -46,7 +46,7 @@ export default function OpenTeamsScreen() {
   return (
     <ScreenContainer>
       <View className="pt-6 flex-1" testID="open-teams-screen">
-        <Text className="font-display text-title-xl text-ink-black uppercase mb-4">Open Teams</Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black mb-4">Open Teams</Text>
 
         <TextInput
           value={city}

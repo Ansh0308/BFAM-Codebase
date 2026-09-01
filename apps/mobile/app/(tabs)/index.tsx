@@ -13,7 +13,7 @@ export default function Home() {
   return (
     <ScreenContainer>
       <View className="pt-6">
-        <Text className="font-display text-title-xl text-ink-black uppercase">Home</Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black">Home</Text>
         <Text className="font-ui text-body text-text-secondary mt-2">
           The full Home screen is built in a later module.
         </Text>

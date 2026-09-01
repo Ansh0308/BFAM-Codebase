@@ -37,9 +37,7 @@ export default function TurfListing() {
 
   return (
     <ScreenContainer>
-      <Text className="font-display text-title-xl text-ink-black uppercase mt-6 mb-4">
-        Discover
-      </Text>
+      <Text className="font-ui font-bold text-title-xl text-ink-black mt-6 mb-4">Discover</Text>
 
       <TextInput
         value={query}

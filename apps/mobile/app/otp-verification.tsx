@@ -135,7 +135,7 @@ export default function OtpVerification() {
       </View>
 
       <View className="items-center mb-8">
-        <Text className="font-display text-title-xl uppercase text-ink-black">Verify</Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black">Verify</Text>
         {otpSent ? (
           <Text className="font-ui text-body text-text-secondary mt-2 text-center">
             Enter the 6-digit code sent to{' '}

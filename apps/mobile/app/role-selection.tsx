@@ -82,7 +82,7 @@ export default function RoleSelection() {
 
       <View className="flex-row items-center justify-center mb-3">
         <View className="h-px w-8 bg-brand-red" />
-        <Text className="font-display text-section-header text-ink-black uppercase mx-3 text-center">
+        <Text className="font-ui font-bold text-section-header text-ink-black uppercase tracking-wide mx-3 text-center">
           Choose Your Role
         </Text>
         <View className="h-px w-8 bg-brand-red" />

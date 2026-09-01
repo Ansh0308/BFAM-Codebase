@@ -1,13 +1,14 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 
-const TAB_ICONS: Record<string, string> = {
-  index: '⌂',
-  discover: '⌕',
-  matches: '▤',
-  teams: '☰',
-  profile: '☺',
+const TAB_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  index: 'home',
+  discover: 'compass',
+  matches: 'activity',
+  teams: 'users',
+  profile: 'user',
 };
 
 const TAB_LABELS: Record<string, string> = {
@@ -27,12 +28,29 @@ export default function TabsLayout() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: '#D80000',
-        tabBarInactiveTintColor: '#0D0D0D',
-        tabBarLabelStyle: { fontFamily: 'Inter', fontSize: 11, fontWeight: '600' },
-        tabBarStyle: { backgroundColor: '#FFFFFF', borderTopColor: '#EEEDEE' },
+        tabBarInactiveTintColor: '#9A9A9A',
+        tabBarLabelStyle: {
+          fontFamily: 'Inter',
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
+        },
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#EEEDEE',
+          height: Platform.OS === 'ios' ? 84 : 64,
+          paddingTop: 10,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+        },
         tabBarLabel: TAB_LABELS[route.name] ?? route.name,
-        tabBarIcon: ({ color }) => (
-          <Text style={{ color, fontSize: 18 }}>{TAB_ICONS[route.name]}</Text>
+        tabBarIcon: ({ color, focused }) => (
+          <Feather
+            name={TAB_ICONS[route.name]}
+            size={22}
+            color={color}
+            style={{ opacity: focused ? 1 : 0.85 }}
+          />
         ),
       })}
     >

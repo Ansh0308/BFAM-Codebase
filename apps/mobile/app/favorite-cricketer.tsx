@@ -84,10 +84,10 @@ export default function FavoriteCricketer() {
       </View>
 
       <View className="mb-2">
-        <Text className="font-display text-title-xl uppercase text-ink-black leading-tight">
+        <Text className="font-ui font-bold text-title-xl text-ink-black leading-tight">
           Favorite
         </Text>
-        <Text className="font-display text-title-xl uppercase text-brand-red leading-tight">
+        <Text className="font-ui font-bold text-title-xl text-brand-red leading-tight">
           Cricketer
         </Text>
       </View>

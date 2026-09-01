@@ -170,7 +170,7 @@ export default function TurfAvailabilityScreen() {
           <View className="bg-surface rounded-t-lg px-6 pt-5 pb-8">
             {pendingSlot && (
               <>
-                <Text className="font-display text-section-header text-ink-black uppercase">
+                <Text className="font-ui font-bold text-section-header text-ink-black uppercase tracking-wide">
                   Confirm Slot
                 </Text>
                 <Text className="text-text-secondary text-body mt-1">

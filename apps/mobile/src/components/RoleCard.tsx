@@ -50,7 +50,7 @@ export function RoleCard({ role, selected = false, onPress, testID }: RoleCardPr
         <RoleIcon role={role} />
       </View>
       <View className="flex-1">
-        <Text className="font-display text-card-title text-ink-black uppercase">{title}</Text>
+        <Text className="font-ui font-semibold text-card-title text-ink-black">{title}</Text>
         <View className="h-0.5 w-6 bg-brand-red my-1.5" />
         <Text className="font-ui text-body text-text-secondary">{description}</Text>
       </View>

@@ -17,7 +17,7 @@ export default function SessionActive() {
   return (
     <ScreenContainer>
       <View className="flex-1 items-center justify-center">
-        <Text className="font-display text-title-xl uppercase text-ink-black">You&apos;re In</Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black">You&apos;re In</Text>
         {user ? (
           <Text className="font-ui text-body text-text-secondary mt-2">{user.bfam_id}</Text>
         ) : null}

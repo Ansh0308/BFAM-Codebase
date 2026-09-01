@@ -212,7 +212,7 @@ export default function PaymentScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center" testID="payment-done">
-          <Text className="font-display text-title-xl text-ink-black uppercase text-center">
+          <Text className="font-ui font-bold text-title-xl text-ink-black text-center">
             Payment Recorded
           </Text>
           <Text className="font-ui text-body text-text-secondary text-center mt-3">
@@ -243,7 +243,7 @@ export default function PaymentScreen() {
     return (
       <ScreenContainer>
         <View className="pt-6" testID="split-setup-screen">
-          <Text className="font-display text-title-xl text-ink-black uppercase">Split Payment</Text>
+          <Text className="font-ui font-bold text-title-xl text-ink-black">Split Payment</Text>
           <Text className="font-ui text-body text-text-secondary mt-2">
             How many players are splitting this booking?
           </Text>
@@ -267,7 +267,7 @@ export default function PaymentScreen() {
     return (
       <ScreenContainer>
         <View className="pt-6" testID="cash-entry-screen">
-          <Text className="font-display text-title-xl text-ink-black uppercase">Cash Payment</Text>
+          <Text className="font-ui font-bold text-title-xl text-ink-black">Cash Payment</Text>
           <Text className="font-ui text-body text-text-secondary mt-2">
             Recorded as collected by you, effective immediately.
           </Text>
@@ -308,7 +308,7 @@ export default function PaymentScreen() {
   return (
     <ScreenContainer>
       <View className="pt-6" testID="payment-method-selector">
-        <Text className="font-display text-title-xl text-ink-black uppercase">Payment</Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black">Payment</Text>
         <Text className="font-ui text-body text-text-secondary mt-2">
           Choose how you&apos;d like to pay.
         </Text>

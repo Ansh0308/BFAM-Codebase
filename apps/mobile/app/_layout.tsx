@@ -60,4 +60,9 @@ function RootLayout() {
   );
 }
 
-export default Sentry.wrap(RootLayout);
+// Only wrap with Sentry when it's actually initialized — wrapping
+// unconditionally makes Sentry's performance/web-vitals instrumentation run
+// against an uninitialized client, which throws
+// ("Cannot read properties of undefined (reading 'startTime')") in dev
+// environments that don't set EXPO_PUBLIC_SENTRY_DSN.
+export default SENTRY_DSN ? Sentry.wrap(RootLayout) : RootLayout;

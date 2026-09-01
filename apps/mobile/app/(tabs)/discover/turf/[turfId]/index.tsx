@@ -71,9 +71,7 @@ export default function TurfDetailsScreen() {
       </View>
 
       <View className="px-6 pt-5">
-        <Text className="font-display text-title-xl text-ink-black uppercase">
-          {details.turf_name}
-        </Text>
+        <Text className="font-ui font-bold text-title-xl text-ink-black">{details.turf_name}</Text>
         <Text className="text-text-secondary text-body mt-1">
           {details.address_line}, {details.city}
         </Text>

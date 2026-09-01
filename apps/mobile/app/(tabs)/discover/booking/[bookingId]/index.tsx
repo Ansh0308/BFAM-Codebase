@@ -41,7 +41,7 @@ export default function BookingDetailsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['bottom']}>
       <ScrollView className="px-6 pt-6" testID="booking-details-screen">
-        <Text className="font-display text-title-xl text-ink-black uppercase">
+        <Text className="font-ui font-bold text-title-xl text-ink-black">
           {booking.turf_name ?? 'Booking'}
         </Text>
         <Text className="text-text-secondary text-body mt-1">{booking.city}</Text>

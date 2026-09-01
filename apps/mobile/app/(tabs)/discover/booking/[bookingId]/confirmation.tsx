@@ -49,7 +49,7 @@ export default function BookingConfirmationScreen() {
           <View className="w-16 h-16 rounded-full bg-surface-alt items-center justify-center mb-4">
             <Text className="text-brand-red text-title-xl">✓</Text>
           </View>
-          <Text className="font-display text-title-xl text-ink-black uppercase text-center">
+          <Text className="font-ui font-bold text-title-xl text-ink-black text-center">
             Slot Reserved
           </Text>
           <Text className="text-text-secondary text-body text-center mt-2">

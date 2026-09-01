@@ -12,7 +12,7 @@ export default function CreateMatchStubScreen() {
   return (
     <ScreenContainer>
       <View className="flex-1 items-center justify-center" testID="create-match-stub-screen">
-        <Text className="font-display text-title-xl text-ink-black uppercase text-center">
+        <Text className="font-ui font-bold text-title-xl text-ink-black text-center">
           Create Match
         </Text>
         <Text className="font-ui text-body text-text-secondary text-center mt-3">
