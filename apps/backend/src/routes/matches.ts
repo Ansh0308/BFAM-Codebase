@@ -18,6 +18,7 @@ import {
   recordToss,
   startIntro,
 } from '../services/matchIntroService';
+import { getActiveViewerCount, getTotalViews } from '../services/presenceService';
 import {
   acceptReplacement,
   checkInWithCode,
@@ -103,6 +104,21 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const matches = await listMyMatches(req.auth!.sub);
     return res.status(200).json({ results: matches });
+  }),
+);
+
+// GET /matches/:matchId/viewers — initial paint for the "N Watching Live"
+// badge (module 2.9, PRD §12.62); the socket 'match:viewer_count' event
+// keeps it live after that.
+router.get(
+  '/:matchId/viewers',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const [active, total] = await Promise.all([
+      getActiveViewerCount(req.params.matchId),
+      getTotalViews(req.params.matchId),
+    ]);
+    return res.status(200).json({ active, total });
   }),
 );
 

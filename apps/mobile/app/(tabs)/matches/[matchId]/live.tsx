@@ -8,6 +8,7 @@ import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
+import { ViewerCountBadge } from '../../../../src/components/ViewerCountBadge';
 import { useAuthStore } from '../../../../src/store/authStore';
 
 function bfamIdFor(players: GameRoom['players'], playerId: string | null | undefined) {
@@ -15,9 +16,8 @@ function bfamIdFor(players: GameRoom['players'], playerId: string | null | undef
 }
 
 // Live Score viewer (PRD §12.18 requirement 3): score header, overs/
-// wickets, current batsmen/bowler, target/RRR/CRR where applicable. The
-// "👁 N Watching Live" element is module 2.9's — this screen leaves the
-// slot (ViewerCountBadge) but the counting logic itself lives there.
+// wickets, current batsmen/bowler, target/RRR/CRR where applicable.
+// "👁 N Watching Live" is module 2.9's ViewerCountBadge.
 export default function LiveScoreScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const router = useRouter();
@@ -80,7 +80,7 @@ export default function LiveScoreScreen() {
             {room.match_name ?? 'Live Match'}
           </Text>
           {/* Module 2.9 slot — ViewerCountBadge fills this in. */}
-          <View testID="viewer-count-slot" />
+          <ViewerCountBadge matchId={matchId} />
         </View>
 
         {live?.innings ? (
