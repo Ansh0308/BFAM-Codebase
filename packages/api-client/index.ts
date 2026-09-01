@@ -6,12 +6,19 @@ import {
   CreateTeamInput,
   GameRoom,
   GatewayPaymentOrder,
+  AudioTrigger,
+  Innings,
   IntroContext,
   JoinRequest,
+  LiveScore,
   Match,
   MatchAttendanceStatus,
+  MatchResult,
   MyTeam,
   PlayingXiPlayer,
+  RecordBallInput,
+  Scorecard,
+  ScoreEvent,
   OpenTeam,
   Payment,
   PaymentObligation,
@@ -600,6 +607,64 @@ export class BFAMApiClient {
 
   async completeMatchIntro(matchId: string): Promise<void> {
     await this.request<void>(`/matches/${matchId}/intro/complete`, { method: 'POST' });
+  }
+
+  // ---- Module 2.8: Live Scoring ----
+
+  async startInnings(
+    matchId: string,
+    input: {
+      innings_number: number;
+      batting_match_team_id: string;
+      bowling_match_team_id: string;
+      target_runs?: number | null;
+    },
+  ): Promise<Innings> {
+    return this.request<Innings>(`/matches/${matchId}/innings`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async recordBall(
+    inningsId: string,
+    input: RecordBallInput,
+  ): Promise<{ event: ScoreEvent; innings: Innings; audio_trigger: AudioTrigger }> {
+    return this.request(`/innings/${inningsId}/balls`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async undoBall(inningsId: string): Promise<{ undone_event_id: string; innings: Innings }> {
+    return this.request(`/innings/${inningsId}/undo`, { method: 'POST' });
+  }
+
+  async getLiveScore(matchId: string): Promise<LiveScore> {
+    return this.request<LiveScore>(`/matches/${matchId}/live`);
+  }
+
+  async getScorecard(matchId: string): Promise<Scorecard> {
+    return this.request<Scorecard>(`/matches/${matchId}/scorecard`);
+  }
+
+  async finalizeMatch(
+    matchId: string,
+    input: {
+      result_type: 'WIN' | 'TIE' | 'NO_RESULT';
+      winning_match_team_id?: string | null;
+      winning_margin?: string | null;
+      player_of_the_match_id?: string | null;
+    },
+  ): Promise<{ result_id: string }> {
+    return this.request(`/matches/${matchId}/result`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async getMatchResult(matchId: string): Promise<MatchResult> {
+    return this.request<MatchResult>(`/matches/${matchId}/result`);
   }
 }
 

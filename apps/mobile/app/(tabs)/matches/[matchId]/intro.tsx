@@ -152,7 +152,7 @@ export default function MatchIntroScreen() {
   async function finish() {
     apiClient.completeMatchIntro(matchId).catch(() => {});
     setStage('DONE');
-    router.replace(`/(tabs)/matches/${matchId}/live-stub`);
+    router.replace(`/(tabs)/matches/${matchId}/live`);
   }
 
   return (

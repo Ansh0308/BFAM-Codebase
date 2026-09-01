@@ -143,7 +143,7 @@ describe('Match Countdown Intro (module 2.7)', () => {
     fireEvent.press(getByTestId('continue-to-match'));
 
     await waitFor(() => expect(mockCompleteMatchIntro).toHaveBeenCalledWith('match-1'));
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/matches/match-1/live-stub');
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/matches/match-1/live');
   });
 
   it('a passive (non-manager) viewer never calls the manager-only start endpoint and only mirrors broadcast stages', async () => {

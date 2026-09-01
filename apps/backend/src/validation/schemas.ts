@@ -636,3 +636,32 @@ export const recordTossSchema = z.object({
   toss_winner_match_team_id: uuid,
   decision: z.enum(['BAT', 'BOWL']),
 });
+
+// ---- Module 2.8: Live Scoring ----
+
+export const startInningsSchema = z.object({
+  innings_number: z.number().int().min(1),
+  batting_match_team_id: uuid,
+  bowling_match_team_id: uuid,
+  target_runs: z.number().int().min(0).nullable().optional(),
+});
+
+export const recordBallSchema = z.object({
+  striker_player_id: uuid,
+  non_striker_player_id: uuid.nullable().optional(),
+  bowler_player_id: uuid,
+  runs_scored: z.number().int().min(0).max(6),
+  extra_type: z.enum(EXTRA_TYPES),
+  extra_runs: z.number().int().min(0).max(6),
+  is_wicket: z.boolean(),
+  wicket_type: z.enum(WICKET_TYPES).nullable().optional(),
+  dismissed_player_id: uuid.nullable().optional(),
+  fielder_player_id: uuid.nullable().optional(),
+});
+
+export const finalizeMatchSchema = z.object({
+  result_type: z.enum(RESULT_TYPES),
+  winning_match_team_id: uuid.nullable().optional(),
+  winning_margin: z.string().max(50).nullable().optional(),
+  player_of_the_match_id: uuid.nullable().optional(),
+});

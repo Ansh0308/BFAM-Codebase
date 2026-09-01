@@ -123,40 +123,10 @@ export interface Player {
 
 // (Payment / PaymentMethodType / PaymentStatusType are defined below, under
 // "Module 2.4: Payments" — this used to be a Phase 0 placeholder with a
-// payment_method enum that didn't match the real DB/domain constants.)
-
-export type AudioTriggerType =
-  | 'SIX'
-  | 'FOUR'
-  | 'WICKET'
-  | 'FIFTY'
-  | 'CENTURY'
-  | 'HAT_TRICK'
-  | 'MATCH_WON'
-  | 'TOSS'
-  | 'COUNTDOWN_START'
-  | 'NONE';
-
-export interface ScoreEvent {
-  score_event_id: string;
-  innings_id: string;
-  over_number: number;
-  ball_number_in_over: number;
-  sequence_number: number;
-  striker_player_id: string;
-  non_striker_player_id: string;
-  bowler_player_id: string;
-  runs_scored: number;
-  extra_type?: string;
-  extra_runs: number;
-  is_wicket: boolean;
-  wicket_type?: string;
-  dismissed_player_id?: string;
-  fielder_player_id?: string;
-  audio_trigger: AudioTriggerType;
-  recorded_by: string;
-  recorded_at: string;
-}
+// payment_method enum that didn't match the real DB/domain constants.
+// ScoreEvent / AudioTrigger were the same story — defined below, under
+// "Module 2.8: Live Scoring", matching the real domain constants/schema
+// rather than this file's original Phase 0 placeholder shape.)
 
 export interface Turf {
   turf_id: string;
@@ -469,6 +439,134 @@ export interface ReplacementSuggestion {
   player_id: string;
   bfam_id: string;
   team_name: string;
+}
+
+// ---- Module 2.8: Live Scoring ----
+
+export type ExtraType = 'NONE' | 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE';
+export type WicketType =
+  'BOWLED' | 'CAUGHT' | 'RUN_OUT' | 'STUMPED' | 'LBW' | 'HIT_WICKET' | 'RETIRED';
+export type AudioTrigger =
+  | 'SIX'
+  | 'FOUR'
+  | 'WICKET'
+  | 'FIFTY'
+  | 'CENTURY'
+  | 'HAT_TRICK'
+  | 'MATCH_WON'
+  | 'TOSS'
+  | 'COUNTDOWN_START'
+  | 'NONE';
+export type InningsStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+
+export interface Innings {
+  innings_id: string;
+  match_id: string;
+  innings_number: number;
+  batting_match_team_id: string;
+  bowling_match_team_id: string;
+  total_runs: number;
+  total_wickets: number;
+  overs_completed: number;
+  innings_status: InningsStatus;
+  target_runs: number | null;
+}
+
+export interface ScoreEvent {
+  score_event_id: string;
+  innings_id: string;
+  over_number: number;
+  ball_number_in_over: number;
+  sequence_number: number;
+  striker_player_id: string;
+  non_striker_player_id: string | null;
+  bowler_player_id: string;
+  runs_scored: number;
+  extra_type: ExtraType;
+  extra_runs: number;
+  is_wicket: boolean;
+  wicket_type: WicketType | null;
+  dismissed_player_id: string | null;
+  fielder_player_id: string | null;
+  audio_trigger: AudioTrigger;
+}
+
+export interface RecordBallInput {
+  striker_player_id: string;
+  non_striker_player_id?: string | null;
+  bowler_player_id: string;
+  runs_scored: number;
+  extra_type: ExtraType;
+  extra_runs: number;
+  is_wicket: boolean;
+  wicket_type?: WicketType | null;
+  dismissed_player_id?: string | null;
+  fielder_player_id?: string | null;
+}
+
+export interface LiveScore {
+  match_id: string;
+  innings: Innings | null;
+  current_striker_player_id?: string | null;
+  current_non_striker_player_id?: string | null;
+  current_bowler_player_id?: string | null;
+  current_run_rate?: number;
+  required_run_rate?: number | null;
+}
+
+export interface BattingRow {
+  player_id: string;
+  bfam_id: string;
+  runs: number;
+  balls: number;
+  fours: number;
+  sixes: number;
+  out: boolean;
+}
+
+export interface BowlingRow {
+  player_id: string;
+  bfam_id: string;
+  overs: number;
+  runs_conceded: number;
+  wickets: number;
+  economy: number;
+}
+
+export interface FallOfWicket {
+  wicket_number: number;
+  score: number;
+  over: number;
+  player_id: string;
+  bfam_id: string;
+}
+
+export interface InningsScorecard {
+  innings_id: string;
+  innings_number: number;
+  total_runs: number;
+  total_wickets: number;
+  overs_completed: number;
+  batting: BattingRow[];
+  bowling: BowlingRow[];
+  extras: { WIDE: number; NO_BALL: number; BYE: number; LEG_BYE: number };
+  fall_of_wickets: FallOfWicket[];
+}
+
+export interface Scorecard {
+  match_id: string;
+  innings: InningsScorecard[];
+}
+
+export interface MatchResult {
+  result_id: string;
+  match_id: string;
+  winning_match_team_id: string | null;
+  result_type: 'WIN' | 'TIE' | 'NO_RESULT';
+  winning_margin: string | null;
+  player_of_the_match_id: string | null;
+  player_of_the_match_bfam_id?: string | null;
+  finalized_at: string;
 }
 
 export interface MatchIntro {
