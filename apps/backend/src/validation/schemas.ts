@@ -450,6 +450,46 @@ export const tableSchemas = {
   }),
 };
 
+// ---- API request-shape schemas (module 2.3: Turf Discovery & Booking) ----
+// These validate what a caller may send, not a table's full column set —
+// same pattern as registerUserSchema above.
+
+export const turfListQuerySchema = z.object({
+  city: z.string().max(100).optional(),
+  q: z.string().max(150).optional(),
+  ball_type: z.enum(BALL_TYPES).optional(),
+  min_price: z.coerce.number().nonnegative().optional(),
+  max_price: z.coerce.number().nonnegative().optional(),
+  // Drives "Near You" distance sorting only — map view is explicitly
+  // deferred (PRD §12.7 / module 2.3 scope note).
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  page_size: z.coerce.number().int().min(1).max(50).optional(),
+});
+
+export const turfAvailabilityQuerySchema = z.object({
+  date: dateOnly,
+});
+
+export const createBookingSchema = z.object({
+  turf_id: uuid,
+  booking_date: dateOnly,
+  start_time: timeOnly,
+  duration_minutes: z.number().int().min(30).max(480),
+  payment_mode: z.enum(PAYMENT_MODES),
+});
+
+export const cancelBookingSchema = z.object({
+  cancellation_reason: z.string().max(255).optional(),
+});
+
+export const listMyBookingsQuerySchema = z.object({
+  scope: z.enum(['upcoming', 'past', 'all']).optional(),
+});
+
+// ---- Module 2.1: BFAM ID player-only + admin reservation schemas ----
+
 const bfamIdFormat = z
   .string()
   .regex(/^BF\d+$/, 'BFAM ID must match the format BF<digits>, e.g. BF7');
@@ -500,4 +540,56 @@ export const sendEmailOtpSchema = z.object({
 export const verifyEmailOtpSchema = z.object({
   email: z.string().email().max(255),
   otp: z.string().length(6),
+});
+
+// ---- Module 2.4: Payments ----
+
+export const createObligationsSchema = z.object({
+  shares: z
+    .array(
+      z.object({
+        player_id: uuid.nullable(),
+        amount: z.number().positive(),
+      }),
+    )
+    .min(1)
+    .optional(),
+});
+
+export const initiateGatewayPaymentSchema = z.object({
+  obligation_ids: z.array(uuid).min(1),
+  payment_method: z.enum(['UPI', 'RAZORPAY']),
+});
+
+export const cashPaymentSchema = z.object({
+  obligation_ids: z.array(uuid).min(1),
+  cash_reference: z.string().max(100).optional(),
+});
+
+// ---- Module 2.5: Teams ----
+
+export const createTeamSchema = z.object({
+  team_name: z.string().min(2).max(100),
+  team_logo_url: z.string().url().max(500).nullable().optional(),
+  description: z.string().nullable().optional(),
+  skill_level: z.enum(TEAM_SKILL_LEVELS).nullable().optional(),
+  home_city: z.string().max(100).nullable().optional(),
+  is_open_for_players: z.boolean().optional(),
+});
+
+export const inviteToTeamSchema = z.object({
+  player_id: uuid,
+});
+
+export const respondToInvitationSchema = z.object({
+  accept: z.boolean(),
+});
+
+export const changeCaptainSchema = z.object({
+  new_captain_player_id: uuid,
+});
+
+export const openTeamsQuerySchema = z.object({
+  skill_level: z.enum(TEAM_SKILL_LEVELS).optional(),
+  city: z.string().max(100).optional(),
 });

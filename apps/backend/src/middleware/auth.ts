@@ -5,6 +5,9 @@ declare global {
   namespace Express {
     interface Request {
       auth?: AuthTokenPayload;
+      // Raw request bytes, captured by app.ts's express.json({ verify })
+      // hook — needed to verify the Razorpay webhook's HMAC signature.
+      rawBody?: Buffer;
     }
   }
 }

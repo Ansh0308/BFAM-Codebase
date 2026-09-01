@@ -48,7 +48,7 @@ export default function Login() {
       return;
     }
     await setSession(body.token, { user_id: body.user_id, bfam_id: body.bfam_id, role: body.role });
-    router.replace('/(tabs)/home');
+    router.replace('/session-active');
   }
 
   async function handleGoogleToken(idToken: string) {
@@ -92,7 +92,7 @@ export default function Login() {
         bfam_id: body.bfam_id,
         role: body.role,
       });
-      router.replace('/(tabs)/home');
+      router.replace('/session-active');
     } catch {
       setError('Invalid identifier or password.');
     } finally {

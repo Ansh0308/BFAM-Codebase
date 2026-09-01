@@ -8,9 +8,10 @@ const INACTIVE = '#767676';
 
 // Fixed bottom tab bar per Design §3.2/§4.5: white bg, top border-subtle,
 // active = brand-red icon + label with a small red underline indicator,
-// inactive = ink-black/gray. Home/Discover/Matches/Teams are stub nav
-// entries for later modules (Module 2.2 only builds Profile for real) —
-// see src/components/ComingSoonScreen.tsx.
+// inactive = ink-black/gray. Route names below match the actual files under
+// this (tabs) group: `index` is Home, `discover` and `teams` are full
+// feature directories (Module 2.3/2.5), `matches` is still a later-module
+// stub, `profile` is Module 2.2.
 function TabIndicator({ focused, children }: { focused: boolean; children: React.ReactNode }) {
   return (
     <View className="items-center" style={{ width: 32 }}>
@@ -68,7 +69,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="home"
+        name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,

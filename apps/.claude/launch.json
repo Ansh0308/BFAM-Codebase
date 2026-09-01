@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bfam-mobile-web",
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "set PATH=C:\\PROGRA~1\\nodejs;%PATH% && npm --prefix mobile run web"],
+      "port": 8081
+    },
+    {
+      "name": "bfam-backend",
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "set PATH=C:\\PROGRA~1\\nodejs;%PATH% && npm --prefix backend run dev"],
+      "port": 5000
+    }
+  ]
+}

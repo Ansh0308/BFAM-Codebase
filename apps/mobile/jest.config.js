@@ -12,6 +12,7 @@ module.exports = {
     '^@bfam/api-client$': '<rootDir>/../../packages/api-client/index.ts',
     '^@bfam/shared-types$': '<rootDir>/../../packages/shared-types/index.ts',
   },
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   transformIgnorePatterns: [
     presetTransformIgnorePatterns[0].replace('react-native-svg)', 'react-native-svg|moti)'),
     ...presetTransformIgnorePatterns.slice(1),

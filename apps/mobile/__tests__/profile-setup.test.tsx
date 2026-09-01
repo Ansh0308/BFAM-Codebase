@@ -128,7 +128,7 @@ describe('ProfileSetup screen', () => {
       );
     });
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/home');
+      expect(mockReplace).toHaveBeenCalledWith('/session-active');
     });
   });
 

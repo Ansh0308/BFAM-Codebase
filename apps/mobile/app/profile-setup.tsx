@@ -158,7 +158,7 @@ export default function ProfileSetup() {
             }
           : {}),
       });
-      router.replace('/(tabs)/home');
+      router.replace('/session-active');
     } catch {
       setError('Could not save your profile. Please try again.');
     } finally {

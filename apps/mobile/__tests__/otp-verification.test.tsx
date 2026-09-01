@@ -62,7 +62,7 @@ describe('OtpVerification screen', () => {
       expect(mockVerifyOtp).toHaveBeenCalledWith('+919876543210', '123456', 'LOGIN');
     });
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/home');
+      expect(mockReplace).toHaveBeenCalledWith('/session-active');
     });
   });
 
