@@ -2,11 +2,13 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import type { TeamDetails } from '@bfam/shared-types';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
+import { Avatar } from '../../../../src/components/Avatar';
 import { useAuthStore } from '../../../../src/store/authStore';
 
 // Team Details (PRD §12.3). Links out to Team Management only — Match
@@ -49,9 +51,12 @@ export default function TeamDetailsScreen() {
     <ScrollView className="flex-1 bg-surface" testID="team-details-screen">
       <View className="px-6 pt-6">
         <Text className="font-ui font-bold text-title-xl text-ink-black">{team.team_name}</Text>
-        <Text className="text-text-secondary text-body mt-1">
-          {team.home_city ?? 'No home city set'} {team.skill_level ? `· ${team.skill_level}` : ''}
-        </Text>
+        <View className="flex-row items-center mt-1">
+          <Feather name="map-pin" size={13} color="#767676" />
+          <Text className="text-text-secondary text-body ml-1">
+            {team.home_city ?? 'No home city set'} {team.skill_level ? `· ${team.skill_level}` : ''}
+          </Text>
+        </View>
         {team.description && (
           <Text className="text-text-primary text-body mt-3">{team.description}</Text>
         )}
@@ -65,9 +70,14 @@ export default function TeamDetailsScreen() {
             className="flex-row items-center justify-between py-3 border-b border-border-subtle"
             testID={`team-member-${member.player_id}`}
           >
-            <Text className="text-text-primary text-body">{member.bfam_id}</Text>
+            <View className="flex-row items-center">
+              <Avatar size={36} />
+              <Text className="text-text-primary text-body ml-3">{member.bfam_id}</Text>
+            </View>
             {member.role_in_team === 'CAPTAIN' && (
-              <Text className="text-brand-red text-micro uppercase">Captain</Text>
+              <View className="rounded-full border border-brand-red px-2 py-0.5">
+                <Text className="font-ui text-micro font-bold text-brand-red">Captain</Text>
+              </View>
             )}
           </View>
         ))}

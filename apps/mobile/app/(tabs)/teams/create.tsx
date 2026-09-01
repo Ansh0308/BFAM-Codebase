@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
-import { Switch, Text, TextInput, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { TeamSkillLevel } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../src/lib/apiClient';
-import { colors } from '../../../src/theme/tokens';
 import { ScreenContainer } from '../../../src/components/ScreenContainer';
 import { Button } from '../../../src/components/Button';
+import { TextField } from '../../../src/components/TextField';
+import { ChipSelect } from '../../../src/components/ChipSelect';
+import { ToggleRow } from '../../../src/components/ToggleRow';
 
-const SKILL_LEVELS: TeamSkillLevel[] = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'MIXED'];
+const SKILL_LEVELS: { value: TeamSkillLevel; label: string }[] = [
+  { value: 'BEGINNER', label: 'Beginner' },
+  { value: 'INTERMEDIATE', label: 'Intermediate' },
+  { value: 'ADVANCED', label: 'Advanced' },
+  { value: 'MIXED', label: 'Mixed' },
+];
 
 // Create Team (PRD §12.3): name, description, skill level, home city, and
 // whether it's open for players to discover. The creator becomes Captain
@@ -50,72 +57,58 @@ export default function CreateTeamScreen() {
   return (
     <ScreenContainer scroll>
       <View className="pt-4" testID="create-team-screen">
-        <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
-          Team Name
-        </Text>
-        <TextInput
+        <TextField
+          label="Team Name"
           value={teamName}
           onChangeText={setTeamName}
           placeholder="e.g. Rajkot Strikers"
-          placeholderTextColor={colors.textTertiary}
-          className="bg-surface-alt border border-border-strong rounded-md px-4 py-3 mb-4 font-ui text-body text-text-primary"
           testID="team-name-input"
         />
 
-        <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
-          Description
-        </Text>
-        <TextInput
+        <TextField
+          label="Description"
           value={description}
           onChangeText={setDescription}
+          placeholder="What's your team about?"
           multiline
-          placeholderTextColor={colors.textTertiary}
-          className="bg-surface-alt border border-border-strong rounded-md px-4 py-3 mb-4 font-ui text-body text-text-primary min-h-[72px]"
+          style={{ minHeight: 72, paddingTop: 12 }}
         />
 
-        <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
-          Home City
-        </Text>
-        <TextInput
+        <TextField
+          label="Home City"
           value={homeCity}
           onChangeText={setHomeCity}
-          placeholderTextColor={colors.textTertiary}
-          className="bg-surface-alt border border-border-strong rounded-md px-4 py-3 mb-4 font-ui text-body text-text-primary"
+          placeholder="e.g. Rajkot"
         />
 
-        <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
-          Skill Level
-        </Text>
-        <View className="flex-row flex-wrap mb-4">
-          {SKILL_LEVELS.map((level) => {
-            const selected = skillLevel === level;
-            return (
-              <View key={level} className="mr-2 mb-2">
-                <Button
-                  label={level}
-                  variant={selected ? 'primary' : 'secondary'}
-                  fullWidth={false}
-                  onPress={() => setSkillLevel(level)}
-                  testID={`skill-level-${level}`}
-                />
-              </View>
-            );
-          })}
-        </View>
+        <ChipSelect
+          label="Skill Level"
+          options={SKILL_LEVELS}
+          value={skillLevel}
+          onChange={(v) => setSkillLevel(v as TeamSkillLevel)}
+          testID="skill-level"
+        />
 
-        <View className="flex-row items-center justify-between mb-6">
-          <Text className="font-ui text-body text-text-primary">Open for new players to join</Text>
-          <Switch value={isOpen} onValueChange={setIsOpen} testID="is-open-toggle" />
+        <View className="mb-6">
+          <ToggleRow
+            label="Open for new players"
+            description="Lets players discover and request to join your team."
+            value={isOpen}
+            onValueChange={setIsOpen}
+            testID="is-open-toggle"
+          />
         </View>
 
         {error && <Text className="text-brand-red text-body mb-4">{error}</Text>}
 
-        <Button
-          label="Create Team"
-          onPress={submit}
-          loading={submitting}
-          testID="submit-create-team"
-        />
+        <View className="mb-10">
+          <Button
+            label="Create Team"
+            onPress={submit}
+            loading={submitting}
+            testID="submit-create-team"
+          />
+        </View>
       </View>
     </ScreenContainer>
   );

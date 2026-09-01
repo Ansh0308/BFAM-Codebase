@@ -1,3 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* react-native-web renders TextInput as a plain <input>/<textarea>, which
+   picks up the browser's default focus outline — a black rectangle that
+   clashes with our own bordered field design. Every focusable field in
+   this app shows focus via its own border/color change instead (see
+   TextField.tsx, OtpInput.tsx), so the raw outline is redundant, not the
+   only indicator — safe to remove app-wide rather than per-component. */
+input:focus,
+textarea:focus {
+  outline: none;
+}

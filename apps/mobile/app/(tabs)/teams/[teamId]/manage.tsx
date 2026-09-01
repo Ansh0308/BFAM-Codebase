@@ -1,13 +1,16 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import type { JoinRequest, TeamDetails } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
+import { TextField } from '../../../../src/components/TextField';
+import { Avatar } from '../../../../src/components/Avatar';
 
 // Team Management (PRD §12.3): invite/remove players, change captain, and
 // respond to Join Team Requests (PRD §12.4). Captain-only — the backend
@@ -77,15 +80,12 @@ export default function ManageTeamScreen() {
 
   return (
     <ScrollView className="flex-1 bg-surface px-6 pt-6" testID="manage-team-screen">
-      <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
-        Invite a Player
-      </Text>
-      <TextInput
+      <TextField
+        label="Invite a Player"
         value={invitePlayerId}
         onChangeText={setInvitePlayerId}
         placeholder="Player ID"
-        placeholderTextColor={colors.textTertiary}
-        className="bg-surface-alt border border-border-strong rounded-md px-4 py-3 mb-3 font-ui text-body text-text-primary"
+        iconLeft={<Feather name="user-plus" size={16} color="#767676" />}
         testID="invite-player-id-input"
       />
       <View className="mb-6">
@@ -103,26 +103,36 @@ export default function ManageTeamScreen() {
           className="flex-row items-center justify-between py-3 border-b border-border-subtle"
           testID={`manage-member-${member.player_id}`}
         >
-          <View>
-            <Text className="text-text-primary text-body">{member.bfam_id}</Text>
-            {member.role_in_team === 'CAPTAIN' && (
-              <Text className="text-brand-red text-micro uppercase">Captain</Text>
-            )}
+          <View className="flex-row items-center flex-1">
+            <Avatar size={36} />
+            <View className="ml-3">
+              <Text className="text-text-primary text-body">{member.bfam_id}</Text>
+              {member.role_in_team === 'CAPTAIN' && (
+                <View className="rounded-full border border-brand-red px-2 py-0.5 mt-1 self-start">
+                  <Text className="font-ui text-micro font-bold text-brand-red">Captain</Text>
+                </View>
+              )}
+            </View>
           </View>
           {member.role_in_team !== 'CAPTAIN' && (
-            <View className="flex-row">
+            <View className="flex-row items-center">
               <Pressable
                 onPress={() => withBusy(() => apiClient.changeCaptain(teamId, member.player_id))}
-                className="mr-4"
+                className="mr-3 rounded-full bg-surface-alt items-center justify-center"
+                style={{ width: 34, height: 34 }}
                 testID={`make-captain-${member.player_id}`}
+                accessibilityLabel="Make captain"
               >
-                <Text className="text-text-secondary text-micro uppercase">Make Captain</Text>
+                <Feather name="star" size={16} color="#0D0D0D" />
               </Pressable>
               <Pressable
                 onPress={() => withBusy(() => apiClient.removeTeamMember(teamId, member.player_id))}
+                className="rounded-full bg-surface-alt items-center justify-center"
+                style={{ width: 34, height: 34 }}
                 testID={`remove-member-${member.player_id}`}
+                accessibilityLabel="Remove from team"
               >
-                <Text className="text-brand-red text-micro uppercase">Remove</Text>
+                <Feather name="user-x" size={16} color="#D80000" />
               </Pressable>
             </View>
           )}
@@ -141,18 +151,23 @@ export default function ManageTeamScreen() {
             className="flex-row items-center justify-between py-3 border-b border-border-subtle mb-8"
             testID={`join-request-${request.request_id}`}
           >
-            <Text className="text-text-primary text-body">{request.bfam_id}</Text>
-            <View className="flex-row">
+            <View className="flex-row items-center">
+              <Avatar size={36} />
+              <Text className="text-text-primary text-body ml-3">{request.bfam_id}</Text>
+            </View>
+            <View className="flex-row items-center">
               <Pressable
                 onPress={() =>
                   withBusy(() =>
                     apiClient.respondToJoinRequest(request.request_id, true).then(() => undefined),
                   )
                 }
-                className="mr-4"
+                className="mr-3 rounded-full bg-brand-red items-center justify-center"
+                style={{ width: 34, height: 34 }}
                 testID={`accept-join-request-${request.request_id}`}
+                accessibilityLabel="Accept"
               >
-                <Text className="text-brand-red text-micro uppercase">Accept</Text>
+                <Feather name="check" size={16} color="#FFFFFF" />
               </Pressable>
               <Pressable
                 onPress={() =>
@@ -160,9 +175,12 @@ export default function ManageTeamScreen() {
                     apiClient.respondToJoinRequest(request.request_id, false).then(() => undefined),
                   )
                 }
+                className="rounded-full bg-surface-alt items-center justify-center"
+                style={{ width: 34, height: 34 }}
                 testID={`reject-join-request-${request.request_id}`}
+                accessibilityLabel="Reject"
               >
-                <Text className="text-text-tertiary text-micro uppercase">Reject</Text>
+                <Feather name="x" size={16} color="#767676" />
               </Pressable>
             </View>
           </View>
