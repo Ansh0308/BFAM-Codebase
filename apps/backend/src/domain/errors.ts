@@ -197,3 +197,35 @@ export class InvalidCheckInCodeError extends Error {
     this.name = 'InvalidCheckInCodeError';
   }
 }
+
+// ---- Module 2.7: Countdown Intro ----
+
+export class MatchIntroNotFoundError extends Error {
+  constructor(matchId: string) {
+    super(`No intro sequence has been started for match ${matchId}`);
+    this.name = 'MatchIntroNotFoundError';
+  }
+}
+
+// ---- Module 2.8: Live Scoring ----
+
+export class InningsNotFoundError extends Error {
+  constructor(inningsId: string) {
+    super(`Innings ${inningsId} not found`);
+    this.name = 'InningsNotFoundError';
+  }
+}
+
+export class NoBallToUndoError extends Error {
+  constructor() {
+    super('There is no ball recorded yet to undo.');
+    this.name = 'NoBallToUndoError';
+  }
+}
+
+export class InvalidScoringStateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidScoringStateError';
+  }
+}

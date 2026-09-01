@@ -6,10 +6,12 @@ import {
   CreateTeamInput,
   GameRoom,
   GatewayPaymentOrder,
+  IntroContext,
   JoinRequest,
   Match,
   MatchAttendanceStatus,
   MyTeam,
+  PlayingXiPlayer,
   OpenTeam,
   Payment,
   PaymentObligation,
@@ -565,10 +567,39 @@ export class BFAMApiClient {
     await this.request<void>(`/matches/replacements/${replacementId}/accept`, { method: 'POST' });
   }
 
-  async startMatchStub(matchId: string): Promise<{ stub: boolean; message: string }> {
-    return this.request<{ stub: boolean; message: string }>(`/matches/${matchId}/start`, {
+  // ---- Module 2.7: Countdown Intro ----
+
+  async startMatchIntro(matchId: string): Promise<IntroContext> {
+    return this.request<IntroContext>(`/matches/${matchId}/start`, { method: 'POST' });
+  }
+
+  async getMatchIntro(matchId: string): Promise<IntroContext> {
+    return this.request<IntroContext>(`/matches/${matchId}/intro`);
+  }
+
+  async confirmPlayingXi(
+    matchId: string,
+    side: 'TEAM_A' | 'TEAM_B',
+  ): Promise<{ players: PlayingXiPlayer[] }> {
+    return this.request<{ players: PlayingXiPlayer[] }>(`/matches/${matchId}/intro/confirm-xi`, {
       method: 'POST',
+      body: JSON.stringify({ side }),
     });
+  }
+
+  async recordToss(
+    matchId: string,
+    tossWinnerMatchTeamId: string,
+    decision: 'BAT' | 'BOWL',
+  ): Promise<{ toss_winner_match_team_id: string; toss_decision: string }> {
+    return this.request(`/matches/${matchId}/intro/toss`, {
+      method: 'POST',
+      body: JSON.stringify({ toss_winner_match_team_id: tossWinnerMatchTeamId, decision }),
+    });
+  }
+
+  async completeMatchIntro(matchId: string): Promise<void> {
+    await this.request<void>(`/matches/${matchId}/intro/complete`, { method: 'POST' });
   }
 }
 

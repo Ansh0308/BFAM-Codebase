@@ -625,3 +625,14 @@ export const checkInSchema = z.object({
 export const inviteReplacementSchema = z.object({
   player_id: uuid,
 });
+
+// ---- Module 2.7: Countdown Intro ----
+
+export const confirmPlayingXiSchema = z.object({
+  side: z.enum(['TEAM_A', 'TEAM_B']),
+});
+
+export const recordTossSchema = z.object({
+  toss_winner_match_team_id: uuid,
+  decision: z.enum(['BAT', 'BOWL']),
+});

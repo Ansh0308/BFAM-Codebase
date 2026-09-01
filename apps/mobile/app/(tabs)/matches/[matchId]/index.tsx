@@ -37,8 +37,8 @@ function formatMatchTime(iso: string) {
 }
 
 // Game Room (PRD §12.10): match info, roster with confirmations +
-// attendance, payment status, attendance summary. "Start Match" is a stub
-// only — module 2.7 (Countdown Intro) owns the real flow.
+// attendance, payment status, attendance summary. "Start Match" hands off
+// to the Countdown Intro (module 2.7).
 export default function GameRoomScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const router = useRouter();
@@ -47,7 +47,6 @@ export default function GameRoomScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [startMessage, setStartMessage] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -261,20 +260,10 @@ export default function GameRoomScreen() {
           <View className="mt-6 mb-3">
             <Button
               label="Start Match"
-              onPress={() =>
-                apiClient
-                  .startMatchStub(matchId)
-                  .then((res) => setStartMessage(res.message))
-                  .catch(() => setStartMessage('Could not start the match.'))
-              }
-              testID="start-match-stub"
+              onPress={() => router.push(`/(tabs)/matches/${matchId}/intro`)}
+              testID="start-match-button"
             />
           </View>
-        )}
-        {startMessage && (
-          <Text className="font-ui text-micro text-text-tertiary text-center mb-6">
-            {startMessage}
-          </Text>
         )}
         <View className="mb-10" />
       </View>

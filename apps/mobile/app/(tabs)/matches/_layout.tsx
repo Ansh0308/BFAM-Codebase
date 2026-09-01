@@ -17,6 +17,11 @@ export default function MatchesLayout() {
       <Stack.Screen name="[matchId]/index" options={{ title: 'Game Room' }} />
       <Stack.Screen name="[matchId]/invite" options={{ title: 'Invite Players' }} />
       <Stack.Screen name="[matchId]/check-in" options={{ title: 'Check In' }} />
+      <Stack.Screen
+        name="[matchId]/intro"
+        options={{ headerShown: false, gestureEnabled: false }}
+      />
+      <Stack.Screen name="[matchId]/live-stub" options={{ headerShown: false }} />
     </Stack>
   );
 }

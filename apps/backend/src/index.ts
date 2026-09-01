@@ -4,6 +4,8 @@ import app from './app';
 import { connectDatabase } from './config/sequelize';
 import { runMigrations } from './config/migrate';
 import { startReminderTicker } from './services/reminderService';
+import { setIo } from './realtime/io';
+import { registerMatchSocketHandlers } from './realtime/matchSocket';
 
 const PORT = process.env.PORT || 5000;
 
@@ -35,6 +37,12 @@ healthNamespace.on('connection', (socket) => {
     console.log(`Client disconnected from health-check namespace: ${socket.id}`);
   });
 });
+
+// Modules 2.7/2.8/2.9: per-match room (join_match/leave_match), intro
+// stage relay, live score broadcast, and viewer presence — all on the
+// default namespace, so a single client connection covers everything.
+setIo(io);
+registerMatchSocketHandlers(io);
 
 // Listen on server
 async function startServer() {

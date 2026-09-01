@@ -3,12 +3,21 @@ import { authenticateJwt } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import {
   checkInSchema,
+  confirmPlayingXiSchema,
   createMatchSchema,
   inviteReplacementSchema,
   inviteToMatchSchema,
+  recordTossSchema,
   respondToMatchInvitationSchema,
   updateAttendanceSchema,
 } from '../validation/schemas';
+import {
+  completeIntro,
+  confirmPlayingXi,
+  getIntroContext,
+  recordToss,
+  startIntro,
+} from '../services/matchIntroService';
 import {
   acceptReplacement,
   checkInWithCode,
@@ -31,6 +40,7 @@ import {
   InvalidCheckInCodeError,
   InvalidMatchStateError,
   MatchAlreadyExistsForBookingError,
+  MatchIntroNotFoundError,
   MatchInvitationNotFoundError,
   MatchNotFoundError,
   PlayerProfileNotFoundError,
@@ -43,7 +53,8 @@ function handleMatchError(error: unknown, res: Response) {
   if (
     error instanceof MatchNotFoundError ||
     error instanceof MatchInvitationNotFoundError ||
-    error instanceof ReplacementNotFoundError
+    error instanceof ReplacementNotFoundError ||
+    error instanceof MatchIntroNotFoundError
   ) {
     return res.status(404).json({ error: { message: error.message, status: 404 } });
   }
@@ -215,14 +226,12 @@ router.post(
       !parsed.success ||
       !['RUNNING_LATE', 'CHECKED_IN'].includes(parsed.data.attendance_status)
     ) {
-      return res
-        .status(400)
-        .json({
-          error: {
-            message: 'You can only set your own status to Running Late or Checked In.',
-            status: 400,
-          },
-        });
+      return res.status(400).json({
+        error: {
+          message: 'You can only set your own status to Running Late or Checked In.',
+          status: 400,
+        },
+      });
     }
     try {
       await updateMyAttendance(
@@ -375,20 +384,99 @@ router.post(
   }),
 );
 
-// POST /matches/:matchId/start — Game Room's "Start Match" action. Module
-// 2.7 (Countdown Intro) owns the real flow; this is a stub only, per this
-// module's explicit scope boundary.
+// POST /matches/:matchId/start — Game Room's "Start Match" action (PRD
+// §12.61 requirement 1). Creates the match_intro record and broadcasts the
+// COUNTDOWN stage to every connected viewer. Module 2.8 (Live Scoring) is
+// what the intro sequence eventually hands off to — that handoff is a stub
+// only (see /:matchId/intro/complete below), per this module's scope.
 router.post(
   '/:matchId/start',
   authenticateJwt,
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const gameRoom = await getGameRoom(req.params.matchId, req.auth!.sub);
-      return res.status(200).json({
-        stub: true,
-        message: 'Countdown Intro & Live Scoring are built in modules 2.7/2.8.',
-        match_id: gameRoom.match_id,
-      });
+      const result = await startIntro(req.params.matchId, req.auth!.sub);
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// GET /matches/:matchId/intro — current intro state + live-derived
+// Playing XI (module 2.7).
+router.get(
+  '/:matchId/intro',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const result = await getIntroContext(req.params.matchId);
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /matches/:matchId/intro/confirm-xi — Playing XI reveal
+// confirmation, per side.
+router.post(
+  '/:matchId/intro/confirm-xi',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = confirmPlayingXiSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid payload', status: 400 } });
+    }
+    try {
+      const result = await confirmPlayingXi(req.params.matchId, req.auth!.sub, parsed.data.side);
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /matches/:matchId/intro/toss — toss result capture (PRD §12.61
+// requirement 5).
+router.post(
+  '/:matchId/intro/toss',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = recordTossSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid toss payload', status: 400 } });
+    }
+    try {
+      const result = await recordToss(
+        req.params.matchId,
+        req.auth!.sub,
+        parsed.data.toss_winner_match_team_id,
+        parsed.data.decision,
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /matches/:matchId/intro/complete — the sequence's final stage;
+// hands off to Live Scoring (module 2.8), which is a stub only here.
+router.post(
+  '/:matchId/intro/complete',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      await completeIntro(req.params.matchId, req.auth!.sub);
+      return res.status(204).send();
     } catch (error) {
       const handled = handleMatchError(error, res);
       if (handled) return handled;

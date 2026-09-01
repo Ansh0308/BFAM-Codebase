@@ -478,7 +478,28 @@ export interface MatchIntro {
   background_music_enabled: boolean;
   playing_xi_confirmed_team_a: boolean;
   playing_xi_confirmed_team_b: boolean;
-  intro_played_at?: string;
+  toss_winner_match_team_id: string | null;
+  toss_decision: 'BAT' | 'BOWL' | null;
+  toss_completed_at: string | null;
+  intro_played_at: string | null;
+}
+
+export interface PlayingXiPlayer {
+  player_id: string;
+  bfam_id: string;
+  participant_role: 'PLAYER' | 'CAPTAIN' | 'SCORER';
+  side_label: 'TEAM_A' | 'TEAM_B' | null;
+}
+
+export interface IntroMatchTeam {
+  match_team_id: string;
+  side_label: 'TEAM_A' | 'TEAM_B';
+}
+
+export interface IntroContext {
+  intro: MatchIntro;
+  players: PlayingXiPlayer[];
+  matchTeams: IntroMatchTeam[];
 }
 
 export interface LiveMatchSession {
