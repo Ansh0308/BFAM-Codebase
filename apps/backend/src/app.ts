@@ -71,6 +71,7 @@ import turfsRouter from './routes/turfs';
 import bookingsRouter from './routes/bookings';
 import paymentsRouter from './routes/payments';
 import teamsRouter from './routes/teams';
+import matchesRouter from './routes/matches';
 
 interface UserRow {
   user_id: string;
@@ -1003,6 +1004,7 @@ app.use('/bookings', bookingsRouter);
 app.use('/payments', paymentsRouter);
 // Module 2.5 — Teams (PRD §12.3, §12.4).
 app.use('/teams', teamsRouter);
+app.use('/matches', matchesRouter);
 
 // Sentry Error Handler setup for v8
 if (process.env.SENTRY_DSN) {

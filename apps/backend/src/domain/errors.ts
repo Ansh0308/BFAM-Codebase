@@ -153,3 +153,47 @@ export class JoinRequestNotFoundError extends Error {
     this.name = 'JoinRequestNotFoundError';
   }
 }
+
+// ---- Module 2.6: Match Creation & Game Room ----
+
+export class MatchNotFoundError extends Error {
+  constructor(matchId: string) {
+    super(`Match ${matchId} not found`);
+    this.name = 'MatchNotFoundError';
+  }
+}
+
+export class MatchInvitationNotFoundError extends Error {
+  constructor(invitationId: string) {
+    super(`Match invitation ${invitationId} not found`);
+    this.name = 'MatchInvitationNotFoundError';
+  }
+}
+
+export class ReplacementNotFoundError extends Error {
+  constructor(replacementId: string) {
+    super(`Replacement ${replacementId} not found`);
+    this.name = 'ReplacementNotFoundError';
+  }
+}
+
+export class InvalidMatchStateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidMatchStateError';
+  }
+}
+
+export class MatchAlreadyExistsForBookingError extends Error {
+  constructor() {
+    super('A match has already been created for this booking.');
+    this.name = 'MatchAlreadyExistsForBookingError';
+  }
+}
+
+export class InvalidCheckInCodeError extends Error {
+  constructor() {
+    super('This check-in code is invalid or has expired.');
+    this.name = 'InvalidCheckInCodeError';
+  }
+}

@@ -388,6 +388,89 @@ export interface JoinRequest {
   bfam_id?: string;
 }
 
+// ---- Module 2.6: Match Creation & Game Room ----
+
+export type MatchType = 'FRIENDS' | 'FAIR_PLAY' | 'TOURNAMENT';
+export type MatchBallType = 'TENNIS' | 'HARD_TENNIS';
+export type MatchScoringMode = 'PLAYER_MANAGED' | 'TURF_STAFF_MANAGED';
+export type MatchStatus =
+  'OPEN' | 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type MatchConfirmationStatus =
+  'PENDING' | 'CONFIRMED' | 'MAYBE' | 'CANT_PLAY' | 'NO_RESPONSE';
+export type MatchAttendanceStatus = 'PENDING' | 'RUNNING_LATE' | 'CHECKED_IN' | 'NO_SHOW';
+export type ReplacementStatus = 'OPEN' | 'FILLED' | 'CANCELLED';
+
+export interface Match {
+  match_id: string;
+  booking_id: string;
+  match_name: string | null;
+  organizer_id: string;
+  match_type: MatchType;
+  ball_type: MatchBallType;
+  overs_per_innings: number;
+  scoring_mode: MatchScoringMode;
+  assigned_scorer_id: string | null;
+  match_status: MatchStatus;
+  visibility: 'PRIVATE' | 'PUBLIC';
+  scheduled_start_time: string;
+  actual_start_time: string | null;
+  actual_end_time: string | null;
+  check_in_code: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MatchPlayer {
+  match_player_id: string;
+  match_id: string;
+  player_id: string;
+  match_team_id: string | null;
+  participant_role: 'PLAYER' | 'CAPTAIN' | 'SCORER';
+  invitation_status: MatchConfirmationStatus;
+  attendance_status: MatchAttendanceStatus;
+  checked_in_at: string | null;
+  added_at: string;
+  bfam_id?: string;
+  favorite_cricketer_name?: string | null;
+  side_label?: string | null;
+}
+
+export interface GameRoomAttendanceSummary {
+  confirmed: number;
+  maybe: number;
+  cant_play: number;
+  pending: number;
+  checked_in: number;
+  running_late: number;
+  no_show: number;
+}
+
+export interface GameRoom extends Match {
+  players: MatchPlayer[];
+  payment: {
+    total_due: number;
+    total_paid: number;
+    fully_paid: boolean;
+  };
+  attendance_summary: GameRoomAttendanceSummary;
+}
+
+export interface CreateMatchInput {
+  booking_id: string;
+  match_name?: string | null;
+  match_type: MatchType;
+  ball_type: MatchBallType;
+  overs_per_innings: number;
+  scoring_mode: MatchScoringMode;
+  assigned_scorer_id?: string | null;
+}
+
+export interface ReplacementSuggestion {
+  player_id: string;
+  bfam_id: string;
+  team_name: string;
+}
+
 export interface MatchIntro {
   intro_id: string;
   match_id: string;

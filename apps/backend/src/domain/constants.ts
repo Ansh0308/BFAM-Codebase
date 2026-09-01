@@ -35,8 +35,23 @@ export const MATCH_STATUSES = [
 export const MATCH_VISIBILITIES = ['PRIVATE', 'PUBLIC'] as const;
 export const SIDE_LABELS = ['TEAM_A', 'TEAM_B'] as const;
 export const PARTICIPANT_ROLES = ['PLAYER', 'CAPTAIN', 'SCORER'] as const;
-export const ATTENDANCE_STATUSES = ['PENDING', 'CHECKED_IN', 'NO_SHOW'] as const;
+// RUNNING_LATE added for module 2.6 (PRD §12.14) — a confirmed player
+// self-reports running late without yet being marked present.
+export const ATTENDANCE_STATUSES = ['PENDING', 'RUNNING_LATE', 'CHECKED_IN', 'NO_SHOW'] as const;
 export const REPLACEMENT_STATUSES = ['OPEN', 'FILLED', 'CANCELLED'] as const;
+// A player's RSVP to a match (module 2.6, PRD §12.9/§12.12) — distinct from
+// the generic INVITATION_STATUSES used by team_invitations/
+// team_join_requests, which only needs a plain accept/reject. This is its
+// own enum (rather than widening the shared one) because MAYBE/CANT_PLAY/
+// NO_RESPONSE would be meaningless on a team join request.
+export const MATCH_CONFIRMATION_STATUSES = [
+  'PENDING',
+  'CONFIRMED',
+  'MAYBE',
+  'CANT_PLAY',
+  'NO_RESPONSE',
+] as const;
+export const REMINDER_THRESHOLDS = ['24H', '3H', '1H', '15MIN'] as const;
 
 export const DUE_STATUSES = ['PENDING', 'PARTIALLY_PAID', 'PAID', 'CANCELLED'] as const;
 export const PAYMENT_METHODS = ['UPI', 'RAZORPAY', 'CASH', 'CAPTAIN_PAYS', 'SPLIT'] as const;

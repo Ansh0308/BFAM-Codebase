@@ -222,7 +222,15 @@ export default function PaymentScreen() {
           </Text>
           <View className="mt-8 w-full">
             <Button
+              label="Create Match"
+              onPress={() => router.push(`/(tabs)/matches/create?bookingId=${bookingId}`)}
+              testID="payment-done-create-match"
+            />
+          </View>
+          <View className="mt-3 w-full">
+            <Button
               label="View My Bookings"
+              variant="secondary"
               onPress={() => router.push('/(tabs)/discover/my-bookings')}
               testID="payment-done-my-bookings"
             />

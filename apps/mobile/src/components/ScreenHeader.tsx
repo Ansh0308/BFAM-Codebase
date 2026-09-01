@@ -23,9 +23,7 @@ export function ScreenHeader({ title }: ScreenHeaderProps) {
       >
         <Feather name="chevron-left" size={24} color="#0D0D0D" />
       </Pressable>
-      <Text className="font-display text-section-header uppercase text-ink-black ml-3">
-        {title}
-      </Text>
+      <Text className="font-ui font-bold text-section-header text-ink-black ml-3">{title}</Text>
     </View>
   );
 }

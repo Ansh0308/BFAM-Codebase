@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import app from './app';
 import { connectDatabase } from './config/sequelize';
 import { runMigrations } from './config/migrate';
+import { startReminderTicker } from './services/reminderService';
 
 const PORT = process.env.PORT || 5000;
 
@@ -53,6 +54,13 @@ async function startServer() {
       `Socket.IO health-check namespace listening at ws://localhost:${PORT}/health-check`,
     );
   });
+
+  // Smart Reminders (PRD §12.13) — a real backend scheduled job, not a
+  // client-side timer. Skipped in tests, same reasoning as runMigrations
+  // above: tests manage their own state/mocks.
+  if (process.env.NODE_ENV !== 'test') {
+    startReminderTicker();
+  }
 }
 
 startServer();

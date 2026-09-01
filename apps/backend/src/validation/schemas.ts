@@ -593,3 +593,35 @@ export const openTeamsQuerySchema = z.object({
   skill_level: z.enum(TEAM_SKILL_LEVELS).optional(),
   city: z.string().max(100).optional(),
 });
+
+// ---- Module 2.6: Match Creation & Game Room ----
+
+export const createMatchSchema = z.object({
+  booking_id: uuid,
+  match_name: z.string().max(150).nullable().optional(),
+  match_type: z.enum(MATCH_TYPES),
+  ball_type: z.enum(BALL_TYPES),
+  overs_per_innings: z.number().int().min(1).max(50),
+  scoring_mode: z.enum(SCORING_MODES),
+  assigned_scorer_id: uuid.nullable().optional(),
+});
+
+export const inviteToMatchSchema = z.object({
+  player_id: uuid,
+});
+
+export const respondToMatchInvitationSchema = z.object({
+  response: z.enum(['CONFIRMED', 'MAYBE', 'CANT_PLAY']),
+});
+
+export const updateAttendanceSchema = z.object({
+  attendance_status: z.enum(ATTENDANCE_STATUSES),
+});
+
+export const checkInSchema = z.object({
+  code: z.string().min(1).max(8),
+});
+
+export const inviteReplacementSchema = z.object({
+  player_id: uuid,
+});

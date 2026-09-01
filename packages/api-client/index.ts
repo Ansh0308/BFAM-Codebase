@@ -1,14 +1,19 @@
 import {
   Booking,
   CreateBookingInput,
+  CreateMatchInput,
   CreateObligationsInput,
   CreateTeamInput,
+  GameRoom,
   GatewayPaymentOrder,
   JoinRequest,
+  Match,
+  MatchAttendanceStatus,
   MyTeam,
   OpenTeam,
   Payment,
   PaymentObligation,
+  ReplacementSuggestion,
   TeamDetails,
   TurfAvailability,
   TurfDetails,
@@ -457,6 +462,112 @@ export class BFAMApiClient {
     return this.request<{ status: string }>(`/teams/join-requests/${requestId}/respond`, {
       method: 'POST',
       body: JSON.stringify({ accept }),
+    });
+  }
+
+  // ---- Module 2.6: Match Creation & Game Room ----
+
+  async createMatch(input: CreateMatchInput): Promise<Match> {
+    return this.request<Match>('/matches', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async getMyMatches(): Promise<{ results: Match[] }> {
+    return this.request<{ results: Match[] }>('/matches/mine');
+  }
+
+  async getGameRoom(matchId: string): Promise<GameRoom> {
+    return this.request<GameRoom>(`/matches/${matchId}`);
+  }
+
+  async inviteToMatch(matchId: string, playerId: string): Promise<{ invitation_id: string }> {
+    return this.request<{ invitation_id: string }>(`/matches/${matchId}/invitations`, {
+      method: 'POST',
+      body: JSON.stringify({ player_id: playerId }),
+    });
+  }
+
+  async joinMatchViaLink(matchId: string): Promise<void> {
+    await this.request<void>(`/matches/${matchId}/join`, { method: 'POST' });
+  }
+
+  async respondToMatchInvitation(
+    invitationId: string,
+    response: 'CONFIRMED' | 'MAYBE' | 'CANT_PLAY',
+  ): Promise<{ status: string }> {
+    return this.request<{ status: string }>(`/matches/invitations/${invitationId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ response }),
+    });
+  }
+
+  async respondToMatch(
+    matchId: string,
+    response: 'CONFIRMED' | 'MAYBE' | 'CANT_PLAY',
+  ): Promise<{ status: string }> {
+    return this.request<{ status: string }>(`/matches/${matchId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ response }),
+    });
+  }
+
+  async updateMyAttendance(matchId: string, status: 'RUNNING_LATE' | 'CHECKED_IN'): Promise<void> {
+    await this.request<void>(`/matches/${matchId}/attendance/me`, {
+      method: 'POST',
+      body: JSON.stringify({ attendance_status: status }),
+    });
+  }
+
+  async setPlayerAttendance(
+    matchId: string,
+    playerId: string,
+    status: MatchAttendanceStatus,
+  ): Promise<void> {
+    await this.request<void>(`/matches/${matchId}/attendance/${playerId}`, {
+      method: 'POST',
+      body: JSON.stringify({ attendance_status: status }),
+    });
+  }
+
+  async getCheckInCode(matchId: string): Promise<{ check_in_code: string | null }> {
+    return this.request<{ check_in_code: string | null }>(`/matches/${matchId}/check-in-code`);
+  }
+
+  async checkIn(matchId: string, code: string): Promise<void> {
+    await this.request<void>(`/matches/${matchId}/check-in`, {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  }
+
+  async vacateMatchSpot(matchId: string, playerId: string): Promise<{ replacement_id: string }> {
+    return this.request<{ replacement_id: string }>(
+      `/matches/${matchId}/players/${playerId}/vacate`,
+      { method: 'POST' },
+    );
+  }
+
+  async getReplacementSuggestions(
+    replacementId: string,
+  ): Promise<{ results: ReplacementSuggestion[] }> {
+    return this.request<{ results: ReplacementSuggestion[] }>(
+      `/matches/replacements/${replacementId}/suggestions`,
+    );
+  }
+
+  async inviteReplacement(replacementId: string, playerId: string): Promise<void> {
+    await this.request<void>(`/matches/replacements/${replacementId}/invite`, {
+      method: 'POST',
+      body: JSON.stringify({ player_id: playerId }),
+    });
+  }
+
+  async acceptReplacement(replacementId: string): Promise<void> {
+    await this.request<void>(`/matches/replacements/${replacementId}/accept`, { method: 'POST' });
+  }
+
+  async startMatchStub(matchId: string): Promise<{ stub: boolean; message: string }> {
+    return this.request<{ stub: boolean; message: string }>(`/matches/${matchId}/start`, {
+      method: 'POST',
     });
   }
 }
