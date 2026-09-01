@@ -1,19 +1,19 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { ScreenContainer } from '../src/components/ScreenContainer';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import { AuthScreenBackground } from '../src/components/AuthScreenBackground';
 import { Button } from '../src/components/Button';
 import { useSignupStore } from '../src/store/signupStore';
 
 // "You are BF1042" reveal — shown exactly once, right after account
 // creation returns bfam_id. Per PRD §12.59 this ID is permanent.
 //
-// Continue is the EXPLICIT hand-off point out of Module 2.1. Per the
-// module brief, Profile Setup / Turf Discovery / any dashboard are later
-// modules and out of scope here — so Continue deliberately does NOT
-// navigate anywhere. Wire it to whatever the next module's entry route is
-// once it exists.
+// Continue now hands off into Module 2.2 (Profile Setup) — Module 2.1's
+// brief kept this a deliberate dead end since Profile Setup didn't exist
+// yet; it does now.
 export default function BfamIdConfirmation() {
+  const router = useRouter();
   const { bfam_id } = useLocalSearchParams<{ bfam_id?: string }>();
   const reset = useSignupStore((s) => s.reset);
 
@@ -21,14 +21,18 @@ export default function BfamIdConfirmation() {
     // Signup flow state is no longer needed — clear it now that the
     // account exists and the user is authenticated (see authStore).
     reset();
-    // Hand-off point: intentionally a no-op beyond clearing signup state.
-    // The next module (Profile Setup / Dashboard) owns what happens after
-    // this button, not this module.
+    router.replace('/profile-setup');
   }
 
   return (
-    <ScreenContainer>
+    <AuthScreenBackground>
       <View className="flex-1 items-center justify-center">
+        <View
+          className="rounded-full bg-surface-alt items-center justify-center mb-4"
+          style={{ width: 64, height: 64 }}
+        >
+          <Feather name="check" size={28} color="#D80000" />
+        </View>
         <Text className="font-ui text-micro uppercase tracking-wide text-text-tertiary mb-2">
           Your BFAM ID
         </Text>
@@ -41,8 +45,13 @@ export default function BfamIdConfirmation() {
       </View>
 
       <View className="mb-8">
-        <Button label="Continue" onPress={handleContinue} testID="bfam-id-continue" />
+        <Button
+          label="Continue"
+          onPress={handleContinue}
+          testID="bfam-id-continue"
+          iconRight={<Feather name="arrow-right" size={18} color="#FFFFFF" />}
+        />
       </View>
-    </ScreenContainer>
+    </AuthScreenBackground>
   );
 }

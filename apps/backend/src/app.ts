@@ -1,5 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import multer from 'multer';
 import bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
@@ -14,6 +17,9 @@ import {
   registerUserSchema,
   lockBfamIdSchema,
   assignBfamIdSchema,
+  updateProfileSchema,
+  sendEmailOtpSchema,
+  verifyEmailOtpSchema,
   otpSendSchema,
   otpVerifySchema,
   loginSchema,
@@ -39,6 +45,17 @@ import {
   listReservedBfamIds,
   AdminBfamIdError,
 } from './services/adminBfamIdService';
+import {
+  getMyProfile,
+  updateMyProfile,
+  setVerifiedEmail,
+  DuplicateEmailError,
+} from './services/profileService';
+import {
+  isS3Configured,
+  isAllowedImageContentType,
+  uploadProfilePhoto,
+} from './services/uploadService';
 import {
   persistRazorpayWebhookEvent,
   verifyRazorpayWebhookSignature,
@@ -98,10 +115,25 @@ async function touchLastLogin(userId: string): Promise<void> {
 // Initialize Sentry before anything else
 initSentry();
 
+// A predictable JWT secret would let anyone forge auth tokens — refusing to
+// boot in production without a real one beats silently running insecurely.
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in production');
+}
+
 const app = express();
 
 // Standard middlewares
-app.use(cors());
+app.use(helmet());
+app.use(
+  cors({
+    // CORS_ORIGIN is a comma-separated allowlist (e.g.
+    // "https://app.bfam.com,https://staging.bfam.com"). Unset = allow all,
+    // which is fine for local dev but must be set before going to
+    // production.
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true,
+  }),
+);
 // `verify` stashes the raw request bytes on req.rawBody alongside the
 // parsed req.body — the Razorpay webhook handler needs the exact raw bytes
 // to verify the HMAC signature (re-serializing req.body would not
@@ -113,6 +145,40 @@ app.use(
     },
   }),
 );
+
+// Auth endpoints are the highest-value brute-force/spam target (password
+// guessing, OTP guessing/flooding) — a tighter limit than the rest of the
+// API. Registration gets its own, more generous limiter: it's not a
+// guessing attack surface the way login/OTP are, and legitimate concurrent
+// signups (e.g. many users signing up around the same time) shouldn't
+// collide with a limit sized for brute-force protection.
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { message: 'Too many requests, please try again later', status: 429 } },
+});
+const registerRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { message: 'Too many requests, please try again later', status: 429 } },
+});
+app.use(
+  [
+    '/auth/login',
+    '/auth/otp/send',
+    '/auth/otp/verify',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/profile/email/send-otp',
+    '/profile/email/verify-otp',
+  ],
+  authRateLimiter,
+);
+app.use('/auth/register', registerRateLimiter);
 
 // Sentry request handler (if DSN was configured, Sentry will capture HTTP requests)
 // In newer Sentry Node SDK (v8+), Sentry.setupExpressErrorHandler(app) is typically used.
@@ -231,7 +297,7 @@ app.post('/auth/otp/send', async (req: Request, res: Response) => {
           error: { message: 'An account already exists for this identifier', status: 409 },
         });
       }
-      const code = generateAndSendOtp(identifier, purpose);
+      const { code } = await generateAndSendOtp(identifier, purpose);
       return res.status(200).json({
         message: 'OTP sent',
         ...(process.env.NODE_ENV !== 'production' ? { dev_otp: code } : {}),
@@ -242,7 +308,7 @@ app.post('/auth/otp/send', async (req: Request, res: Response) => {
     // only actually generate an OTP when there is a matching account.
     let devOtp: string | undefined;
     if (existingUser) {
-      devOtp = generateAndSendOtp(identifier, purpose);
+      ({ code: devOtp } = await generateAndSendOtp(identifier, purpose));
     }
     return res.status(200).json({
       message: 'If an account exists for this identifier, an OTP has been sent',
@@ -276,17 +342,17 @@ app.post('/auth/otp/verify', async (req: Request, res: Response) => {
     purpose: OtpPurpose;
   };
 
-  const result = verifyAndConsumeOtp(identifier, purpose, otp);
-  if (result !== 'VALID') {
-    return res.status(400).json({
-      error: {
-        message: `OTP is ${result === 'NOT_FOUND' ? 'not found or already used' : result.toLowerCase()}`,
-        status: 400,
-      },
-    });
-  }
-
   try {
+    const result = await verifyAndConsumeOtp(identifier, purpose, otp);
+    if (result !== 'VALID') {
+      return res.status(400).json({
+        error: {
+          message: `OTP is ${result === 'NOT_FOUND' ? 'not found or already used' : result.toLowerCase()}`,
+          status: 400,
+        },
+      });
+    }
+
     if (purpose === 'SIGNUP') {
       const signupTicket = issueSignupTicket(identifier);
       return res.status(200).json({ signup_token: signupTicket });
@@ -369,7 +435,7 @@ app.post('/auth/forgot-password', async (req: Request, res: Response) => {
     const existingUser = await findUserByIdentifier(identifier);
     let devOtp: string | undefined;
     if (existingUser) {
-      devOtp = generateAndSendOtp(identifier, 'RESET_PASSWORD');
+      ({ code: devOtp } = await generateAndSendOtp(identifier, 'RESET_PASSWORD'));
     }
     return res.status(200).json({
       message: 'If an account exists for this identifier, a password reset OTP has been sent',
@@ -620,6 +686,143 @@ app.post('/auth/dev-token', (req: Request, res: Response) => {
 app.get('/auth/me', authenticateJwt, (req: Request, res: Response) => {
   return res.status(200).json({ auth: req.auth });
 });
+
+// GET/PATCH /profile/me — Module 2.2 (Player Profile / Profile Setup).
+// Backs both the identity fields every role has (users table) and the
+// cricket-specific fields PLAYER accounts have (players table) in one call.
+app.get('/profile/me', authenticateJwt, async (req: Request, res: Response) => {
+  try {
+    const profile = await getMyProfile(req.auth!.sub);
+    if (!profile) {
+      return res.status(404).json({ error: { message: 'Profile not found', status: 404 } });
+    }
+    return res.status(200).json(profile);
+  } catch {
+    return res.status(500).json({ error: { message: 'Failed to load profile', status: 500 } });
+  }
+});
+
+app.patch('/profile/me', authenticateJwt, async (req: Request, res: Response) => {
+  const parsed = updateProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: { message: 'Invalid profile update', status: 400, details: parsed.error.flatten() },
+    });
+  }
+  try {
+    await updateMyProfile(req.auth!.sub, req.auth!.role, parsed.data);
+    const profile = await getMyProfile(req.auth!.sub);
+    return res.status(200).json(profile);
+  } catch (error) {
+    if (error instanceof DuplicateEmailError) {
+      return res.status(409).json({ error: { message: error.message, status: 409 } });
+    }
+    return res.status(500).json({ error: { message: 'Failed to update profile', status: 500 } });
+  }
+});
+
+// POST /profile/email/send-otp — sends a 6-digit code to the email being
+// added to the caller's profile (via Brevo — see services/emailService.ts).
+// The email is NOT saved yet; only /verify-otp below persists it, and only
+// on a correct code. `dev_otp` is only ever included outside production,
+// same convention as /auth/otp/send.
+app.post('/profile/email/send-otp', authenticateJwt, async (req: Request, res: Response) => {
+  const parsed = sendEmailOtpSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: { message: 'Invalid email', status: 400, details: parsed.error.flatten() },
+    });
+  }
+  try {
+    const { code, deliveryError } = await generateAndSendOtp(parsed.data.email, 'EMAIL_VERIFY');
+    return res.status(200).json({
+      message: 'OTP sent',
+      ...(process.env.NODE_ENV !== 'production' ? { dev_otp: code } : {}),
+      // Outside production only — tells the caller *why* a real email
+      // didn't actually go out (e.g. Brevo's IP allowlist), instead of the
+      // code just silently never arriving with no explanation.
+      ...(process.env.NODE_ENV !== 'production' && deliveryError
+        ? { dev_email_error: deliveryError }
+        : {}),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to send OTP';
+    return res.status(500).json({ error: { message, status: 500 } });
+  }
+});
+
+// POST /profile/email/verify-otp — verifies the code and, only then,
+// persists the email + email_verified_at together (setVerifiedEmail) so an
+// unverified email can never end up on a profile.
+app.post('/profile/email/verify-otp', authenticateJwt, async (req: Request, res: Response) => {
+  const parsed = verifyEmailOtpSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: { message: 'Invalid request', status: 400, details: parsed.error.flatten() },
+    });
+  }
+  const { email, otp } = parsed.data;
+
+  try {
+    const result = await verifyAndConsumeOtp(email, 'EMAIL_VERIFY', otp);
+    if (result !== 'VALID') {
+      return res.status(400).json({
+        error: {
+          message: `OTP is ${result === 'NOT_FOUND' ? 'not found or already used' : result.toLowerCase()}`,
+          status: 400,
+        },
+      });
+    }
+
+    await setVerifiedEmail(req.auth!.sub, email);
+    const profile = await getMyProfile(req.auth!.sub);
+    return res.status(200).json(profile);
+  } catch (error) {
+    if (error instanceof DuplicateEmailError) {
+      return res.status(409).json({ error: { message: error.message, status: 409 } });
+    }
+    return res.status(500).json({ error: { message: 'Failed to verify email', status: 500 } });
+  }
+});
+
+// POST /profile/photo — uploads a profile photo to S3 and persists the
+// resulting URL onto users.profile_photo_url. Returns 501 if S3 isn't
+// configured on this server (see uploadService.ts / the S3 setup
+// walkthrough) so the mobile client can fall back to its local-only stub
+// behavior instead of a confusing 500.
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+app.post(
+  '/profile/photo',
+  authenticateJwt,
+  photoUpload.single('photo'),
+  async (req: Request, res: Response) => {
+    if (!isS3Configured()) {
+      return res.status(501).json({
+        error: { message: 'Photo upload storage is not configured on this server', status: 501 },
+      });
+    }
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: { message: 'No photo file provided', status: 400 } });
+    }
+    if (!isAllowedImageContentType(file.mimetype)) {
+      return res.status(400).json({
+        error: { message: 'Unsupported image type — use JPEG, PNG, or WebP', status: 400 },
+      });
+    }
+
+    try {
+      const url = await uploadProfilePhoto(req.auth!.sub, file.buffer, file.mimetype);
+      await updateMyProfile(req.auth!.sub, req.auth!.role, { profile_photo_url: url });
+      return res.status(200).json({ profile_photo_url: url });
+    } catch {
+      return res.status(500).json({ error: { message: 'Failed to upload photo', status: 500 } });
+    }
+  },
+);
 
 app.get(
   '/rbac/admin-check',

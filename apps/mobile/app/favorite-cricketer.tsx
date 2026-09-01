@@ -137,6 +137,14 @@ export default function FavoriteCricketer() {
           Creating your account…
         </Text>
       ) : null}
+
+      {/* Attribution required by Cricsheet's Open Data Commons Attribution
+          License for the player registry this search is built on
+          (cricsheet.org/register/) — do not remove without replacing the
+          data source. */}
+      <Text className="font-ui text-micro text-text-tertiary text-center mt-6 mb-2">
+        Player data from Cricsheet (cricsheet.org), used under ODC-BY.
+      </Text>
     </AuthScreenBackground>
   );
 }

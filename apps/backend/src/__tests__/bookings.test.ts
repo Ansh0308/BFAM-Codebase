@@ -321,28 +321,22 @@ describe('Turf Booking (module 2.3)', () => {
   describe('GET /bookings/mine and GET /bookings/:bookingId', () => {
     it("lists only the caller's own bookings", async () => {
       const token = await tokenFor('PLAYER', PLAYER_ID);
-      await request(app)
-        .post('/bookings')
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          turf_id: TURF_ID,
-          booking_date: DATE,
-          start_time: '19:00:00',
-          duration_minutes: 60,
-          payment_mode: 'UPI',
-        });
+      await request(app).post('/bookings').set('Authorization', `Bearer ${token}`).send({
+        turf_id: TURF_ID,
+        booking_date: DATE,
+        start_time: '19:00:00',
+        duration_minutes: 60,
+        payment_mode: 'UPI',
+      });
 
       const otherToken = await tokenFor('PLAYER', OTHER_PLAYER_ID);
-      await request(app)
-        .post('/bookings')
-        .set('Authorization', `Bearer ${otherToken}`)
-        .send({
-          turf_id: TURF_ID,
-          booking_date: DATE,
-          start_time: '20:00:00',
-          duration_minutes: 60,
-          payment_mode: 'UPI',
-        });
+      await request(app).post('/bookings').set('Authorization', `Bearer ${otherToken}`).send({
+        turf_id: TURF_ID,
+        booking_date: DATE,
+        start_time: '20:00:00',
+        duration_minutes: 60,
+        payment_mode: 'UPI',
+      });
 
       const res = await request(app).get('/bookings/mine').set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);

@@ -66,7 +66,7 @@ describe('RoleSelection screen', () => {
       );
     });
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/session-active');
+      expect(mockReplace).toHaveBeenCalledWith('/profile-setup');
     });
     expect(mockPush).not.toHaveBeenCalledWith('/favorite-cricketer');
     expect(mockPush).not.toHaveBeenCalledWith(

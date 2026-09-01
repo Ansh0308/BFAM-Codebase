@@ -1,64 +1,108 @@
 import React from 'react';
-import { Platform } from 'react-native';
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
-const TAB_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
-  index: 'home',
-  discover: 'compass',
-  matches: 'activity',
-  teams: 'users',
-  profile: 'user',
-};
+const ACTIVE = '#D80000';
+const INACTIVE = '#767676';
 
-const TAB_LABELS: Record<string, string> = {
-  index: 'Home',
-  discover: 'Discover',
-  matches: 'Matches',
-  teams: 'Teams',
-  profile: 'Profile',
-};
+// Fixed bottom tab bar per Design §3.2/§4.5: white bg, top border-subtle,
+// active = brand-red icon + label with a small red underline indicator,
+// inactive = ink-black/gray. Route names below match the actual files under
+// this (tabs) group: `index` is Home, `discover` and `teams` are full
+// feature directories (Module 2.3/2.5), `matches` is still a later-module
+// stub, `profile` is Module 2.2.
+function TabIndicator({ focused, children }: { focused: boolean; children: React.ReactNode }) {
+  return (
+    <View className="items-center" style={{ width: 32 }}>
+      {children}
+      <View
+        className={focused ? 'bg-brand-red' : 'bg-transparent'}
+        style={{ height: 2, width: 16, borderRadius: 1, marginTop: 4 }}
+      />
+    </View>
+  );
+}
 
-// Bottom tab bar exactly per Design §3.2/§4.5: Home, Discover, Matches,
-// Teams, Profile — red active state, ink-black/gray inactive. This is the
-// module 2.3 hand-off point from app/session-active.tsx.
+function TabIcon({
+  name,
+  focused,
+}: {
+  name: React.ComponentProps<typeof Feather>['name'];
+  focused: boolean;
+}) {
+  return (
+    <TabIndicator focused={focused}>
+      <Feather name={name} size={22} color={focused ? ACTIVE : INACTIVE} />
+    </TabIndicator>
+  );
+}
+
+function MatchesTabIcon({ focused }: { focused: boolean }) {
+  return (
+    <TabIndicator focused={focused}>
+      <MaterialCommunityIcons name="cricket" size={22} color={focused ? ACTIVE : INACTIVE} />
+    </TabIndicator>
+  );
+}
+
 export default function TabsLayout() {
   return (
     <Tabs
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#D80000',
-        tabBarInactiveTintColor: '#9A9A9A',
-        tabBarLabelStyle: {
-          fontFamily: 'Inter',
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 2,
-        },
+        tabBarActiveTintColor: ACTIVE,
+        tabBarInactiveTintColor: INACTIVE,
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#EEEDEE',
-          height: Platform.OS === 'ios' ? 84 : 64,
-          paddingTop: 10,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          height: 60,
+          paddingTop: 6,
         },
-        tabBarLabel: TAB_LABELS[route.name] ?? route.name,
-        tabBarIcon: ({ color, focused }) => (
-          <Feather
-            name={TAB_ICONS[route.name]}
-            size={22}
-            color={color}
-            style={{ opacity: focused ? 1 : 0.85 }}
-          />
-        ),
-      })}
+        tabBarLabelStyle: {
+          fontFamily: 'Inter',
+          fontSize: 11,
+          fontWeight: '600',
+          textTransform: 'uppercase',
+        },
+      }}
     >
-      <Tabs.Screen name="index" />
-      <Tabs.Screen name="discover" />
-      <Tabs.Screen name="matches" />
-      <Tabs.Screen name="teams" />
-      <Tabs.Screen name="profile" />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="discover"
+        options={{
+          title: 'Discover',
+          tabBarIcon: ({ focused }) => <TabIcon name="compass" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="matches"
+        options={{
+          title: 'Matches',
+          tabBarIcon: ({ focused }) => <MatchesTabIcon focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="teams"
+        options={{
+          title: 'Teams',
+          tabBarIcon: ({ focused }) => <TabIcon name="users" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ focused }) => <TabIcon name="user" focused={focused} />,
+        }}
+      />
     </Tabs>
   );
 }

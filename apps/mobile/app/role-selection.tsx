@@ -61,8 +61,8 @@ export default function RoleSelection() {
       });
       // Turf Owner/Staff never get a BFAM ID (PRD §12.59, updated — players
       // only), so there's nothing to show on BFAM ID Confirmation — go
-      // straight to the module hand-off point.
-      router.replace('/session-active');
+      // straight to Profile Setup (Module 2.2), same as the PLAYER path.
+      router.replace('/profile-setup');
     } catch {
       setError('Could not create your account. Please try again.');
     } finally {

@@ -1,0 +1,21 @@
+{
+  "_comment": "Curated, best-effort jersey numbers for well-known current international players — keyed by Cricsheet identifier (src/seed/data/cricsheet-people.csv). No comprehensive open jersey-number database exists (confirmed 2026-08-30), so this list only ever covers a small, honestly-sourced subset and is meant to be expanded over time rather than treated as complete. display_name overrides Cricsheet's abbreviated 'Initials Surname' format (e.g. 'V Kohli') with the full name people actually search for.",
+  "entries": [
+    { "cricsheet_id": "ba607b88", "display_name": "Virat Kohli", "jersey_number": "18" },
+    { "cricsheet_id": "4a8a2e3b", "display_name": "MS Dhoni", "jersey_number": "7" },
+    { "cricsheet_id": "462411b3", "display_name": "Jasprit Bumrah", "jersey_number": "93" },
+    { "cricsheet_id": "740742ef", "display_name": "Rohit Sharma", "jersey_number": "45" },
+    { "cricsheet_id": "b17e2f24", "display_name": "KL Rahul", "jersey_number": "1" },
+    { "cricsheet_id": "fe93fd9d", "display_name": "Ravindra Jadeja", "jersey_number": "8" },
+    { "cricsheet_id": "dbe50b21", "display_name": "Hardik Pandya", "jersey_number": "33" },
+    { "cricsheet_id": "85ec8e33", "display_name": "Shreyas Iyer", "jersey_number": "41" },
+    { "cricsheet_id": "8a75e999", "display_name": "Babar Azam", "jersey_number": "56" },
+    { "cricsheet_id": "30a45b23", "display_name": "Steve Smith", "jersey_number": "49" },
+    { "cricsheet_id": "ded9240e", "display_name": "Pat Cummins", "jersey_number": "30" },
+    { "cricsheet_id": "a343262c", "display_name": "Joe Root", "jersey_number": "66" },
+    { "cricsheet_id": "e087956b", "display_name": "Ben Stokes", "jersey_number": "55" },
+    { "cricsheet_id": "99b75528", "display_name": "Jos Buttler", "jersey_number": "63" },
+    { "cricsheet_id": "c4487b84", "display_name": "AB de Villiers", "jersey_number": "17" },
+    { "cricsheet_id": "d027ba9f", "display_name": "Kane Williamson", "jersey_number": "22" }
+  ]
+}

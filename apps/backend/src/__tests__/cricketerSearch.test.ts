@@ -1,21 +1,46 @@
-// Exercises GET /cricketers/search. No CRICKET_API_KEY is set in this test
-// environment, so the built-in dev/test fixture fallback (see
-// services/cricketerSearchService.ts) is what's actually being verified —
-// the endpoint and the Favorite Cricketer Search screen must work without a
-// real API key.
+// Exercises GET /cricketers/search's DEV/TEST-ONLY fixture fallback — the
+// path taken when the `cricketers` table hasn't been seeded (see
+// services/cricketerSearchService.ts). `../config/sequelize` is mocked to
+// force that "empty table" condition deterministically: the real dev
+// database has the table seeded (18k+ real players, see
+// src/seed/cricketersSeed.ts), so relying on incidental DB state here would
+// make this test depend on whether someone happened to run the seed script
+// — exactly the kind of non-hermetic test that broke once that seed step
+// was actually run.
+//
+// Neither RAPIDAPI_KEY nor CRICKET_API_KEY is allowed to leak in from the
+// real .env either, so what's under test is specifically the fixture
+// fallback, not a live API. (RapidAPI's live integration and the real
+// cricketers-table search are exercised separately, manually, against real
+// data — see cricketerSearchRapidApi.test.ts for the mocked-DB version of
+// the table-backed path.)
+
+jest.mock('../config/sequelize', () => ({
+  sequelize: {
+    query: async (sql: string) => {
+      if (sql.includes('SELECT COUNT(*) AS cnt FROM cricketers')) {
+        return [{ cnt: 0 }];
+      }
+      throw new Error(`Unexpected query in test fake: ${sql}`);
+    },
+  },
+}));
 
 import request from 'supertest';
 import app from '../app';
 
 describe('GET /cricketers/search', () => {
-  const originalKey = process.env.CRICKET_API_KEY;
+  const originalRapidApiKey = process.env.RAPIDAPI_KEY;
+  const originalCricApiKey = process.env.CRICKET_API_KEY;
 
   beforeEach(() => {
+    delete process.env.RAPIDAPI_KEY;
     delete process.env.CRICKET_API_KEY;
   });
 
   afterAll(() => {
-    if (originalKey) process.env.CRICKET_API_KEY = originalKey;
+    if (originalRapidApiKey) process.env.RAPIDAPI_KEY = originalRapidApiKey;
+    if (originalCricApiKey) process.env.CRICKET_API_KEY = originalCricApiKey;
   });
 
   it('returns the full fixture list for an empty query', async () => {
