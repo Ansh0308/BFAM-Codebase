@@ -73,6 +73,11 @@ import paymentsRouter from './routes/payments';
 import teamsRouter from './routes/teams';
 import matchesRouter from './routes/matches';
 import scoringRouter from './routes/scoring';
+import statisticsRouter from './routes/statistics';
+import notificationsRouter from './routes/notifications';
+import ownerRouter from './routes/owner';
+import staffRouter from './routes/staff';
+import supportRouter from './routes/support';
 
 interface UserRow {
   user_id: string;
@@ -1010,6 +1015,17 @@ app.use('/matches', matchesRouter);
 // some under /innings/:inningsId) — mounted at root rather than a shared
 // prefix.
 app.use('/', scoringRouter);
+// Module 2.10 — Match Statistics & Basic Skill Rating (PRD §12.21/§12.29).
+// statisticsRouter defines its own full paths (/players/:playerId/... and
+// /matches/:matchId/statistics/...) — mounted at root like scoringRouter.
+app.use('/', statisticsRouter);
+// Module 2.11 — Notifications (PRD §12.45): Notification Center + settings.
+app.use('/notifications', notificationsRouter);
+// Module 2.12 — Turf Owner & Turf Staff (PRD §8.3/§8.4/§9.2/§9.3/§32.14).
+app.use('/owner', ownerRouter);
+app.use('/staff', staffRouter);
+// Module 2.13 — Support (PRD §12.57/§32.2/§32.9).
+app.use('/support', supportRouter);
 
 // Sentry Error Handler setup for v8
 if (process.env.SENTRY_DSN) {

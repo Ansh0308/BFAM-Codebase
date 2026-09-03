@@ -61,6 +61,12 @@ jest.mock('../config/sequelize', () => {
           const b = bookings.find((x) => x.booking_id === r.bookingId);
           return b ? [b] : [];
         }
+        // module 2.12's staff-verification gate in recordCashPayment — every
+        // collector in this test is the PLAYER booker, never staff, so the
+        // gate is always a no-op here.
+        if (sql.includes('SELECT role FROM users WHERE user_id')) {
+          return [{ role: 'PLAYER' }];
+        }
         if (sql.includes('SELECT COUNT(*) AS count FROM payment_obligations')) {
           return [{ count: obligations.filter((o) => o.booking_id === r.bookingId).length }];
         }

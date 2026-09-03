@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { getIo, matchRoom } from '../realtime/io';
+import { sendNotificationToMany } from './notificationService';
 import {
   ForbiddenActionError,
   MatchIntroNotFoundError,
@@ -11,6 +12,7 @@ import {
 interface MatchRow {
   match_id: string;
   booking_id: string;
+  match_name: string | null;
   organizer_id: string;
   assigned_scorer_id: string | null;
 }
@@ -37,7 +39,7 @@ interface PlayingXiPlayer {
 
 async function fetchMatch(matchId: string): Promise<MatchRow | null> {
   const [match] = await sequelize.query<MatchRow>(
-    'SELECT match_id, booking_id, organizer_id, assigned_scorer_id FROM matches WHERE match_id = :matchId',
+    'SELECT match_id, booking_id, match_name, organizer_id, assigned_scorer_id FROM matches WHERE match_id = :matchId',
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
   return match ?? null;
@@ -117,6 +119,7 @@ export async function startIntro(matchId: string, actorUserId: string) {
   await assertCanManage(match, actorUserId);
 
   let intro = await fetchIntro(matchId);
+  const isFirstStart = !intro;
   if (!intro) {
     const introId = randomUUID();
     const backgroundMusicEnabled = await getStadiumSoundEnabled(match.booking_id);
@@ -139,6 +142,30 @@ export async function startIntro(matchId: string, actorUserId: string) {
 
   const [players, matchTeams] = await Promise.all([getPlayingXi(matchId), getMatchTeams(matchId)]);
   broadcastStage(matchId, 'COUNTDOWN', { players });
+
+  // MATCH_STARTING (module 2.11, PRD §12.45) — only on the actual first
+  // start, not a resumed re-entry into an already-started intro. Never
+  // allowed to fail Start Match itself — see notificationService.
+  if (isFirstStart && players.length > 0) {
+    try {
+      const recipients = await sequelize.query<{ user_id: string }>(
+        `SELECT p.user_id FROM match_players mp
+         JOIN players p ON p.player_id = mp.player_id
+         WHERE mp.match_id = :matchId AND mp.invitation_status = 'CONFIRMED'`,
+        { type: QueryTypes.SELECT, replacements: { matchId } },
+      );
+      await sendNotificationToMany(
+        recipients.map((r) => r.user_id),
+        'MATCH_STARTING',
+        { matchName: match.match_name ?? 'Your match' },
+        'match',
+        matchId,
+      );
+    } catch (error) {
+      console.error(`[matchIntroService] Failed to send MATCH_STARTING for ${matchId}:`, error);
+    }
+  }
+
   return { intro, players, matchTeams };
 }
 

@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
+import { sendNotificationToMany, sendNotification } from './notificationService';
 
 // Smart Reminders (PRD §12.13): scheduled backend jobs, not client-side
 // timers, at 24h/3h/1h/15min before a match's scheduled_start_time. The
@@ -95,26 +96,21 @@ export async function sendMatchReminders(now: Date = new Date()): Promise<number
       { type: QueryTypes.SELECT, replacements: { matchId: reminder.match_id } },
     );
 
-    const title = 'Match reminder';
-    const body = `${match?.match_name ?? 'Your match'} starts in ${THRESHOLD_LABEL[reminder.threshold]}.`;
     const createdAt = new Date();
 
+    // Routed through notificationService (module 2.11) so Notification
+    // Settings preferences apply here too — this was previously a direct
+    // bulkInsert that bypassed preference-checking entirely.
     if (recipients.length > 0) {
-      await sequelize.getQueryInterface().bulkInsert(
-        'notifications',
-        recipients.map((r) => ({
-          notification_id: randomUUID(),
-          user_id: r.user_id,
-          notification_type: 'MATCH_REMINDER',
-          title,
-          body,
-          related_entity_type: 'match',
-          related_entity_id: reminder.match_id,
-          delivery_channel: 'PUSH',
-          delivery_status: 'PENDING',
-          created_at: createdAt,
-          read_at: null,
-        })),
+      await sendNotificationToMany(
+        recipients.map((r) => r.user_id),
+        'MATCH_REMINDER',
+        {
+          matchName: match?.match_name ?? 'Your match',
+          timeUntil: THRESHOLD_LABEL[reminder.threshold],
+        },
+        'match',
+        reminder.match_id,
       );
     }
 
@@ -140,6 +136,61 @@ export async function sendMatchReminders(now: Date = new Date()): Promise<number
   return sentCount;
 }
 
+// PAYMENT_REMINDER (module 2.11, PRD §12.45): any still-unpaid obligation
+// on a future, non-cancelled booking that hasn't already gotten one — the
+// NOT EXISTS guard is what makes this safe to call on every ticker tick
+// without re-sending the same reminder.
+export async function sendPaymentReminders(now: Date = new Date()): Promise<number> {
+  const pendingObligations = await sequelize.query<{
+    obligation_id: string;
+    player_id: string | null;
+    booked_by: string;
+    amount_due: number;
+    match_name: string | null;
+  }>(
+    `SELECT o.obligation_id, o.player_id, b.booked_by, o.amount_due, m.match_name
+     FROM payment_obligations o
+     JOIN bookings b ON b.booking_id = o.booking_id
+     LEFT JOIN matches m ON m.booking_id = b.booking_id
+     WHERE o.due_status IN ('PENDING', 'PARTIALLY_PAID')
+       AND b.booking_status != 'CANCELLED'
+       AND b.booking_date >= :today
+       AND NOT EXISTS (
+         SELECT 1 FROM notifications n
+         WHERE n.notification_type = 'PAYMENT_REMINDER' AND n.related_entity_id = o.obligation_id
+       )`,
+    { type: QueryTypes.SELECT, replacements: { today: now.toISOString().slice(0, 10) } },
+  );
+
+  let sentCount = 0;
+  for (const obligation of pendingObligations) {
+    let userId = obligation.booked_by;
+    // A per-player split-payment share is owed by that specific player,
+    // not necessarily the person who made the booking.
+    if (obligation.player_id) {
+      const [player] = await sequelize.query<{ user_id: string }>(
+        'SELECT user_id FROM players WHERE player_id = :playerId',
+        { type: QueryTypes.SELECT, replacements: { playerId: obligation.player_id } },
+      );
+      if (!player) continue;
+      userId = player.user_id;
+    }
+
+    await sendNotification({
+      userId,
+      event: 'PAYMENT_REMINDER',
+      params: {
+        matchName: obligation.match_name ?? 'your booking',
+        amountDue: String(obligation.amount_due),
+      },
+      relatedEntityType: 'obligation',
+      relatedEntityId: obligation.obligation_id,
+    });
+    sentCount += 1;
+  }
+  return sentCount;
+}
+
 let tickerHandle: ReturnType<typeof setInterval> | null = null;
 
 // Started once from index.ts (guarded to skip in tests, same pattern as
@@ -149,6 +200,9 @@ export function startReminderTicker(intervalMs = 60_000) {
   tickerHandle = setInterval(() => {
     sendMatchReminders().catch((error) => {
       console.error('[reminderService] Failed to send match reminders:', error);
+    });
+    sendPaymentReminders().catch((error) => {
+      console.error('[reminderService] Failed to send payment reminders:', error);
     });
   }, intervalMs);
 }

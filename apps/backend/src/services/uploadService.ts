@@ -66,3 +66,44 @@ export async function uploadProfilePhoto(
 
   return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
 }
+
+// Staff Verification document upload (module 2.12, PRD §32.14) — same S3
+// setup as profile photos, but under its own prefix and with PDF also
+// allowed (ID documents are frequently scanned as PDFs, not just images).
+const VERIFICATION_DOC_CONTENT_TYPES: Record<string, string> = {
+  ...ALLOWED_CONTENT_TYPES,
+  'application/pdf': 'pdf',
+};
+
+export function isAllowedVerificationDocumentContentType(contentType: string): boolean {
+  return contentType in VERIFICATION_DOC_CONTENT_TYPES;
+}
+
+export async function uploadStaffVerificationDocument(
+  staffUserId: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<string> {
+  if (!isS3Configured()) {
+    throw new Error('S3 is not configured on this server');
+  }
+  const extension = VERIFICATION_DOC_CONTENT_TYPES[contentType];
+  if (!extension) {
+    throw new Error(`Unsupported document content type: ${contentType}`);
+  }
+
+  const bucket = process.env.AWS_S3_BUCKET as string;
+  const region = process.env.AWS_REGION as string;
+  const key = `staff-verification/${staffUserId}/${randomUUID()}.${extension}`;
+
+  await getS3Client().send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    }),
+  );
+
+  return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+}

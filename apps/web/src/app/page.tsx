@@ -1,39 +1,32 @@
 'use client';
 
-import { motion } from 'motion/react';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../lib/auth';
 
-// Placeholder landing for the BFAM Admin & Turf Management Portal — no
-// module has been scoped for this app yet (all work so far has been the
-// mobile app), so this stays a minimal branded placeholder rather than
-// real admin functionality. Demonstrates `motion` wired up and working:
-// a simple staggered fade/slide-in on load, same tokens (brand-red,
-// display font) as the mobile app's AuthScreenBackground.
+// Root route — sends the visitor straight to the right place: their
+// dashboard if already signed in (module 2.12's Owner Web/Staff Web),
+// otherwise /login.
 export default function HomePage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace('/login');
+    } else if (user.role === 'TURF_OWNER') {
+      router.replace('/owner');
+    } else if (user.role === 'TURF_STAFF') {
+      router.replace('/staff');
+    } else {
+      router.replace('/login');
+    }
+  }, [user, loading, router]);
+
   return (
-    <main className="min-h-screen bg-surface flex items-center justify-center px-6">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="text-center"
-      >
-        <motion.h1
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
-          className="font-display text-hero text-brand-red uppercase"
-        >
-          BFAM
-        </motion.h1>
-        <motion.p
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2, ease: 'easeOut' }}
-          className="font-ui text-body text-text-secondary mt-2"
-        >
-          Admin &amp; Turf Management Portal — coming soon.
-        </motion.p>
-      </motion.div>
+    <main className="min-h-screen bg-surface flex items-center justify-center">
+      <p className="font-ui text-body text-text-secondary">Loading…</p>
     </main>
   );
 }

@@ -600,6 +600,150 @@ export interface IntroContext {
   matchTeams: IntroMatchTeam[];
 }
 
+// ---- Module 2.10: Match Statistics & Basic Skill Rating ----
+
+export type StatisticsScope = 'lifetime' | 'season';
+
+export interface PlayerStatistics {
+  scope: StatisticsScope;
+  matches_played: number;
+  runs: number;
+  wickets: number;
+  best_score: number | null;
+  strike_rate: number | null;
+  economy: number | null;
+  catches: number;
+  player_of_the_match_count: number;
+  current_streak?: number;
+}
+
+export interface PlayerRating {
+  player_id: string;
+  skill_rating: number;
+}
+
+export interface RebookRosterPlayer {
+  player_id: string;
+  bfam_id: string;
+}
+
+export interface RebookInfo {
+  turf_id: string;
+  turf_name: string;
+  preferred_start_time: string;
+  duration_minutes: number;
+  match_name: string | null;
+  match_type: string;
+  ball_type: string;
+  overs_per_innings: number;
+  scoring_mode: string;
+  roster: RebookRosterPlayer[];
+}
+
+// ---- Module 2.11: Notifications ----
+
+export type NotificationPreferenceCategory =
+  'match_updates' | 'booking_reminders' | 'team_invites' | 'promotions';
+
+export type NotificationPreferences = Record<NotificationPreferenceCategory, boolean>;
+
+export interface Notification {
+  notification_id: string;
+  user_id: string;
+  notification_type: string;
+  title: string;
+  body: string;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
+  delivery_channel: string;
+  delivery_status: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+// ---- Module 2.12: Turf Owner & Turf Staff ----
+
+export interface CreateTurfInput {
+  turf_name: string;
+  description?: string | null;
+  address_line: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  ball_types_supported?: string[];
+}
+
+export type UpdateTurfInput = Partial<CreateTurfInput>;
+
+export interface SetPricingRow {
+  day_type: 'WEEKDAY' | 'WEEKEND' | 'HOLIDAY';
+  start_time: string;
+  end_time: string;
+  price_per_hour: number;
+}
+
+export type AvailabilityBlockReason = 'MAINTENANCE' | 'HOLIDAY' | 'OWNER_BLOCK' | 'SYSTEM_BLOCK';
+
+export interface TurfAvailabilityBlock {
+  block_id: string;
+  turf_id: string;
+  start_datetime: string;
+  end_datetime: string;
+  reason: AvailabilityBlockReason;
+  created_by: string;
+  created_at: string;
+}
+
+export type StaffVerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface StaffAssignment {
+  assignment_id: string;
+  turf_id: string;
+  staff_user_id: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  verification_status: StaffVerificationStatus;
+  verification_document_url: string | null;
+  verified_by: string | null;
+  verified_at: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+  phone_number?: string;
+  turf_name?: string;
+}
+
+export interface OwnerBooking extends Booking {
+  turf_name: string;
+}
+
+export interface OwnerMatch extends Match {
+  turf_name: string;
+}
+
+export interface OwnerPayment extends Payment {
+  turf_name: string;
+}
+
+// ---- Module 2.13: Support ----
+
+export type SupportCategory =
+  'PAYMENT_ISSUE' | 'BOOKING_ISSUE' | 'MATCH_ISSUE' | 'ACCOUNT_ISSUE' | 'OTHER';
+export type SupportStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+export type DisputeType = 'COMPLAINT' | 'MATCH_DISPUTE' | 'INJURY_REPORT';
+
+export interface SupportTicket {
+  ticket_id: string;
+  raised_by: string;
+  category: SupportCategory;
+  description: string;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
+  status: SupportStatus;
+  dispute_type: DisputeType;
+  assigned_to: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
 export interface LiveMatchSession {
   viewer_session_id: string;
   match_id: string;

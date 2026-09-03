@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import type { Scorecard } from '@bfam/shared-types';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
+import { Button } from '../../../../src/components/Button';
 
 // Scorecard (PRD §12.18 requirement 4): batting/bowling tables, extras
 // breakdown, fall of wickets — aggregated live from score_events.
 export default function ScorecardScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
+  const router = useRouter();
   const [scorecard, setScorecard] = useState<Scorecard | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -165,6 +168,16 @@ export default function ScorecardScreen() {
             )}
           </View>
         ))}
+
+        <View className="mt-6">
+          <Button
+            label="Dispute Result"
+            variant="ghost"
+            iconLeft={<Feather name="flag" size={16} color="#767676" />}
+            onPress={() => router.push(`/match-dispute?matchId=${matchId}`)}
+            testID="open-dispute-from-scorecard"
+          />
+        </View>
       </View>
     </ScrollView>
   );

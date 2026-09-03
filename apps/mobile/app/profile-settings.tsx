@@ -39,6 +39,12 @@ const ROWS: SettingsRowConfig[] = [
     testID: 'settings-row-payment',
   },
   { icon: 'globe', label: 'Language', route: '/language', testID: 'settings-row-language' },
+  {
+    icon: 'help-circle',
+    label: 'Help Center',
+    route: '/help-center',
+    testID: 'settings-row-help-center',
+  },
 ];
 
 // Settings hub — a plain list of rows that push into each sub-screen. Email

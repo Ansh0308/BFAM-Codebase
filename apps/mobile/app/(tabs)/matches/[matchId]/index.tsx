@@ -237,6 +237,17 @@ export default function GameRoomScreen() {
             />
           </View>
         )}
+        {isManager && (
+          <View className="mt-3">
+            <Button
+              label="Player Check-In"
+              variant="secondary"
+              iconLeft={<Feather name="user-check" size={16} color="#D80000" />}
+              onPress={() => router.push(`/(tabs)/matches/${matchId}/roster-check-in`)}
+              testID="open-roster-check-in"
+            />
+          </View>
+        )}
 
         {/* Roster */}
         <Text className="font-ui font-bold text-text-secondary text-micro uppercase mt-6 mb-2">

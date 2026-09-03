@@ -229,3 +229,57 @@ export class InvalidScoringStateError extends Error {
     this.name = 'InvalidScoringStateError';
   }
 }
+
+// ---- Module 2.10: Match Statistics & Basic Skill Rating ----
+
+export class MatchNotCompletedError extends Error {
+  constructor() {
+    super('This match has not finished yet.');
+    this.name = 'MatchNotCompletedError';
+  }
+}
+
+// ---- Module 2.12: Turf Owner & Turf Staff ----
+
+export class StaffAssignmentNotFoundError extends Error {
+  constructor() {
+    super('Staff assignment not found.');
+    this.name = 'StaffAssignmentNotFoundError';
+  }
+}
+
+// PRD §32.14: blocks Check-In and Payments actions until an owner approves
+// the staff member's submitted document.
+export class StaffNotVerifiedError extends Error {
+  constructor() {
+    super('Your staff account is still pending verification by the turf owner.');
+    this.name = 'StaffNotVerifiedError';
+  }
+}
+
+// ---- Module 2.13: Support ----
+
+export class SupportTicketNotFoundError extends Error {
+  constructor() {
+    super('Support ticket not found.');
+    this.name = 'SupportTicketNotFoundError';
+  }
+}
+
+export class InvalidTicketStatusTransitionError extends Error {
+  constructor(from: string, to: string) {
+    super(`Cannot move a support ticket from ${from} to ${to}.`);
+    this.name = 'InvalidTicketStatusTransitionError';
+  }
+}
+
+// PRD §32.9: the injury report flow is tied to the liability waiver
+// captured during onboarding — this fires only if that was somehow never
+// stamped (e.g. an account created before module 2.13, or a data issue),
+// since createUserAccount now stamps it for every new registration.
+export class WaiverNotAcceptedError extends Error {
+  constructor() {
+    super('You need to accept the liability waiver before filing an injury report.');
+    this.name = 'WaiverNotAcceptedError';
+  }
+}

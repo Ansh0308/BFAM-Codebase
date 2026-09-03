@@ -6,6 +6,7 @@ interface ToggleRowProps {
   description?: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
+  disabled?: boolean;
   testID?: string;
 }
 
@@ -15,7 +16,14 @@ interface ToggleRowProps {
 // would violate Design §7 (brand-red only — never green — for an "on"/
 // positive state). This custom control renders identically on native and
 // web.
-export function ToggleRow({ label, description, value, onValueChange, testID }: ToggleRowProps) {
+export function ToggleRow({
+  label,
+  description,
+  value,
+  onValueChange,
+  disabled,
+  testID,
+}: ToggleRowProps) {
   return (
     <View
       className="flex-row items-center justify-between py-4 border-b border-border-subtle"
@@ -29,8 +37,9 @@ export function ToggleRow({ label, description, value, onValueChange, testID }: 
       </View>
       <Pressable
         onPress={() => onValueChange(!value)}
+        disabled={disabled}
         accessibilityRole="switch"
-        accessibilityState={{ checked: value }}
+        accessibilityState={{ checked: value, disabled }}
         testID={testID ? `${testID}-switch` : undefined}
         hitSlop={8}
         className={value ? 'bg-brand-red' : 'bg-border-strong'}
@@ -41,6 +50,7 @@ export function ToggleRow({ label, description, value, onValueChange, testID }: 
           padding: 2,
           justifyContent: 'center',
           alignItems: value ? 'flex-end' : 'flex-start',
+          opacity: disabled ? 0.5 : 1,
         }}
       >
         <View className="bg-white" style={{ width: 22, height: 22, borderRadius: 11 }} />

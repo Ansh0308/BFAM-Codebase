@@ -91,14 +91,40 @@ export const RATING_EVENT_TYPES = [
 ] as const;
 export const RATING_DIMENSIONS = ['SKILL', 'RELIABILITY'] as const;
 
+// Module 2.11 (Notifications, PRD §12.45) expanded this from the Phase 1
+// starter set (MATCH_REMINDER/BOOKING_UPDATE/PAYMENT_UPDATE/TEAM_INVITE) to
+// one type per event PRD §12.45 lists, plus those four originals kept for
+// backward compatibility. See domain/notificationTemplates.ts for the
+// PRD-event -> type -> template mapping this backs.
 export const NOTIFICATION_TYPES = [
   'MATCH_REMINDER',
   'BOOKING_UPDATE',
   'PAYMENT_UPDATE',
   'TEAM_INVITE',
+  'BOOKING_CONFIRMATION',
+  'MATCH_INVITATION',
+  'PLAYER_CONFIRMATION',
+  'PAYMENT_REMINDER',
+  'PLAYER_CANCELLATION',
+  'REPLACEMENT_REQUEST',
+  'REPLACEMENT_ACCEPTED',
+  'MATCH_STARTING',
+  'MATCH_RESULT',
+  'RATING_UPDATE',
+  'REWARD_RECEIVED',
+  'TOURNAMENT_UPDATE',
 ] as const;
 export const DELIVERY_CHANNELS = ['PUSH', 'EMAIL', 'SMS', 'IN_APP'] as const;
 export const DELIVERY_STATUSES = ['PENDING', 'DELIVERED', 'FAILED', 'READ'] as const;
+// The four toggle categories on the Notification Settings screen (module
+// 2.2) — every notification_type maps to exactly one (see
+// domain/notificationTemplates.ts).
+export const NOTIFICATION_PREFERENCE_CATEGORIES = [
+  'match_updates',
+  'booking_reminders',
+  'team_invites',
+  'promotions',
+] as const;
 export const SUPPORT_CATEGORIES = [
   'PAYMENT_ISSUE',
   'BOOKING_ISSUE',
@@ -107,5 +133,16 @@ export const SUPPORT_CATEGORIES = [
   'OTHER',
 ] as const;
 export const SUPPORT_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const;
+// Module 2.13 (Support): every support_tickets row is one of these — a
+// plain Help Center complaint, an in-app match dispute (PRD §32.2), or an
+// injury report (PRD §32.9). All three share the same table/workflow
+// (category + status), distinguished by this column rather than three
+// separate tables.
+export const DISPUTE_TYPES = ['COMPLAINT', 'MATCH_DISPUTE', 'INJURY_REPORT'] as const;
 
 export const RESERVATION_STATUSES = ['LOCKED', 'ASSIGNED'] as const;
+
+// Module 2.12 (Turf Owner & Turf Staff, PRD §32.14): a staff account is
+// blocked from Check-In and Payments actions until an owner approves their
+// submitted ID/document.
+export const STAFF_VERIFICATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const;

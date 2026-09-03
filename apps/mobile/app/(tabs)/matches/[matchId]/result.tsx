@@ -11,6 +11,7 @@ import { Button } from '../../../../src/components/Button';
 import { TextField } from '../../../../src/components/TextField';
 import { ChipSelect } from '../../../../src/components/ChipSelect';
 import { useAuthStore } from '../../../../src/store/authStore';
+import { useRebookStore } from '../../../../src/store/rebookStore';
 
 const RESULT_TYPES: { value: 'WIN' | 'TIE' | 'NO_RESULT'; label: string }[] = [
   { value: 'WIN', label: 'Win' },
@@ -36,6 +37,10 @@ export default function MatchResultScreen() {
   const [winningSide, setWinningSide] = useState<string | null>(null);
   const [margin, setMargin] = useState('');
   const [potmId, setPotmId] = useState<string | null>(null);
+
+  const [rebooking, setRebooking] = useState(false);
+  const [rebookError, setRebookError] = useState<string | null>(null);
+  const setRebookPlan = useRebookStore((s) => s.setPlan);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,6 +79,26 @@ export default function MatchResultScreen() {
       setError(err instanceof BFAMApiError ? err.message : 'Could not finalize the match.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Rebook Same Players (module 2.10, PRD §12.44): fetches the same turf/
+  // format/roster and hands it to the availability screen (module 2.3) via
+  // rebookStore — Create Game (module 2.6) reads it back once the new
+  // booking is confirmed.
+  async function rebook() {
+    setRebooking(true);
+    setRebookError(null);
+    try {
+      const info = await apiClient.getRebookInfo(matchId);
+      setRebookPlan(info);
+      router.push(
+        `/(tabs)/discover/turf/${info.turf_id}/availability?turfName=${encodeURIComponent(info.turf_name)}`,
+      );
+    } catch (err) {
+      setRebookError(err instanceof BFAMApiError ? err.message : 'Could not start a rebook.');
+    } finally {
+      setRebooking(false);
     }
   }
 
@@ -130,12 +155,40 @@ export default function MatchResultScreen() {
               </Text>
             </View>
           )}
+          {rebookError && (
+            <Text
+              className="text-brand-red text-body mt-4 text-center"
+              testID="rebook-error-message"
+            >
+              {rebookError}
+            </Text>
+          )}
           <View className="mt-8 w-full">
             <Button
               label="Statistics"
               variant="secondary"
-              onPress={() => router.push(`/(tabs)/matches/${matchId}/stats-stub`)}
-              testID="open-stats-stub"
+              onPress={() => router.push('/player-statistics')}
+              testID="open-statistics"
+            />
+          </View>
+          {room.organizer_id === user?.user_id && (
+            <View className="mt-3 w-full">
+              <Button
+                label="Rebook Same Players"
+                iconLeft={<Feather name="repeat" size={16} color="#FFFFFF" />}
+                onPress={rebook}
+                loading={rebooking}
+                testID="rebook-same-players"
+              />
+            </View>
+          )}
+          <View className="mt-3 w-full">
+            <Button
+              label="Dispute Result"
+              variant="ghost"
+              iconLeft={<Feather name="flag" size={16} color="#767676" />}
+              onPress={() => router.push(`/match-dispute?matchId=${matchId}`)}
+              testID="open-dispute"
             />
           </View>
         </View>

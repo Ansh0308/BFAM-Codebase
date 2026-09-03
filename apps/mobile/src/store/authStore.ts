@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { User } from '@bfam/shared-types';
 import { apiClient } from '../lib/apiClient';
+import { registerForPushNotifications } from '../lib/pushNotifications';
 
 // JWT is a credential, not app preference data — persisted via
 // expo-secure-store (Keychain/Keystore-backed), NOT AsyncStorage. There is
@@ -57,6 +58,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     await secureStore.setItemAsync(TOKEN_KEY, token);
     await secureStore.setItemAsync(USER_KEY, JSON.stringify(user));
     set({ token, user });
+    // Push token registration (module 2.11) — best-effort, never blocks
+    // login/signup on its own success.
+    registerForPushNotifications();
   },
 
   clearSession: async () => {
@@ -78,6 +82,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (token && userJson) {
         apiClient.setToken(token);
         set({ token, user: JSON.parse(userJson) as AuthUser, isHydrating: false });
+        registerForPushNotifications();
         return;
       }
     } catch {

@@ -2,6 +2,8 @@ import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { getIo, matchRoom } from '../realtime/io';
+import { materializeMatchStatistics } from './statisticsService';
+import { sendNotificationToMany } from './notificationService';
 import {
   applyBall,
   computeAudioTrigger,
@@ -567,8 +569,10 @@ export interface FinalizeMatchInput {
   player_of_the_match_id?: string | null;
 }
 
-// Match Result (PRD §12.18 requirement 5). Statistics (module 2.10) is a
-// stub only from here — see routes/scoring.ts.
+// Match Result (PRD §12.18 requirement 5). Materializes Match Statistics
+// & Basic Skill Rating (module 2.10, PRD §12.21/§12.29) immediately after —
+// the result row (winning side, Player of the Match) must exist first,
+// since the rating calculation depends on both.
 export async function finalizeMatch(
   matchId: string,
   actorUserId: string,
@@ -596,8 +600,54 @@ export async function finalizeMatch(
     .getQueryInterface()
     .bulkUpdate('matches', { match_status: 'COMPLETED', updated_at: now }, { match_id: matchId });
 
+  await materializeMatchStatistics(matchId);
+  await notifyMatchResult(matchId, input).catch((error) => {
+    console.error(`[scoringService] Failed to send MATCH_RESULT for ${matchId}:`, error);
+  });
+
   broadcastScoreUpdate(matchId, { audio_trigger: 'MATCH_WON', result_id: resultId });
   return { result_id: resultId };
+}
+
+// MATCH_RESULT (module 2.11, PRD §12.45) — every confirmed roster player.
+// Failures are caught by the caller above — never allowed to fail
+// finalizeMatch itself, which has already committed the real result.
+async function notifyMatchResult(matchId: string, input: FinalizeMatchInput) {
+  const [matchRow] = await sequelize.query<{ match_name: string | null }>(
+    'SELECT match_name FROM matches WHERE match_id = :matchId',
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+  const matchName = matchRow?.match_name ?? 'Your match';
+
+  let resultSummary: string;
+  if (input.result_type === 'TIE') {
+    resultSummary = 'Match tied';
+  } else if (input.result_type === 'NO_RESULT') {
+    resultSummary = 'No result';
+  } else {
+    const [winningTeam] = input.winning_match_team_id
+      ? await sequelize.query<{ side_label: string }>(
+          'SELECT side_label FROM match_teams WHERE match_team_id = :id',
+          { type: QueryTypes.SELECT, replacements: { id: input.winning_match_team_id } },
+        )
+      : [];
+    const sideLabel = winningTeam?.side_label === 'TEAM_A' ? 'Team A' : 'Team B';
+    resultSummary = `${sideLabel} won${input.winning_margin ? ` by ${input.winning_margin}` : ''}`;
+  }
+
+  const recipients = await sequelize.query<{ user_id: string }>(
+    `SELECT p.user_id FROM match_players mp
+     JOIN players p ON p.player_id = mp.player_id
+     WHERE mp.match_id = :matchId AND mp.invitation_status = 'CONFIRMED'`,
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+  await sendNotificationToMany(
+    recipients.map((r) => r.user_id),
+    'MATCH_RESULT',
+    { matchName, resultSummary },
+    'match',
+    matchId,
+  );
 }
 
 export async function getMatchResult(matchId: string) {

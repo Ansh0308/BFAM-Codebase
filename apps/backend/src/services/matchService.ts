@@ -3,12 +3,15 @@ import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { getBookingById } from './bookingService';
 import { getObligationsForBooking } from './paymentService';
+import { sendNotification } from './notificationService';
+import { assertStaffVerified } from './staffService';
 import {
   ForbiddenActionError,
   InvalidCheckInCodeError,
   InvalidMatchStateError,
   MatchAlreadyExistsForBookingError,
   MatchInvitationNotFoundError,
+  MatchNotCompletedError,
   MatchNotFoundError,
   PlayerProfileNotFoundError,
   ReplacementNotFoundError,
@@ -70,6 +73,27 @@ async function fetchMatchOrThrow(matchId: string): Promise<MatchRow> {
   const match = await fetchMatch(matchId);
   if (!match) throw new MatchNotFoundError(matchId);
   return match;
+}
+
+// Notification fan-out (module 2.11) needs a player's user_id/bfam_id far
+// more often than the rest of this file does raw player lookups — kept
+// local rather than exported, since it's purely a notification-plumbing
+// helper. Like sendNotification itself, never throws: a failure to resolve
+// a notification recipient must never fail the real operation (invite,
+// vacate, replacement) it's attached to.
+async function resolvePlayerUserAndBfamId(
+  playerId: string,
+): Promise<{ user_id: string; bfam_id: string } | null> {
+  try {
+    const [row] = await sequelize.query<{ user_id: string; bfam_id: string }>(
+      'SELECT user_id, bfam_id FROM players WHERE player_id = :playerId',
+      { type: QueryTypes.SELECT, replacements: { playerId } },
+    );
+    return row ?? null;
+  } catch (error) {
+    console.error(`[matchService] Failed to resolve player ${playerId} for a notification:`, error);
+    return null;
+  }
 }
 
 async function fetchMatchPlayer(matchId: string, playerId: string): Promise<MatchPlayerRow | null> {
@@ -330,6 +354,17 @@ export async function inviteToMatch(matchId: string, actorUserId: string, invite
     }
   });
 
+  const invitedPlayer = await resolvePlayerUserAndBfamId(invitedPlayerId);
+  if (invitedPlayer) {
+    await sendNotification({
+      userId: invitedPlayer.user_id,
+      event: 'MATCH_INVITATION',
+      params: { matchName: match.match_name ?? 'a match' },
+      relatedEntityType: 'match',
+      relatedEntityId: matchId,
+    });
+  }
+
   return { invitation_id: invitationId };
 }
 
@@ -440,6 +475,20 @@ export async function respondToMatchInvitation(
     }
   });
 
+  if (response === 'CONFIRMED') {
+    const match = await fetchMatch(invitation.match_id);
+    const player = await resolvePlayerUserAndBfamId(playerId);
+    if (match && player) {
+      await sendNotification({
+        userId: match.organizer_id,
+        event: 'PLAYER_CONFIRMATION',
+        params: { playerBfamId: player.bfam_id, matchName: match.match_name ?? 'your match' },
+        relatedEntityType: 'match',
+        relatedEntityId: invitation.match_id,
+      });
+    }
+  }
+
   return { invitation_id: invitationId, response };
 }
 
@@ -495,6 +544,18 @@ export async function setPlayerAttendance(
 ) {
   const match = await fetchMatchOrThrow(matchId);
   await assertCanManageMatch(match, actorUserId);
+
+  // Staff verification gate (module 2.12, PRD §32.14) — Check-In is one of
+  // the two actions explicitly blocked until an owner approves the staff
+  // member's document. Only applies when the actor is actually staff; the
+  // organizer (a PLAYER) is unaffected.
+  const [actor] = await sequelize.query<{ role: string }>(
+    'SELECT role FROM users WHERE user_id = :actorUserId',
+    { type: QueryTypes.SELECT, replacements: { actorUserId } },
+  );
+  if (actor?.role === 'TURF_STAFF') {
+    await assertStaffVerified(actorUserId);
+  }
 
   const membership = await fetchMatchPlayer(matchId, targetPlayerId);
   if (!membership) throw new InvalidMatchStateError('This player is not on the match roster.');
@@ -582,6 +643,17 @@ export async function vacateSpot(matchId: string, actorUserId: string, vacatingP
     );
   });
 
+  const vacatingPlayer = await resolvePlayerUserAndBfamId(vacatingPlayerId);
+  if (vacatingPlayer && vacatingPlayer.user_id !== match.organizer_id) {
+    await sendNotification({
+      userId: match.organizer_id,
+      event: 'PLAYER_CANCELLATION',
+      params: { playerBfamId: vacatingPlayer.bfam_id, matchName: match.match_name ?? 'your match' },
+      relatedEntityType: 'match',
+      relatedEntityId: matchId,
+    });
+  }
+
   return { replacement_id: replacementId };
 }
 
@@ -655,6 +727,17 @@ export async function inviteReplacement(
       { replacement_id: replacementId },
     );
   await inviteToMatch(replacement.match_id, actorUserId, candidatePlayerId);
+
+  const candidate = await resolvePlayerUserAndBfamId(candidatePlayerId);
+  if (candidate) {
+    await sendNotification({
+      userId: candidate.user_id,
+      event: 'REPLACEMENT_REQUEST',
+      params: { matchName: match.match_name ?? 'a match' },
+      relatedEntityType: 'match',
+      relatedEntityId: match.match_id,
+    });
+  }
 }
 
 // Player Replacement, step 4 — the candidate accepts, atomically filling
@@ -696,4 +779,87 @@ export async function acceptReplacement(replacementId: string, userId: string) {
         { transaction },
       );
   });
+
+  const match = await fetchMatchOrThrow(replacement.match_id);
+  const acceptedPlayer = await resolvePlayerUserAndBfamId(playerId);
+  const vacatingPlayer = await resolvePlayerUserAndBfamId(replacement.vacating_player_id);
+  if (acceptedPlayer) {
+    const recipients = new Set([match.organizer_id]);
+    if (vacatingPlayer) recipients.add(vacatingPlayer.user_id);
+    for (const recipientUserId of recipients) {
+      await sendNotification({
+        userId: recipientUserId,
+        event: 'REPLACEMENT_ACCEPTED',
+        params: {
+          playerBfamId: acceptedPlayer.bfam_id,
+          matchName: match.match_name ?? 'the match',
+        },
+        relatedEntityType: 'match',
+        relatedEntityId: replacement.match_id,
+      });
+    }
+  }
+}
+
+export interface RebookInfo {
+  turf_id: string;
+  turf_name: string;
+  preferred_start_time: string;
+  duration_minutes: number;
+  match_name: string | null;
+  match_type: string;
+  ball_type: string;
+  overs_per_innings: number;
+  scoring_mode: string;
+  roster: { player_id: string; bfam_id: string }[];
+}
+
+// Rebook Same Players (PRD §12.44): from a completed match, the organizer
+// gets everything Create Game (module 2.6) needs to start again with the
+// same turf, format, and roster — same players, same team, same turf, same
+// preferred time, same match format. The actual new booking/slot pick and
+// match creation still go through the normal 2.3/2.6 flows (this is a
+// prefill, not an auto-rebooking that would skip slot availability or
+// payment); the mobile client re-invites the returned roster after the new
+// match is created.
+export async function getRebookInfo(matchId: string, actorUserId: string): Promise<RebookInfo> {
+  const match = await fetchMatchOrThrow(matchId);
+  if (match.organizer_id !== actorUserId) {
+    throw new ForbiddenActionError('Only the match organizer can rebook this match.');
+  }
+  if (match.match_status !== 'COMPLETED') {
+    throw new MatchNotCompletedError();
+  }
+
+  const [booking] = await sequelize.query<{
+    turf_id: string;
+    turf_name: string;
+    start_time: string;
+    duration_minutes: number;
+  }>(
+    `SELECT b.turf_id, t.turf_name, b.start_time, b.duration_minutes
+     FROM bookings b JOIN turfs t ON t.turf_id = b.turf_id
+     WHERE b.booking_id = :bookingId`,
+    { type: QueryTypes.SELECT, replacements: { bookingId: match.booking_id } },
+  );
+
+  const roster = await sequelize.query<{ player_id: string; bfam_id: string }>(
+    `SELECT mp.player_id, p.bfam_id FROM match_players mp
+     JOIN players p ON p.player_id = mp.player_id
+     WHERE mp.match_id = :matchId AND mp.invitation_status = 'CONFIRMED'`,
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+
+  return {
+    turf_id: booking.turf_id,
+    turf_name: booking.turf_name,
+    preferred_start_time: booking.start_time,
+    duration_minutes: booking.duration_minutes,
+    match_name: match.match_name,
+    match_type: match.match_type,
+    ball_type: match.ball_type,
+    overs_per_innings: match.overs_per_innings,
+    scoring_mode: match.scoring_mode,
+    roster,
+  };
 }

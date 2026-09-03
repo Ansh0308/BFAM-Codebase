@@ -17,6 +17,7 @@ export default function MatchesLayout() {
       <Stack.Screen name="[matchId]/index" options={{ title: 'Game Room' }} />
       <Stack.Screen name="[matchId]/invite" options={{ title: 'Invite Players' }} />
       <Stack.Screen name="[matchId]/check-in" options={{ title: 'Check In' }} />
+      <Stack.Screen name="[matchId]/roster-check-in" options={{ headerShown: false }} />
       <Stack.Screen
         name="[matchId]/intro"
         options={{ headerShown: false, gestureEnabled: false }}
@@ -25,7 +26,6 @@ export default function MatchesLayout() {
       <Stack.Screen name="[matchId]/scoring" options={{ title: 'Scoring' }} />
       <Stack.Screen name="[matchId]/scorecard" options={{ title: 'Scorecard' }} />
       <Stack.Screen name="[matchId]/result" options={{ headerShown: false }} />
-      <Stack.Screen name="[matchId]/stats-stub" options={{ headerShown: false }} />
     </Stack>
   );
 }

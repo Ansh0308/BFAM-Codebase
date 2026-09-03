@@ -665,3 +665,75 @@ export const finalizeMatchSchema = z.object({
   winning_margin: z.string().max(50).nullable().optional(),
   player_of_the_match_id: uuid.nullable().optional(),
 });
+
+// ---- Module 2.12: Turf Owner & Turf Staff ----
+
+export const createTurfSchema = z.object({
+  turf_name: z.string().min(2).max(150),
+  description: z.string().max(2000).nullable().optional(),
+  address_line: z.string().min(2).max(255),
+  city: z.string().min(2).max(100),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  ball_types_supported: z.array(z.enum(BALL_TYPES)).optional(),
+});
+
+export const updateTurfSchema = createTurfSchema.partial();
+
+export const setSoundSettingSchema = z.object({
+  stadium_sound_enabled: z.boolean(),
+});
+
+export const setPricingSchema = z.object({
+  rows: z.array(
+    z.object({
+      day_type: z.enum(DAY_TYPES),
+      start_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+      end_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+      price_per_hour: z.number().min(0),
+    }),
+  ),
+});
+
+export const createAvailabilityBlockSchema = z.object({
+  start_datetime: z.string().datetime().or(z.string().min(10)),
+  end_datetime: z.string().datetime().or(z.string().min(10)),
+  reason: z.enum(BLOCK_REASONS),
+});
+
+export const assignStaffSchema = z.object({
+  staff_user_id: uuid,
+});
+
+export const reviewVerificationSchema = z.object({
+  decision: z.enum(['APPROVED', 'REJECTED']),
+  rejection_reason: z.string().max(500).nullable().optional(),
+});
+
+export const submitVerificationDocumentSchema = z.object({
+  turf_id: uuid,
+  document_url: z.string().url(),
+});
+
+// ---- Module 2.13: Support ----
+
+export const createComplaintSchema = z.object({
+  category: z.enum(SUPPORT_CATEGORIES),
+  description: z.string().min(5).max(2000),
+  related_entity_type: z.string().max(50).nullable().optional(),
+  related_entity_id: uuid.nullable().optional(),
+});
+
+export const createMatchDisputeSchema = z.object({
+  match_id: uuid,
+  description: z.string().min(5).max(2000),
+});
+
+export const createInjuryReportSchema = z.object({
+  description: z.string().min(5).max(2000),
+  match_id: uuid.nullable().optional(),
+});
+
+export const updateTicketStatusSchema = z.object({
+  status: z.enum(SUPPORT_STATUSES),
+});

@@ -11,6 +11,8 @@ import {
   PaymentNotFoundError,
 } from '../domain/errors';
 import { createRazorpayOrder, refundGatewayPayment } from './razorpayService';
+import { sendNotification } from './notificationService';
+import { assertStaffVerified } from './staffService';
 
 interface BookingRow {
   booking_id: string;
@@ -202,6 +204,17 @@ export async function recordCashPayment(
   collectedBy: string,
   cashReference: string | undefined,
 ) {
+  // Staff verification gate (module 2.12, PRD §32.14) — only applies when
+  // the collector is actually staff; a PLAYER captain collecting cash from
+  // teammates is unaffected.
+  const [collector] = await sequelize.query<{ role: string }>(
+    'SELECT role FROM users WHERE user_id = :collectedBy',
+    { type: QueryTypes.SELECT, replacements: { collectedBy } },
+  );
+  if (collector?.role === 'TURF_STAFF') {
+    await assertStaffVerified(collectedBy);
+  }
+
   const obligations = await fetchObligations(obligationIds);
   await assertObligationsSettleable(obligations, obligationIds);
 
@@ -265,6 +278,54 @@ export async function allocatePaymentToObligations(
         { obligation_id: obligation.obligation_id },
       );
   }
+
+  const bookingIds = new Set(obligations.map((o) => o.booking_id));
+  for (const bookingId of bookingIds) {
+    await maybeConfirmBookingAndNotify(bookingId);
+  }
+}
+
+// BOOKING_CONFIRMATION (module 2.11, PRD §12.45) fires once every
+// obligation for a booking is PAID — the natural "your booking is
+// confirmed" moment. The Phase 1/2.4 schema never actually flipped
+// bookings.booking_status to CONFIRMED anywhere (module 2.6's createMatch
+// requires a CONFIRMED booking, so this was a real gap, not just a
+// notification-plumbing one) — fixed here since it's the same condition.
+// Reuses fetchBooking/getObligationsForBooking rather than a new join so
+// the booking's own row is always the single source of truth for status.
+// Never throws — a failure here must never fail the payment that already
+// succeeded (mirrors notificationService.sendNotification's own contract).
+async function maybeConfirmBookingAndNotify(bookingId: string) {
+  try {
+    await maybeConfirmBookingAndNotifyUnsafe(bookingId);
+  } catch (error) {
+    console.error(`[paymentService] Failed to confirm booking ${bookingId}:`, error);
+  }
+}
+
+async function maybeConfirmBookingAndNotifyUnsafe(bookingId: string) {
+  const booking = await fetchBooking(bookingId);
+  if (!booking || booking.booking_status === 'CONFIRMED') return;
+
+  const obligations = await getObligationsForBooking(bookingId);
+  const fullyPaid = obligations.length > 0 && obligations.every((o) => o.due_status === 'PAID');
+  if (!fullyPaid) return;
+
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate(
+      'bookings',
+      { booking_status: 'CONFIRMED', updated_at: new Date() },
+      { booking_id: bookingId },
+    );
+
+  await sendNotification({
+    userId: booking.booked_by,
+    event: 'BOOKING_CONFIRMATION',
+    params: { date: booking.booking_date, time: booking.start_time.slice(0, 5) },
+    relatedEntityType: 'booking',
+    relatedEntityId: bookingId,
+  });
 }
 
 interface PaymentRow {

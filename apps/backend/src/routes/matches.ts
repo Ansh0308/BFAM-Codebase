@@ -25,6 +25,7 @@ import {
   createMatch,
   getCheckInCode,
   getGameRoom,
+  getRebookInfo,
   inviteReplacement,
   inviteToMatch,
   joinMatchViaLink,
@@ -43,9 +44,11 @@ import {
   MatchAlreadyExistsForBookingError,
   MatchIntroNotFoundError,
   MatchInvitationNotFoundError,
+  MatchNotCompletedError,
   MatchNotFoundError,
   PlayerProfileNotFoundError,
   ReplacementNotFoundError,
+  StaffNotVerifiedError,
 } from '../domain/errors';
 
 const router = Router();
@@ -59,7 +62,7 @@ function handleMatchError(error: unknown, res: Response) {
   ) {
     return res.status(404).json({ error: { message: error.message, status: 404 } });
   }
-  if (error instanceof ForbiddenActionError) {
+  if (error instanceof ForbiddenActionError || error instanceof StaffNotVerifiedError) {
     return res.status(403).json({ error: { message: error.message, status: 403 } });
   }
   if (error instanceof PlayerProfileNotFoundError) {
@@ -68,7 +71,8 @@ function handleMatchError(error: unknown, res: Response) {
   if (
     error instanceof InvalidMatchStateError ||
     error instanceof MatchAlreadyExistsForBookingError ||
-    error instanceof InvalidCheckInCodeError
+    error instanceof InvalidCheckInCodeError ||
+    error instanceof MatchNotCompletedError
   ) {
     return res.status(409).json({ error: { message: error.message, status: 409 } });
   }
@@ -493,6 +497,24 @@ router.post(
     try {
       await completeIntro(req.params.matchId, req.auth!.sub);
       return res.status(204).send();
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// GET /matches/:matchId/rebook — Rebook Same Players (module 2.10, PRD
+// §12.44): everything Create Game needs to start again with the same turf,
+// format, and roster.
+router.get(
+  '/:matchId/rebook',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const info = await getRebookInfo(req.params.matchId, req.auth!.sub);
+      return res.status(200).json(info);
     } catch (error) {
       const handled = handleMatchError(error, res);
       if (handled) return handled;

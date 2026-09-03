@@ -12,6 +12,7 @@
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:seed:phase1": "ts-node-dev --exit-child --transpile-only src/seed/phase1Seed.ts",
     "db:seed:cricketers": "ts-node-dev --exit-child --transpile-only src/seed/cricketersSeed.ts",
+    "db:seed:demo": "ts-node-dev --exit-child --transpile-only src/seed/demoSeed.ts",
     "seed": "npm run db:seed:phase1",
     "db:seed": "npm run db:seed:phase1",
     "test": "jest"

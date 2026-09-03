@@ -10,6 +10,7 @@ import { ScreenContainer } from '../../../src/components/ScreenContainer';
 import { Button } from '../../../src/components/Button';
 import { TextField } from '../../../src/components/TextField';
 import { ChipSelect } from '../../../src/components/ChipSelect';
+import { useRebookStore } from '../../../src/store/rebookStore';
 
 const MATCH_TYPES: { value: MatchType; label: string }[] = [
   { value: 'FRIENDS', label: 'Friends' },
@@ -28,19 +29,33 @@ const OVERS_OPTIONS = ['5', '6', '8', '10', '15', '20'];
 
 // Create Game (PRD §12.9): link to a confirmed booking, choose format,
 // ball type, scoring mode, and (if turf-staff-managed) assign a scorer.
+// When reached via Rebook Same Players (module 2.10, PRD §12.44), the
+// format fields below are prefilled from rebookStore and the prior
+// roster is re-invited automatically on success.
 export default function CreateMatchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ bookingId?: string }>();
+
+  const rebookPlan = useRebookStore((s) => s.plan);
+  const clearRebookPlan = useRebookStore((s) => s.clear);
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(!params.bookingId);
   const [bookingId, setBookingId] = useState<string | null>(params.bookingId ?? null);
 
-  const [matchName, setMatchName] = useState('');
-  const [matchType, setMatchType] = useState<MatchType>('FRIENDS');
-  const [ballType, setBallType] = useState<MatchBallType>('TENNIS');
-  const [oversPerInnings, setOversPerInnings] = useState('8');
-  const [scoringMode, setScoringMode] = useState<MatchScoringMode>('PLAYER_MANAGED');
+  const [matchName, setMatchName] = useState(rebookPlan?.match_name ?? '');
+  const [matchType, setMatchType] = useState<MatchType>(
+    (rebookPlan?.match_type as MatchType) ?? 'FRIENDS',
+  );
+  const [ballType, setBallType] = useState<MatchBallType>(
+    (rebookPlan?.ball_type as MatchBallType) ?? 'TENNIS',
+  );
+  const [oversPerInnings, setOversPerInnings] = useState(
+    rebookPlan ? String(rebookPlan.overs_per_innings) : '8',
+  );
+  const [scoringMode, setScoringMode] = useState<MatchScoringMode>(
+    (rebookPlan?.scoring_mode as MatchScoringMode) ?? 'PLAYER_MANAGED',
+  );
   const [assignedScorerId, setAssignedScorerId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +90,21 @@ export default function CreateMatchScreen() {
         scoring_mode: scoringMode,
         assigned_scorer_id: scoringMode === 'TURF_STAFF_MANAGED' ? assignedScorerId.trim() : null,
       });
+
+      // Rebook Same Players (PRD §12.44): re-invite the prior match's
+      // roster. The organizer is already on the new roster via
+      // createMatch, so their own re-invite (if present in the roster) is
+      // expected to fail with "already on the roster" — every player is
+      // invited independently so one such failure never blocks the rest.
+      if (rebookPlan) {
+        await Promise.all(
+          rebookPlan.roster.map((p) =>
+            apiClient.inviteToMatch(match.match_id, p.player_id).catch(() => {}),
+          ),
+        );
+        clearRebookPlan();
+      }
+
       router.replace(`/(tabs)/matches/${match.match_id}`);
     } catch (err) {
       if (err instanceof BFAMApiError) setError(err.message);
@@ -87,6 +117,19 @@ export default function CreateMatchScreen() {
   return (
     <ScreenContainer scroll>
       <View className="pt-4" testID="create-match-screen">
+        {rebookPlan && (
+          <View
+            className="flex-row items-center bg-surface-alt rounded-md p-3 mb-4"
+            testID="rebook-banner"
+          >
+            <Feather name="repeat" size={16} color="#D80000" />
+            <Text className="font-ui text-body text-text-primary ml-2">
+              Rebooking with {rebookPlan.roster.length} player
+              {rebookPlan.roster.length === 1 ? '' : 's'} from your last match at{' '}
+              {rebookPlan.turf_name}.
+            </Text>
+          </View>
+        )}
         {!params.bookingId && (
           <>
             <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-2">

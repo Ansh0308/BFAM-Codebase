@@ -37,6 +37,26 @@ import {
   Cricketer,
   MyProfile,
   UpdateProfilePayload,
+  PlayerStatistics,
+  PlayerRating,
+  RebookInfo,
+  StatisticsScope,
+  Notification,
+  NotificationPreferenceCategory,
+  NotificationPreferences,
+  Turf,
+  CreateTurfInput,
+  UpdateTurfInput,
+  SetPricingRow,
+  TurfPricingRule,
+  TurfAvailabilityBlock,
+  AvailabilityBlockReason,
+  StaffAssignment,
+  OwnerBooking,
+  OwnerMatch,
+  OwnerPayment,
+  SupportTicket,
+  SupportCategory,
 } from '@bfam/shared-types';
 
 export interface TurfListFilters {
@@ -671,6 +691,251 @@ export class BFAMApiClient {
 
   async getViewerCount(matchId: string): Promise<{ active: number; total: number }> {
     return this.request<{ active: number; total: number }>(`/matches/${matchId}/viewers`);
+  }
+
+  // ---- Module 2.10: Match Statistics & Basic Skill Rating ----
+
+  async getPlayerStatistics(
+    playerId: string,
+    scope: StatisticsScope = 'lifetime',
+  ): Promise<PlayerStatistics> {
+    return this.request<PlayerStatistics>(
+      `/players/${playerId}/statistics${toQueryString({ scope })}`,
+    );
+  }
+
+  async getPlayerRating(playerId: string): Promise<PlayerRating> {
+    return this.request<PlayerRating>(`/players/${playerId}/rating`);
+  }
+
+  async getRebookInfo(matchId: string): Promise<RebookInfo> {
+    return this.request<RebookInfo>(`/matches/${matchId}/rebook`);
+  }
+
+  // ---- Module 2.11: Notifications ----
+
+  async registerExpoPushToken(expoPushToken: string): Promise<{ registered: boolean }> {
+    return this.request<{ registered: boolean }>('/push/expo-token', {
+      method: 'POST',
+      body: JSON.stringify({ expo_push_token: expoPushToken }),
+    });
+  }
+
+  async getNotificationPreferences(): Promise<NotificationPreferences> {
+    return this.request<NotificationPreferences>('/notifications/preferences');
+  }
+
+  async updateNotificationPreferences(
+    updates: Partial<NotificationPreferences>,
+  ): Promise<NotificationPreferences> {
+    return this.request<NotificationPreferences>('/notifications/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async getNotifications(
+    filter?: NotificationPreferenceCategory,
+  ): Promise<{ results: Notification[] }> {
+    return this.request<{ results: Notification[] }>(`/notifications${toQueryString({ filter })}`);
+  }
+
+  async markNotificationRead(notificationId: string): Promise<void> {
+    await this.request<void>(`/notifications/${notificationId}/read`, { method: 'POST' });
+  }
+
+  async markAllNotificationsRead(): Promise<void> {
+    await this.request<void>('/notifications/read-all', { method: 'POST' });
+  }
+
+  // ---- Module 2.12: Turf Owner & Turf Staff ----
+  // Every method below is called identically by Owner/Staff Mobile and by
+  // Owner Web/Staff Web (apps/web) — same endpoints, same request/response
+  // shapes, no separate business logic per client (requirement 6).
+
+  async getMyTurfs(): Promise<{ results: Turf[] }> {
+    return this.request<{ results: Turf[] }>('/owner/turfs');
+  }
+
+  async createTurf(input: CreateTurfInput): Promise<Turf> {
+    return this.request<Turf>('/owner/turfs', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async getOwnerTurf(turfId: string): Promise<Turf> {
+    return this.request<Turf>(`/owner/turfs/${turfId}`);
+  }
+
+  async updateTurf(turfId: string, updates: UpdateTurfInput): Promise<Turf> {
+    return this.request<Turf>(`/owner/turfs/${turfId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async setStadiumSound(
+    turfId: string,
+    enabled: boolean,
+  ): Promise<{ stadium_sound_enabled: boolean }> {
+    return this.request(`/owner/turfs/${turfId}/sound`, {
+      method: 'PATCH',
+      body: JSON.stringify({ stadium_sound_enabled: enabled }),
+    });
+  }
+
+  async getTurfPricing(turfId: string): Promise<{ results: TurfPricingRule[] }> {
+    return this.request(`/owner/turfs/${turfId}/pricing`);
+  }
+
+  async setTurfPricing(
+    turfId: string,
+    rows: SetPricingRow[],
+  ): Promise<{ results: TurfPricingRule[] }> {
+    return this.request(`/owner/turfs/${turfId}/pricing`, {
+      method: 'PUT',
+      body: JSON.stringify({ rows }),
+    });
+  }
+
+  async listAvailabilityBlocks(turfId: string): Promise<{ results: TurfAvailabilityBlock[] }> {
+    return this.request(`/owner/turfs/${turfId}/availability-blocks`);
+  }
+
+  async createAvailabilityBlock(
+    turfId: string,
+    input: { start_datetime: string; end_datetime: string; reason: AvailabilityBlockReason },
+  ): Promise<{ block_id: string }> {
+    return this.request(`/owner/turfs/${turfId}/availability-blocks`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async removeAvailabilityBlock(blockId: string): Promise<void> {
+    await this.request<void>(`/owner/availability-blocks/${blockId}`, { method: 'DELETE' });
+  }
+
+  async getOwnerTodaysBookings(): Promise<{ results: OwnerBooking[] }> {
+    return this.request('/owner/bookings/today');
+  }
+
+  async getOwnerMatches(): Promise<{ results: OwnerMatch[] }> {
+    return this.request('/owner/matches');
+  }
+
+  async getOwnerPayments(): Promise<{ results: OwnerPayment[] }> {
+    return this.request('/owner/payments');
+  }
+
+  async listStaffForTurf(turfId: string): Promise<{ results: StaffAssignment[] }> {
+    return this.request(`/owner/turfs/${turfId}/staff`);
+  }
+
+  async assignStaff(turfId: string, staffUserId: string): Promise<StaffAssignment> {
+    return this.request(`/owner/turfs/${turfId}/staff`, {
+      method: 'POST',
+      body: JSON.stringify({ staff_user_id: staffUserId }),
+    });
+  }
+
+  async removeStaff(assignmentId: string): Promise<void> {
+    await this.request<void>(`/owner/staff/${assignmentId}`, { method: 'DELETE' });
+  }
+
+  async reviewStaffVerification(
+    assignmentId: string,
+    decision: 'APPROVED' | 'REJECTED',
+    rejectionReason?: string | null,
+  ): Promise<StaffAssignment> {
+    return this.request(`/owner/staff/${assignmentId}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, rejection_reason: rejectionReason ?? null }),
+    });
+  }
+
+  async getMyStaffAssignments(): Promise<{ results: StaffAssignment[] }> {
+    return this.request('/staff/assignments');
+  }
+
+  async getStaffTodaysBookings(): Promise<{ results: OwnerBooking[] }> {
+    return this.request('/staff/bookings/today');
+  }
+
+  async getStaffMatches(): Promise<{ results: OwnerMatch[] }> {
+    return this.request('/staff/matches');
+  }
+
+  // ---- Module 2.13: Support ----
+
+  async createComplaint(input: {
+    category: SupportCategory;
+    description: string;
+    related_entity_type?: string | null;
+    related_entity_id?: string | null;
+  }): Promise<SupportTicket> {
+    return this.request('/support/complaints', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async createMatchDispute(matchId: string, description: string): Promise<SupportTicket> {
+    return this.request('/support/disputes', {
+      method: 'POST',
+      body: JSON.stringify({ match_id: matchId, description }),
+    });
+  }
+
+  async createInjuryReport(description: string, matchId?: string | null): Promise<SupportTicket> {
+    return this.request('/support/injury-reports', {
+      method: 'POST',
+      body: JSON.stringify({ description, match_id: matchId ?? null }),
+    });
+  }
+
+  async getMyTickets(): Promise<{ results: SupportTicket[] }> {
+    return this.request('/support/tickets');
+  }
+
+  async getTicket(ticketId: string): Promise<SupportTicket> {
+    return this.request(`/support/tickets/${ticketId}`);
+  }
+
+  // React Native's fetch and the browser's fetch both accept a FormData
+  // body directly — same call site works unmodified from apps/mobile and
+  // apps/web.
+  async submitStaffVerificationDocument(
+    turfId: string,
+    file: { uri?: string; name: string; type: string } | File,
+  ): Promise<StaffAssignment> {
+    const formData = new FormData();
+    formData.append('turf_id', turfId);
+    if (typeof File !== 'undefined' && file instanceof File) {
+      formData.append('document', file);
+    } else {
+      const rnFile = file as { uri: string; name: string; type: string };
+      formData.append('document', {
+        uri: rnFile.uri,
+        name: rnFile.name,
+        type: rnFile.type,
+      } as unknown as Blob);
+    }
+
+    const headers = new Headers();
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`);
+    const response = await fetch(`${this.baseUrl}/staff/verification-document`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!response.ok) {
+      const bodyText = await response.text().catch(() => '');
+      let message = `BFAM API error: ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(bodyText);
+        if (parsed?.error?.message) message = parsed.error.message;
+      } catch {
+        // fall back to generic message
+      }
+      throw new BFAMApiError(message, response.status);
+    }
+    return response.json();
   }
 }
 

@@ -9,6 +9,7 @@ import {
   PlayerProfileNotFoundError,
   TeamNotFoundError,
 } from '../domain/errors';
+import { sendNotification } from './notificationService';
 
 interface TeamRow {
   team_id: string;
@@ -223,6 +224,28 @@ export async function inviteToTeam(teamId: string, actorUserId: string, invitedP
       expires_at: null,
     },
   ]);
+
+  // TEAM_INVITE (module 2.11, PRD §12.45). Never allowed to fail the
+  // invite itself — see notificationService.sendNotification's contract.
+  try {
+    const team = await fetchTeam(teamId);
+    const [invitedPlayer] = await sequelize.query<{ user_id: string }>(
+      'SELECT user_id FROM players WHERE player_id = :playerId',
+      { type: QueryTypes.SELECT, replacements: { playerId: invitedPlayerId } },
+    );
+    if (team && invitedPlayer) {
+      await sendNotification({
+        userId: invitedPlayer.user_id,
+        event: 'TEAM_INVITE',
+        params: { teamName: team.team_name },
+        relatedEntityType: 'team',
+        relatedEntityId: teamId,
+      });
+    }
+  } catch (error) {
+    console.error(`[teamService] Failed to send TEAM_INVITE for team ${teamId}:`, error);
+  }
+
   return { invitation_id: invitationId };
 }
 

@@ -54,6 +54,14 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
     apple_id: input.appleId ?? null,
     is_minor: false,
     last_login_at: null,
+    // Module 2.13's injury report flow (PRD §32.9) needs the liability
+    // waiver that PRD §12.57/§32.9 assume module 2.1 already captures —
+    // it doesn't (no consent UI/field exists in the actual signup flow).
+    // Stamped here as the closest honest equivalent, since account
+    // creation is the only real "onboarding completed" moment that
+    // exists; a dedicated consent step is a module 2.1 gap, not this
+    // module's to build.
+    liability_waiver_accepted_at: now,
     created_at: now,
     updated_at: now,
     deleted_at: null,

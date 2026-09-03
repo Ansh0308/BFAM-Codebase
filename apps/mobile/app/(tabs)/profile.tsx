@@ -29,9 +29,10 @@ const EXPERIENCE_LABELS: Record<string, string> = {
   ADVANCED: 'Advanced',
 };
 
-// Player Profile (public view) — Module 2.2. Stats and Ratings are
-// placeholder slots only (real data lands in Module 2.10); everything
-// else here is real, persisted profile data from GET /profile/me.
+// Player Profile (public view) — Module 2.2, with Career Stats/Basic Skill
+// Rating filled in by Module 2.10 (PRD §12.21/§12.29/§12.32). Skill rating
+// comes straight off GET /profile/me (players.skill_rating); the "Career
+// Stats" tile links out to the full lifetime/season screen.
 export default function Profile() {
   const router = useRouter();
   const authUser = useAuthStore((s) => s.user);
@@ -68,7 +69,17 @@ export default function Profile() {
         }
         testID="profile-screen"
       >
-        <View className="flex-row justify-end mt-4">
+        <View className="flex-row justify-end items-center mt-4">
+          <Pressable
+            onPress={() => router.push('/notifications')}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+            testID="notifications-button"
+            className="mr-5"
+          >
+            <Feather name="bell" size={22} color="#0D0D0D" />
+          </Pressable>
           <Pressable
             onPress={() => router.push('/profile-settings')}
             hitSlop={8}
@@ -140,18 +151,38 @@ export default function Profile() {
               />
             </View>
 
-            <PlaceholderSection
-              icon="bar-chart-2"
-              title="Career Stats"
-              note="Matches, runs, wickets, and more — coming in a later module."
-              testID="stats-placeholder"
-            />
-            <PlaceholderSection
-              icon="award"
-              title="Ratings"
-              note="Skill Rating, Fair Play, Reliability, and Community Rating — coming in a later module."
-              testID="ratings-placeholder"
-            />
+            <Pressable
+              onPress={() => router.push('/player-statistics')}
+              className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
+              testID="stats-section"
+            >
+              <Feather name="bar-chart-2" size={24} color="#D80000" />
+              <Text className="font-display text-card-title uppercase text-ink-black mt-2">
+                Career Stats
+              </Text>
+              <Text className="font-ui text-body text-text-tertiary text-center mt-1">
+                Matches, runs, wickets, and more — tap to view lifetime or season stats.
+              </Text>
+            </Pressable>
+
+            <View
+              className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
+              testID="ratings-section"
+            >
+              <Feather name="award" size={24} color="#D80000" />
+              <Text className="font-display text-card-title uppercase text-ink-black mt-2">
+                Basic Skill Rating
+              </Text>
+              <Text
+                className="font-ui font-bold text-title-xl text-brand-red mt-2"
+                testID="skill-rating-value"
+              >
+                {profile?.skill_rating ?? 500}
+              </Text>
+              <Text className="font-ui text-body text-text-tertiary text-center mt-1">
+                Fair Play, Reliability, and Community Rating — coming in a later module.
+              </Text>
+            </View>
           </>
         ) : (
           <Text className="font-ui text-body text-text-tertiary text-center mt-4">
@@ -186,26 +217,6 @@ function ProfileFact({ label, value }: { label: string; value: string }) {
         </Text>
         <Text className="font-ui font-bold text-body text-text-primary mt-1">{value}</Text>
       </View>
-    </View>
-  );
-}
-
-function PlaceholderSection({
-  icon,
-  title,
-  note,
-  testID,
-}: {
-  icon: React.ComponentProps<typeof Feather>['name'];
-  title: string;
-  note: string;
-  testID?: string;
-}) {
-  return (
-    <View className="bg-surface-alt rounded-lg p-5 mb-4 items-center" testID={testID}>
-      <Feather name={icon} size={24} color="#D80000" />
-      <Text className="font-display text-card-title uppercase text-ink-black mt-2">{title}</Text>
-      <Text className="font-ui text-body text-text-tertiary text-center mt-1">{note}</Text>
     </View>
   );
 }

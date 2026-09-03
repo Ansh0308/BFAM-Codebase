@@ -11,6 +11,7 @@ import {
   GatewayNotConfiguredError,
   InvalidPaymentStateError,
   ObligationNotFoundError,
+  StaffNotVerifiedError,
 } from '../domain/errors';
 
 const router = Router();
@@ -85,6 +86,9 @@ router.post(
       }
       if (error instanceof InvalidPaymentStateError) {
         return res.status(409).json({ error: { message: error.message, status: 409 } });
+      }
+      if (error instanceof StaffNotVerifiedError) {
+        return res.status(403).json({ error: { message: error.message, status: 403 } });
       }
       throw error;
     }
