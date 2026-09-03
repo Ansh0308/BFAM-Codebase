@@ -1,27 +1,42 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Location from 'expo-location';
 import type { TurfListItem } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
 import { colors } from '../../../src/theme/tokens';
 import { TurfCard } from '../../../src/components/TurfCard';
 import { ScreenContainer } from '../../../src/components/ScreenContainer';
 
+interface Coords {
+  lat: number;
+  lng: number;
+}
+
 // Turf Listing: search/filter only (PRD §12.7). Map view is explicitly
-// deferred for this module.
+// deferred for this module. "Near You" (Design §3.3) is sorted by real
+// distance when location is available — the backend already supports
+// lat/lng (turfService.listTurfs' distance_km sort), this screen just
+// never asked for it.
 export default function TurfListing() {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<TurfListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const coordsRef = useRef<Coords | null>(null);
 
   const fetchTurfs = useCallback(async (searchTerm: string) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.getTurfs(searchTerm ? { q: searchTerm } : {});
+      const here = coordsRef.current;
+      const response = await apiClient.getTurfs({
+        ...(searchTerm ? { q: searchTerm } : {}),
+        ...(here ? { lat: here.lat, lng: here.lng } : {}),
+      });
       setResults(response.results);
     } catch {
       setError('Could not load turfs. Pull down to try again.');
@@ -30,14 +45,41 @@ export default function TurfListing() {
     }
   }, []);
 
+  // Best-effort: ask for location once on mount so "Near You" can sort by
+  // real distance. A denied/unavailable permission just falls back to the
+  // existing unsorted listing — this is a nice-to-have, never blocking.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) return;
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (cancelled) return;
+        const here = { lat: position.coords.latitude, lng: position.coords.longitude };
+        coordsRef.current = here;
+        setCoords(here);
+      } catch {
+        // No location permission/services — silently fall back.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Refetch every time this tab gains focus (not just on first mount) — a
   // turf created/updated in the Owner portal while this tab was already
   // mounted would otherwise never show up here, same as the sibling
-  // Matches/Teams tabs.
+  // Matches/Teams tabs. Also refetches once location resolves, so "Near
+  // You" picks up real distance sorting without waiting for a manual
+  // search or re-focus.
   useFocusEffect(
     useCallback(() => {
       fetchTurfs(query);
-    }, [fetchTurfs, query]),
+    }, [fetchTurfs, query, coords]),
   );
 
   const openDetails = (turfId: string) => router.push(`/(tabs)/discover/turf/${turfId}`);

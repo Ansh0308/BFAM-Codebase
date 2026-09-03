@@ -45,6 +45,13 @@ export function TurfCard({ turf, onPress, variant = 'vertical' }: Props) {
             <Text className="text-rating-star text-body">★ {turf.average_rating.toFixed(1)}</Text>
           )}
         </View>
+        {turf.distance_km !== null && (
+          <Text className="text-text-tertiary text-micro mt-1">
+            {turf.distance_km < 1
+              ? `${Math.round(turf.distance_km * 1000)} m away`
+              : `${turf.distance_km.toFixed(1)} km away`}
+          </Text>
+        )}
       </View>
     </Pressable>
   );

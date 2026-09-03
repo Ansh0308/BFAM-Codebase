@@ -9,10 +9,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bfam.mobile",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "BFAM uses your location to show turfs near you in Discover."
+      }
     },
     "android": {
-      "package": "com.bfam.mobile"
+      "package": "com.bfam.mobile",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "plugins": [
       [
@@ -24,7 +28,13 @@
       ],
       "expo-secure-store",
       "expo-router",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "BFAM uses your location to show turfs near you in Discover."
+        }
+      ]
     ]
   }
 }
