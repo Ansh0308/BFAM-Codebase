@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import type { TurfListItem } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
 import { colors } from '../../../src/theme/tokens';
@@ -29,9 +30,15 @@ export default function TurfListing() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchTurfs('');
-  }, [fetchTurfs]);
+  // Refetch every time this tab gains focus (not just on first mount) — a
+  // turf created/updated in the Owner portal while this tab was already
+  // mounted would otherwise never show up here, same as the sibling
+  // Matches/Teams tabs.
+  useFocusEffect(
+    useCallback(() => {
+      fetchTurfs(query);
+    }, [fetchTurfs, query]),
+  );
 
   const openDetails = (turfId: string) => router.push(`/(tabs)/discover/turf/${turfId}`);
 

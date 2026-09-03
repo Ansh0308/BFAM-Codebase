@@ -8,24 +8,31 @@ import { registerForPushNotifications } from '../lib/pushNotifications';
 // JWT is a credential, not app preference data — persisted via
 // expo-secure-store (Keychain/Keystore-backed), NOT AsyncStorage. There is
 // no web implementation of SecureStore's native module (it's backed by
-// Keychain/Keystore, which don't exist in a browser), so on web we no-op:
-// the session simply doesn't survive a page reload there. This app's real
-// target is native; web is a secondary/preview surface only.
+// Keychain/Keystore, which don't exist in a browser), so on web this falls
+// back to localStorage instead — same tradeoff apps/web's own auth.tsx
+// already makes for the Owner/Staff dashboards. Not Keychain-grade, but
+// without it every reload of the web preview silently logs the user out.
 const TOKEN_KEY = 'bfam_auth_token';
 const USER_KEY = 'bfam_auth_user';
 const isWeb = Platform.OS === 'web';
 
 const secureStore = {
   async setItemAsync(key: string, value: string) {
-    if (isWeb) return;
+    if (isWeb) {
+      localStorage.setItem(key, value);
+      return;
+    }
     await SecureStore.setItemAsync(key, value);
   },
   async getItemAsync(key: string) {
-    if (isWeb) return null;
+    if (isWeb) return localStorage.getItem(key);
     return SecureStore.getItemAsync(key);
   },
   async deleteItemAsync(key: string) {
-    if (isWeb) return;
+    if (isWeb) {
+      localStorage.removeItem(key);
+      return;
+    }
     await SecureStore.deleteItemAsync(key);
   },
 };

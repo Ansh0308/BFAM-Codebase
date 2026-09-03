@@ -20,6 +20,11 @@ export default function MyTeamsScreen() {
     apiClient
       .getMyTeams()
       .then((res) => setTeams(res.results))
+      // A TURF_OWNER/TURF_STAFF account has no player profile — getMyTeams
+      // 400s for them (see PlayerProfileNotFoundError). Same "just show the
+      // empty state" fallback as the sibling Matches tab rather than
+      // crashing with an uncaught rejection.
+      .catch(() => setTeams([]))
       .finally(() => setLoading(false));
   }, []);
 

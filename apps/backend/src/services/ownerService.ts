@@ -155,6 +155,10 @@ export async function setPricing(turfId: string, ownerUserId: string, rows: Pric
       .getQueryInterface()
       .bulkDelete('turf_pricing', { turf_id: turfId }, { transaction });
     if (rows.length > 0) {
+      // effective_from has no DB default (NOT NULL) and the owner portal's
+      // pricing form doesn't collect it — a new/replaced rate is effective
+      // immediately, so default it to today rather than rejecting the row.
+      const today = new Date().toISOString().slice(0, 10);
       await sequelize.getQueryInterface().bulkInsert(
         'turf_pricing',
         rows.map((r) => ({
@@ -165,6 +169,7 @@ export async function setPricing(turfId: string, ownerUserId: string, rows: Pric
           end_time: r.end_time,
           price_per_hour: r.price_per_hour,
           currency: 'INR',
+          effective_from: today,
         })),
         { transaction },
       );
