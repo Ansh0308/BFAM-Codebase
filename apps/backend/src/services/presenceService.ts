@@ -131,7 +131,14 @@ async function broadcastViewerCount(io: Server, matchId: string) {
 // authorization check), falling back to the socket id so an anonymous
 // viewer still counts as exactly one.
 export function registerPresenceHandlers(io: Server, socket: Socket) {
-  const sessionsBySocketMatch = new Map<string, string>(); // `${matchId}` -> live_match_sessions row id
+  // Tracks both the live_match_sessions row id AND the exact Redis member
+  // key (userId, or this socket's id for an anonymous viewer) used at
+  // join/heartbeat time — `disconnect` fires with no event payload, so it
+  // must reuse this rather than re-deriving a viewerKey from a userId that
+  // socket.io no longer has, which would silently ZREM the wrong member
+  // and leave an authenticated viewer's presence entry to only age out via
+  // the 30s TTL instead of being removed immediately.
+  const sessionsBySocketMatch = new Map<string, { sessionId: string; viewerKey: string }>();
 
   async function join(matchId: string, userId?: string) {
     if (!matchId) return;
@@ -140,18 +147,18 @@ export function registerPresenceHandlers(io: Server, socket: Socket) {
     await recordHeartbeat(matchId, viewerKey);
     if (!sessionsBySocketMatch.has(matchId)) {
       const sessionId = await logSession(matchId, userId ?? null, socket.id);
-      sessionsBySocketMatch.set(matchId, sessionId);
+      sessionsBySocketMatch.set(matchId, { sessionId, viewerKey });
     }
     await broadcastViewerCount(io, matchId);
   }
 
   async function leave(matchId: string, userId?: string) {
     if (!matchId) return;
-    const viewerKey = userId ?? socket.id;
+    const tracked = sessionsBySocketMatch.get(matchId);
+    const viewerKey = tracked?.viewerKey ?? userId ?? socket.id;
     await recordLeave(matchId, viewerKey);
-    const sessionId = sessionsBySocketMatch.get(matchId);
-    if (sessionId) {
-      await closeSession(sessionId);
+    if (tracked) {
+      await closeSession(tracked.sessionId);
       sessionsBySocketMatch.delete(matchId);
     }
     await broadcastViewerCount(io, matchId);

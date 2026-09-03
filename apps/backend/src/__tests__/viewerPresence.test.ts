@@ -102,10 +102,32 @@ import {
   getTotalViews,
   recordHeartbeat,
   recordLeave,
+  registerPresenceHandlers,
 } from '../services/presenceService';
 
 const MATCH_ID = 'match-1';
 const USER_ID = 'user-1';
+
+// Minimal fake Socket.IO Server/Socket — just enough surface for
+// registerPresenceHandlers (join/on/emit/id, plus `to().emit()` for the
+// broadcast it fires after every join/leave) so its socket-event wiring
+// (not just the standalone presence functions above) can be exercised
+// directly, including the `disconnect` cleanup path.
+function makeFakeSocket(socketId: string) {
+  const handlers = new Map<string, (payload?: unknown) => void>();
+  const socket = {
+    id: socketId,
+    join: () => {},
+    on: (event: string, handler: (payload?: unknown) => void) => {
+      handlers.set(event, handler);
+    },
+  };
+  return { socket, handlers };
+}
+
+function makeFakeIo() {
+  return { to: () => ({ emit: () => {} }) };
+}
 
 describe('Live Match Viewer Count presence (module 2.9)', () => {
   beforeEach(() => {
@@ -187,6 +209,51 @@ describe('Live Match Viewer Count presence (module 2.9)', () => {
       const activeNow = Date.now();
       await recordHeartbeat(MATCH_ID, USER_ID, activeNow);
       expect(await getActiveViewerCount(MATCH_ID, activeNow + 10)).toBe(1);
+    });
+  });
+
+  describe('registerPresenceHandlers (socket event wiring)', () => {
+    it('a clean disconnect removes the viewer from the active count immediately, not just after the TTL', async () => {
+      const io = makeFakeIo();
+      const { socket, handlers } = makeFakeSocket('sock-1');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      registerPresenceHandlers(io as any, socket as any);
+
+      await (handlers.get('join_match_viewer') as (p: unknown) => Promise<void>)({
+        matchId: MATCH_ID,
+        userId: USER_ID,
+      });
+      expect(await getActiveViewerCount(MATCH_ID)).toBe(1);
+
+      // No payload on 'disconnect' — this is exactly the path that used
+      // to fall back to socket.id instead of the userId actually used at
+      // join time, silently failing to remove the right Redis member.
+      await (handlers.get('disconnect') as () => Promise<void>)();
+
+      expect(await getActiveViewerCount(MATCH_ID)).toBe(0);
+    });
+
+    it('rapid connect/disconnect/reconnect cycles for one user never push the active count above 1, and each cycle logs its own total-views session', async () => {
+      const io = makeFakeIo();
+
+      for (let i = 0; i < 5; i += 1) {
+        const { socket, handlers } = makeFakeSocket(`sock-${i}`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        registerPresenceHandlers(io as any, socket as any);
+
+        await (handlers.get('join_match_viewer') as (p: unknown) => Promise<void>)({
+          matchId: MATCH_ID,
+          userId: USER_ID,
+        });
+        expect(await getActiveViewerCount(MATCH_ID)).toBe(1);
+
+        await (handlers.get('disconnect') as () => Promise<void>)();
+        expect(await getActiveViewerCount(MATCH_ID)).toBe(0);
+      }
+
+      // Each connect cycle is its own session for lifetime total-views
+      // purposes, even though the active count stayed at 0 or 1 throughout.
+      expect(await getTotalViews(MATCH_ID)).toBe(5);
     });
   });
 });
