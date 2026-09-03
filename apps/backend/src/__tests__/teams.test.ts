@@ -121,9 +121,26 @@ jest.mock('../config/sequelize', () => {
       },
       transaction: async (fn: (t: unknown) => Promise<unknown>) => fn({}),
       getQueryInterface: () => ({
+        // Both checks below mirror real DB constraints from Phase 1's
+        // migration (uk_team_members_team_player, uk_one_active_captain_per_
+        // team) — throwing the same SequelizeUniqueConstraintError shape a
+        // real race would produce is what lets the race-condition tests
+        // below actually exercise teamService's catch/clean-error handling,
+        // not just its happy-path logic.
         bulkInsert: async (table: string, rows: Array<Record<string, unknown>>) => {
           if (table === 'teams') teams.push(...(rows as unknown as TeamRow[]));
-          if (table === 'team_members') members.push(...(rows as unknown as MemberRow[]));
+          if (table === 'team_members') {
+            for (const row of rows as unknown as MemberRow[]) {
+              if (members.some((m) => m.team_id === row.team_id && m.player_id === row.player_id)) {
+                const err = new Error(
+                  "ER_DUP_ENTRY: Duplicate entry for key 'team_members.uk_team_members_team_player'",
+                );
+                err.name = 'SequelizeUniqueConstraintError';
+                throw err;
+              }
+              members.push(row);
+            }
+          }
           if (table === 'team_invitations')
             invitations.push(...(rows as unknown as InvitationRow[]));
         },
@@ -133,6 +150,30 @@ jest.mock('../config/sequelize', () => {
           where: Record<string, unknown>,
         ) => {
           if (table === 'team_members') {
+            if (values.role_in_team === 'CAPTAIN') {
+              const target = members.find(
+                (m) =>
+                  (where.team_member_id === undefined ||
+                    m.team_member_id === where.team_member_id) &&
+                  (where.team_id === undefined || m.team_id === where.team_id),
+              );
+              const otherActiveCaptain = target
+                ? members.find(
+                    (m) =>
+                      m.team_id === target.team_id &&
+                      m.team_member_id !== target.team_member_id &&
+                      m.role_in_team === 'CAPTAIN' &&
+                      m.membership_status === 'ACTIVE',
+                  )
+                : undefined;
+              if (otherActiveCaptain) {
+                const err = new Error(
+                  "ER_DUP_ENTRY: Duplicate entry for key 'team_members.uk_one_active_captain_per_team'",
+                );
+                err.name = 'SequelizeUniqueConstraintError';
+                throw err;
+              }
+            }
             for (const member of members) {
               const matchesTeam = where.team_id === undefined || member.team_id === where.team_id;
               const matchesPlayer =
@@ -326,6 +367,91 @@ describe('Teams (module 2.5)', () => {
         members.find((m) => m.role_in_team === 'CAPTAIN' && m.membership_status === 'ACTIVE')
           ?.player_id,
       ).toBe(CAPTAIN_PLAYER);
+    });
+
+    it('fires two simultaneous captain-change requests and never ends up with zero or two active captains', async () => {
+      // A third active member so the two concurrent requests promote two
+      // genuinely different players — not a no-op race against each other.
+      members.push({
+        team_member_id: 'seed-member-2',
+        team_id: teamId,
+        player_id: OUTSIDER_PLAYER,
+        role_in_team: 'MEMBER',
+        membership_status: 'ACTIVE',
+        joined_at: new Date(),
+        left_at: null,
+      });
+      const token = await tokenFor(CAPTAIN_USER);
+
+      const [resA, resB] = await Promise.all([
+        request(app)
+          .post(`/teams/${teamId}/captain`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ new_captain_player_id: MEMBER_PLAYER }),
+        request(app)
+          .post(`/teams/${teamId}/captain`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ new_captain_player_id: OUTSIDER_PLAYER }),
+      ]);
+
+      // Exactly one request's change actually landed; the loser gets a
+      // clean error (409 conflict or 403 if it no longer sees itself as
+      // captain), never a raw 500 from the underlying unique-constraint
+      // violation.
+      const statuses = [resA.status, resB.status].sort();
+      expect(statuses[0]).not.toBe(500);
+      expect(statuses[1]).not.toBe(500);
+      expect(statuses.some((s) => s === 204)).toBe(true);
+
+      const activeCaptains = members.filter(
+        (m) =>
+          m.team_id === teamId && m.role_in_team === 'CAPTAIN' && m.membership_status === 'ACTIVE',
+      );
+      expect(activeCaptains).toHaveLength(1);
+      expect([MEMBER_PLAYER, OUTSIDER_PLAYER]).toContain(activeCaptains[0].player_id);
+    });
+  });
+
+  describe('one-active-membership race', () => {
+    it('accepting two pending invitations to the same team at once never creates a duplicate membership row', async () => {
+      const captainToken = await tokenFor(CAPTAIN_USER);
+      const outsiderToken = await tokenFor(OUTSIDER_USER);
+
+      const [inviteA, inviteB] = await Promise.all([
+        request(app)
+          .post(`/teams/${teamId}/invitations`)
+          .set('Authorization', `Bearer ${captainToken}`)
+          .send({ player_id: OUTSIDER_PLAYER }),
+        request(app)
+          .post(`/teams/${teamId}/invitations`)
+          .set('Authorization', `Bearer ${captainToken}`)
+          .send({ player_id: OUTSIDER_PLAYER }),
+      ]);
+      expect(inviteA.status).toBe(201);
+      expect(inviteB.status).toBe(201);
+
+      const [resA, resB] = await Promise.all([
+        request(app)
+          .post(`/teams/invitations/${inviteA.body.invitation_id}/respond`)
+          .set('Authorization', `Bearer ${outsiderToken}`)
+          .send({ accept: true }),
+        request(app)
+          .post(`/teams/invitations/${inviteB.body.invitation_id}/respond`)
+          .set('Authorization', `Bearer ${outsiderToken}`)
+          .send({ accept: true }),
+      ]);
+
+      // Both accepts report success from the caller's point of view (the
+      // desired end state — "I'm on the team" — holds either way) and
+      // neither leaks a raw duplicate-key error.
+      expect(resA.status).toBe(200);
+      expect(resB.status).toBe(200);
+
+      const rowsForOutsider = members.filter(
+        (m) => m.team_id === teamId && m.player_id === OUTSIDER_PLAYER,
+      );
+      expect(rowsForOutsider).toHaveLength(1);
+      expect(rowsForOutsider[0].membership_status).toBe('ACTIVE');
     });
   });
 });

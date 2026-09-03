@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import type { OpenTeam } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
@@ -30,9 +31,15 @@ export default function OpenTeamsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    load('');
-  }, [load]);
+  // Refetch on every focus, not just first mount — a team's open-for-
+  // players/skill-level/city may have changed (or requestedIds should
+  // reset for a freshly-relevant list) since this tab was last visited,
+  // same reasoning as Discover's turf listing (module 2.3).
+  useFocusEffect(
+    useCallback(() => {
+      load(city);
+    }, [load, city]),
+  );
 
   async function requestToJoin(teamId: string) {
     setError(null);

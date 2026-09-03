@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
+import { isUniqueConstraintError } from '../domain/dbErrors';
 import {
   AlreadyTeamMemberError,
   ForbiddenActionError,
@@ -303,7 +304,10 @@ async function upsertActiveMembership(
         { membership_status: 'ACTIVE', role_in_team: role, joined_at: now, left_at: null },
         { team_member_id: existing.team_member_id },
       );
-  } else {
+    return;
+  }
+
+  try {
     await sequelize.getQueryInterface().bulkInsert('team_members', [
       {
         team_member_id: randomUUID(),
@@ -315,6 +319,14 @@ async function upsertActiveMembership(
         left_at: null,
       },
     ]);
+  } catch (error) {
+    // Two concurrent accepts (e.g. an invite and a join request both
+    // accepted at once) can both see `existing` as null before either
+    // writes — uk_team_members_team_player is the real one-row-per-
+    // (team,player) guarantee. The other request already got the player
+    // into the team, which is this call's entire goal, so this is a no-op
+    // rather than an error — never a raw duplicate-key response.
+    if (!isUniqueConstraintError(error)) throw error;
   }
 }
 
@@ -387,24 +399,42 @@ export async function changeCaptain(
     throw new InvalidTeamStateError('The new captain must be an active member of this team.');
   }
 
-  await sequelize.transaction(async (transaction) => {
-    await sequelize
-      .getQueryInterface()
-      .bulkUpdate(
-        'team_members',
-        { role_in_team: 'MEMBER' },
-        { team_id: teamId, role_in_team: 'CAPTAIN', membership_status: 'ACTIVE' },
-        { transaction },
+  // Two concurrent changeCaptain calls both read the same "current captain"
+  // above (that SELECT is outside this transaction), so both can reach here
+  // believing they're the one making a valid change. The DB's
+  // uk_one_active_captain_per_team generated-column unique index is the
+  // real backstop: whichever transaction's promote UPDATE commits second
+  // fails with a unique-constraint violation instead of silently creating
+  // two active captains — turn that into a clean, retryable error rather
+  // than leaking the raw DB error (same principle as bookings' no-double-
+  // booking handling).
+  try {
+    await sequelize.transaction(async (transaction) => {
+      await sequelize
+        .getQueryInterface()
+        .bulkUpdate(
+          'team_members',
+          { role_in_team: 'MEMBER' },
+          { team_id: teamId, role_in_team: 'CAPTAIN', membership_status: 'ACTIVE' },
+          { transaction },
+        );
+      await sequelize
+        .getQueryInterface()
+        .bulkUpdate(
+          'team_members',
+          { role_in_team: 'CAPTAIN' },
+          { team_member_id: newCaptainMembership.team_member_id },
+          { transaction },
+        );
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new InvalidTeamStateError(
+        'This team’s captain was just changed by someone else. Please try again.',
       );
-    await sequelize
-      .getQueryInterface()
-      .bulkUpdate(
-        'team_members',
-        { role_in_team: 'CAPTAIN' },
-        { team_member_id: newCaptainMembership.team_member_id },
-        { transaction },
-      );
-  });
+    }
+    throw error;
+  }
 }
 
 // Join Team Request flow (PRD §12.4).

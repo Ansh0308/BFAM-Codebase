@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
-import { QueryTypes, UniqueConstraintError } from 'sequelize';
+import { QueryTypes } from 'sequelize';
+import { isUniqueConstraintError } from '../domain/dbErrors';
 import { sequelize } from '../config/sequelize';
 import {
   BookingNotFoundError,
@@ -36,12 +37,6 @@ function addMinutesToTime(time: string, minutes: number): string {
     .padStart(2, '0');
   const m = (total % 60).toString().padStart(2, '0');
   return `${h}:${m}:00`;
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  if (error instanceof UniqueConstraintError) return true;
-  const name = (error as { name?: string } | undefined)?.name;
-  return name === 'SequelizeUniqueConstraintError';
 }
 
 // Creates a booking, enforcing PRD §15's "no double-booking" and "only
