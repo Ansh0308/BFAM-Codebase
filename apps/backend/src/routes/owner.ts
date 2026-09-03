@@ -6,6 +6,7 @@ import {
   createAvailabilityBlockSchema,
   createTurfSchema,
   reviewVerificationSchema,
+  setOperatingHoursSchema,
   setPricingSchema,
   setSoundSettingSchema,
   updateTurfSchema,
@@ -18,9 +19,11 @@ import {
   listAvailabilityBlocks,
   listMatchesForOwner,
   listMyTurfs,
+  listOperatingHours,
   listPaymentsForOwner,
   listPricing,
   removeAvailabilityBlock,
+  setOperatingHours,
   setPricing,
   setStadiumSoundEnabled,
   updateTurf,
@@ -156,6 +159,43 @@ router.put(
     try {
       const pricing = await setPricing(req.params.turfId, req.auth!.sub, parsed.data.rows);
       return res.status(200).json({ results: pricing });
+    } catch (error) {
+      const handled = handleOwnerError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// GET /owner/turfs/:turfId/operating-hours — Operating Hours.
+router.get(
+  '/turfs/:turfId/operating-hours',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const hours = await listOperatingHours(req.params.turfId, req.auth!.sub);
+      return res.status(200).json({ results: hours });
+    } catch (error) {
+      const handled = handleOwnerError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// PUT /owner/turfs/:turfId/operating-hours — Operating Hours. Required
+// before the turf is actually bookable — see setOperatingHours' comment.
+router.put(
+  '/turfs/:turfId/operating-hours',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = setOperatingHoursSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'Invalid operating hours payload', status: 400 } });
+    }
+    try {
+      const hours = await setOperatingHours(req.params.turfId, req.auth!.sub, parsed.data.rows);
+      return res.status(200).json({ results: hours });
     } catch (error) {
       const handled = handleOwnerError(error, res);
       if (handled) return handled;

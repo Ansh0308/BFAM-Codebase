@@ -182,6 +182,62 @@ export async function setPricing(turfId: string, ownerUserId: string, rows: Pric
   });
 }
 
+export async function listOperatingHours(turfId: string, ownerUserId: string) {
+  const turf = await fetchTurfOrThrow(turfId);
+  await assertIsOwner(turf, ownerUserId);
+  return sequelize.query(
+    'SELECT * FROM turf_operating_hours WHERE turf_id = :turfId ORDER BY day_of_week ASC',
+    { type: QueryTypes.SELECT, replacements: { turfId } },
+  );
+}
+
+export interface OperatingHoursRow {
+  day_of_week: number; // 0 (Sunday) - 6 (Saturday), matches JS Date#getUTCDay()
+  open_time: string;
+  close_time: string;
+}
+
+// Operating Hours — a real gap found during a live Phase 2 walkthrough:
+// bookingService.createBooking has always required a turf_operating_hours
+// row for the requested day (no row = OutsideOperatingHoursError, PRD §15),
+// but until now nothing in the app (owner mobile, owner web, or any API
+// route) could ever create one — only the demo/phase1 seed scripts wrote
+// to this table. Every turf an owner created through the real Turf
+// Management flow was permanently unbookable. Same delete+reinsert
+// idempotent pattern as setPricing above.
+export async function setOperatingHours(
+  turfId: string,
+  ownerUserId: string,
+  rows: OperatingHoursRow[],
+) {
+  const turf = await fetchTurfOrThrow(turfId);
+  await assertIsOwner(turf, ownerUserId);
+
+  await sequelize.transaction(async (transaction) => {
+    await sequelize
+      .getQueryInterface()
+      .bulkDelete('turf_operating_hours', { turf_id: turfId }, { transaction });
+    if (rows.length > 0) {
+      await sequelize.getQueryInterface().bulkInsert(
+        'turf_operating_hours',
+        rows.map((r) => ({
+          hours_id: randomUUID(),
+          turf_id: turfId,
+          day_of_week: r.day_of_week,
+          open_time: r.open_time,
+          close_time: r.close_time,
+        })),
+        { transaction },
+      );
+    }
+  });
+
+  return sequelize.query(
+    'SELECT * FROM turf_operating_hours WHERE turf_id = :turfId ORDER BY day_of_week ASC',
+    { type: QueryTypes.SELECT, replacements: { turfId } },
+  );
+}
+
 // Availability Management (module 2.12, PRD §8.3/§9.2) — owner-side view
 // over module 2.3's turf_availability_blocks (previously write-only from
 // the schema's perspective; nothing before this module ever created one).

@@ -682,6 +682,12 @@ export interface SetPricingRow {
   price_per_hour: number;
 }
 
+export interface SetOperatingHoursRow {
+  day_of_week: number;
+  open_time: string;
+  close_time: string;
+}
+
 export type AvailabilityBlockReason = 'MAINTENANCE' | 'HOLIDAY' | 'OWNER_BLOCK' | 'SYSTEM_BLOCK';
 
 export interface TurfAvailabilityBlock {

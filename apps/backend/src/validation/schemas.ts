@@ -703,6 +703,16 @@ export const setPricingSchema = z.object({
   ),
 });
 
+export const setOperatingHoursSchema = z.object({
+  rows: z.array(
+    z.object({
+      day_of_week: z.number().int().min(0).max(6),
+      open_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+      close_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+    }),
+  ),
+});
+
 export const createAvailabilityBlockSchema = z.object({
   start_datetime: z.string().datetime().or(z.string().min(10)),
   end_datetime: z.string().datetime().or(z.string().min(10)),

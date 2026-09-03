@@ -47,7 +47,9 @@ import {
   Turf,
   CreateTurfInput,
   UpdateTurfInput,
+  SetOperatingHoursRow,
   SetPricingRow,
+  TurfOperatingHours,
   TurfPricingRule,
   TurfAvailabilityBlock,
   AvailabilityBlockReason,
@@ -795,6 +797,20 @@ export class BFAMApiClient {
     rows: SetPricingRow[],
   ): Promise<{ results: TurfPricingRule[] }> {
     return this.request(`/owner/turfs/${turfId}/pricing`, {
+      method: 'PUT',
+      body: JSON.stringify({ rows }),
+    });
+  }
+
+  async getTurfOperatingHours(turfId: string): Promise<{ results: TurfOperatingHours[] }> {
+    return this.request(`/owner/turfs/${turfId}/operating-hours`);
+  }
+
+  async setTurfOperatingHours(
+    turfId: string,
+    rows: SetOperatingHoursRow[],
+  ): Promise<{ results: TurfOperatingHours[] }> {
+    return this.request(`/owner/turfs/${turfId}/operating-hours`, {
       method: 'PUT',
       body: JSON.stringify({ rows }),
     });

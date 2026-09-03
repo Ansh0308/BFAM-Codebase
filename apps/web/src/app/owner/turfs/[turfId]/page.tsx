@@ -3,9 +3,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import type {
+  SetOperatingHoursRow,
   SetPricingRow,
   Turf,
   TurfAvailabilityBlock,
+  TurfOperatingHours,
   TurfPricingRule,
 } from '@bfam/shared-types';
 import { apiClient } from '../../../../lib/apiClient';
@@ -20,6 +22,15 @@ import {
 
 const DAY_TYPES = ['WEEKDAY', 'WEEKEND', 'HOLIDAY'] as const;
 const BLOCK_REASONS = ['MAINTENANCE', 'HOLIDAY', 'OWNER_BLOCK', 'SYSTEM_BLOCK'] as const;
+const WEEKDAY_LABELS = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
 
 // Turf Management + Pricing + Availability + Sound Settings (module 2.12,
 // PRD §8.3/§9.2) — same combined-hub layout as the mobile equivalent
@@ -40,6 +51,14 @@ export default function ManageTurfPage() {
   const [endTime, setEndTime] = useState('22:00');
   const [pricePerHour, setPricePerHour] = useState('');
 
+  // Operating Hours (bookingService requires a row for the requested day —
+  // no row means every booking on that day is rejected as
+  // OutsideOperatingHoursError, so a turf with none of these set is
+  // permanently unbookable). One open/close pair per day of week; a blank
+  // pair means "closed that day" and is left out of the saved rows.
+  const [hoursByDay, setHoursByDay] = useState<Record<number, { open: string; close: string }>>({});
+  const [savingHours, setSavingHours] = useState(false);
+
   const [blocks, setBlocks] = useState<TurfAvailabilityBlock[]>([]);
   const [blockStart, setBlockStart] = useState('');
   const [blockEnd, setBlockEnd] = useState('');
@@ -51,14 +70,20 @@ export default function ManageTurfPage() {
       apiClient.getOwnerTurf(turfId),
       apiClient.listAvailabilityBlocks(turfId),
       apiClient.getTurfPricing(turfId),
+      apiClient.getTurfOperatingHours(turfId),
     ])
-      .then(([t, blockRes, pricingRes]) => {
+      .then(([t, blockRes, pricingRes, hoursRes]) => {
         setTurf(t);
         setTurfName(t.turf_name);
         setAddressLine(t.address_line);
         setCity(t.city);
         setPricing(pricingRes.results);
         setBlocks(blockRes.results);
+        const byDay: Record<number, { open: string; close: string }> = {};
+        for (const h of hoursRes.results as TurfOperatingHours[]) {
+          byDay[h.day_of_week] = { open: h.open_time.slice(0, 5), close: h.close_time.slice(0, 5) };
+        }
+        setHoursByDay(byDay);
       })
       .catch(() => setError('Could not load this turf.'))
       .finally(() => setLoading(false));
@@ -115,6 +140,32 @@ export default function ManageTurfPage() {
       setPricePerHour('');
     } catch (err) {
       setError(err instanceof BFAMApiError ? err.message : 'Could not save pricing.');
+    }
+  }
+
+  function setDayHours(day: number, field: 'open' | 'close', value: string) {
+    setHoursByDay((prev) => ({
+      ...prev,
+      [day]: { open: prev[day]?.open ?? '', close: prev[day]?.close ?? '', [field]: value },
+    }));
+  }
+
+  async function saveOperatingHours() {
+    setSavingHours(true);
+    setError(null);
+    try {
+      const rows: SetOperatingHoursRow[] = Object.entries(hoursByDay)
+        .filter(([, v]) => v.open && v.close)
+        .map(([day, v]) => ({
+          day_of_week: Number(day),
+          open_time: v.open,
+          close_time: v.close,
+        }));
+      await apiClient.setTurfOperatingHours(turfId, rows);
+    } catch (err) {
+      setError(err instanceof BFAMApiError ? err.message : 'Could not save operating hours.');
+    } finally {
+      setSavingHours(false);
     }
   }
 
@@ -222,6 +273,35 @@ export default function ManageTurfPage() {
           <SecondaryButton onClick={addPricingRow}>Add Pricing Row</SecondaryButton>
         </Card>
       </div>
+
+      <Card className="mt-6" data-testid="operating-hours-card">
+        <h2 className="font-ui font-bold text-body text-text-secondary uppercase text-micro mb-4">
+          Operating Hours
+        </h2>
+        <p className="font-ui text-micro text-text-tertiary mb-4">
+          Leave a day blank to mark it closed. A day with no hours set can never be booked.
+        </p>
+        {WEEKDAY_LABELS.map((label, day) => (
+          <div key={day} className="grid grid-cols-3 gap-2 items-end mb-2">
+            <span className="font-ui text-body text-text-primary pb-2">{label}</span>
+            <TextInput
+              label="Open"
+              value={hoursByDay[day]?.open ?? ''}
+              onChange={(v) => setDayHours(day, 'open', v)}
+              placeholder="06:00"
+            />
+            <TextInput
+              label="Close"
+              value={hoursByDay[day]?.close ?? ''}
+              onChange={(v) => setDayHours(day, 'close', v)}
+              placeholder="23:00"
+            />
+          </div>
+        ))}
+        <PrimaryButton onClick={saveOperatingHours} disabled={savingHours}>
+          {savingHours ? 'Saving…' : 'Save Operating Hours'}
+        </PrimaryButton>
+      </Card>
 
       <Card className="mt-6">
         <h2 className="font-ui font-bold text-body text-text-secondary uppercase text-micro mb-4">
