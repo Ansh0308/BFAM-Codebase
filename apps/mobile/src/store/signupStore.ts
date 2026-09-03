@@ -19,6 +19,12 @@ interface SignupState {
   role: SelfServiceUserRole | null;
   favoriteCricketerName: string | null;
   favoriteCricketerExternalId: string | null;
+  // Liability waiver consent (PRD §32.9) — collected once on Role
+  // Selection, the one screen every self-service signup path passes
+  // through, then carried to whichever screen actually calls
+  // completeAccountCreation (Role Selection itself for Owner/Staff,
+  // Favorite Cricketer for Player).
+  waiverAccepted: boolean;
 
   setPhonePasswordSignup: (identifier: string, password: string) => void;
   setIdentifier: (identifier: string) => void;
@@ -26,6 +32,7 @@ interface SignupState {
   setSocialTicket: (ticket: string, email: string | null) => void;
   setRole: (role: SelfServiceUserRole) => void;
   setFavoriteCricketer: (name: string | null, externalId: string | null) => void;
+  setWaiverAccepted: (accepted: boolean) => void;
   reset: () => void;
 }
 
@@ -38,6 +45,7 @@ const initialState = {
   role: null,
   favoriteCricketerName: null,
   favoriteCricketerExternalId: null,
+  waiverAccepted: false,
 };
 
 export const useSignupStore = create<SignupState>((set) => ({
@@ -52,5 +60,6 @@ export const useSignupStore = create<SignupState>((set) => ({
   setRole: (role) => set({ role }),
   setFavoriteCricketer: (name, externalId) =>
     set({ favoriteCricketerName: name, favoriteCricketerExternalId: externalId }),
+  setWaiverAccepted: (accepted) => set({ waiverAccepted: accepted }),
   reset: () => set(initialState),
 }));

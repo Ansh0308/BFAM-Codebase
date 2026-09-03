@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SelfServiceUserRole } from '@bfam/shared-types';
@@ -12,6 +12,15 @@ import { completeAccountCreation } from '../src/services/completeAccountCreation
 
 const SELF_SERVICE_ROLES: SelfServiceUserRole[] = ['PLAYER', 'TURF_OWNER', 'TURF_STAFF'];
 
+// Placeholder liability-waiver copy (PRD §32.9) — standard assumption-of-
+// risk language for a sports-booking app, NOT reviewed by legal counsel.
+// Replace with counsel-approved wording before this ships to production;
+// what matters functionally is that acceptance is a real, affirmative,
+// per-user action (enforced server-side by registerUserSchema/
+// socialCompleteSchema requiring waiver_accepted: true), not the exact text.
+const WAIVER_TEXT =
+  'I understand that cricket and other sports involve inherent risks of injury, and I voluntarily assume those risks for myself while using BFAM to book turfs and play matches. I release BFAM and participating turf venues from liability for injuries sustained during play, except where caused by their gross negligence.';
+
 // Offers Player / Turf Owner / Turf Staff only — never Admin (self-service
 // signups can't create an admin account). Only PLAYER continues to
 // Favorite Cricketer Search; Owner/Staff create the account immediately.
@@ -23,6 +32,8 @@ export default function RoleSelection() {
   const signupToken = useSignupStore((s) => s.signupToken);
   const socialTicket = useSignupStore((s) => s.socialTicket);
   const setSession = useAuthStore((s) => s.setSession);
+  const waiverAccepted = useSignupStore((s) => s.waiverAccepted);
+  const setWaiverAccepted = useSignupStore((s) => s.setWaiverAccepted);
 
   const [selected, setSelected] = useState<SelfServiceUserRole | null>(null);
   const [loading, setLoading] = useState(false);
@@ -31,6 +42,10 @@ export default function RoleSelection() {
   async function handleContinue() {
     if (!selected) {
       setError('Choose a role to continue.');
+      return;
+    }
+    if (!waiverAccepted) {
+      setError('You must accept the liability waiver to continue.');
       return;
     }
     setError(null);
@@ -53,6 +68,7 @@ export default function RoleSelection() {
         socialTicket,
         favoriteCricketerName: null,
         favoriteCricketerExternalId: null,
+        waiverAccepted: true,
       });
       await setSession(result.token, {
         user_id: result.user_id,
@@ -101,6 +117,33 @@ export default function RoleSelection() {
         />
       ))}
 
+      <Pressable
+        onPress={() => setWaiverAccepted(!waiverAccepted)}
+        className="flex-row items-start mb-6"
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: waiverAccepted }}
+        testID="waiver-checkbox"
+        hitSlop={8}
+      >
+        <View
+          className={
+            waiverAccepted ? 'bg-brand-red border-brand-red' : 'bg-surface border-border-strong'
+          }
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 4,
+            borderWidth: 1.5,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 1,
+          }}
+        >
+          {waiverAccepted ? <Feather name="check" size={14} color="#FFFFFF" /> : null}
+        </View>
+        <Text className="font-ui text-micro text-text-secondary ml-3 flex-1">{WAIVER_TEXT}</Text>
+      </Pressable>
+
       {error ? <Text className="font-ui text-body text-brand-red-dark mb-4">{error}</Text> : null}
 
       <View className="mb-10">
@@ -108,6 +151,7 @@ export default function RoleSelection() {
           label="Continue"
           onPress={handleContinue}
           loading={loading}
+          disabled={!waiverAccepted}
           testID="role-selection-continue"
           iconRight={<Feather name="arrow-right" size={18} color="#FFFFFF" />}
         />

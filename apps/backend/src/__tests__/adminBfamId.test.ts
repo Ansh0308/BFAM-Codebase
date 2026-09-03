@@ -155,6 +155,7 @@ describe('Admin BFAM ID reservation system', () => {
       phone_number: '+919876500099',
       password: 'SuperSecret123',
       role: 'PLAYER',
+      waiver_accepted: true,
     });
 
     expect(registerResponse.status).toBe(201);
@@ -188,6 +189,7 @@ describe('Admin BFAM ID reservation system', () => {
       phone_number: '+919876500098',
       password: 'SuperSecret123',
       role: 'PLAYER',
+      waiver_accepted: true,
     });
     expect(registerResponse.body.bfam_id).toBe('BF1000');
   });

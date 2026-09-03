@@ -40,6 +40,7 @@ describe('RoleSelection screen', () => {
     const { getByTestId } = render(<RoleSelection />);
 
     fireEvent.press(getByTestId('role-card-PLAYER'));
+    fireEvent.press(getByTestId('waiver-checkbox'));
     fireEvent.press(getByTestId('role-selection-continue'));
 
     await waitFor(() => {
@@ -58,11 +59,12 @@ describe('RoleSelection screen', () => {
     const { getByTestId } = render(<RoleSelection />);
 
     fireEvent.press(getByTestId('role-card-TURF_OWNER'));
+    fireEvent.press(getByTestId('waiver-checkbox'));
     fireEvent.press(getByTestId('role-selection-continue'));
 
     await waitFor(() => {
       expect(mockCompleteAccountCreation).toHaveBeenCalledWith(
-        expect.objectContaining({ role: 'TURF_OWNER' }),
+        expect.objectContaining({ role: 'TURF_OWNER', waiverAccepted: true }),
       );
     });
     await waitFor(() => {
@@ -84,13 +86,29 @@ describe('RoleSelection screen', () => {
     const { getByTestId } = render(<RoleSelection />);
 
     fireEvent.press(getByTestId('role-card-TURF_STAFF'));
+    fireEvent.press(getByTestId('waiver-checkbox'));
     fireEvent.press(getByTestId('role-selection-continue'));
 
     await waitFor(() => {
       expect(mockCompleteAccountCreation).toHaveBeenCalledWith(
-        expect.objectContaining({ role: 'TURF_STAFF' }),
+        expect.objectContaining({ role: 'TURF_STAFF', waiverAccepted: true }),
       );
     });
     expect(mockPush).not.toHaveBeenCalledWith('/favorite-cricketer');
+  });
+
+  it('blocks Continue until the liability waiver is checked (PRD §32.9)', async () => {
+    const { getByTestId, findByText } = render(<RoleSelection />);
+
+    fireEvent.press(getByTestId('role-card-TURF_OWNER'));
+    fireEvent.press(getByTestId('role-selection-continue'));
+
+    expect(await findByText(/accept the liability waiver/i)).toBeTruthy();
+    expect(mockCompleteAccountCreation).not.toHaveBeenCalled();
+
+    fireEvent.press(getByTestId('waiver-checkbox'));
+    fireEvent.press(getByTestId('role-selection-continue'));
+
+    await waitFor(() => expect(mockCompleteAccountCreation).toHaveBeenCalled());
   });
 });

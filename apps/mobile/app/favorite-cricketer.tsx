@@ -67,6 +67,9 @@ export default function FavoriteCricketer() {
         socialTicket,
         favoriteCricketerName: name,
         favoriteCricketerExternalId: externalId,
+        // Guaranteed true — Role Selection (the previous screen on this
+        // path) blocks Continue until the waiver checkbox is accepted.
+        waiverAccepted: true,
       });
       await setSession(result.token, { user_id: result.user_id, bfam_id: result.bfam_id, role });
       router.push({ pathname: '/bfam-id-confirmation', params: { bfam_id: result.bfam_id } });

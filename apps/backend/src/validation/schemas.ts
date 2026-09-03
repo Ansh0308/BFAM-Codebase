@@ -93,6 +93,11 @@ export const registerUserSchema = z.object({
   // persisted onto the `players` row created alongside `users`.
   favorite_cricketer_name: z.string().max(100).nullable().optional(),
   favorite_cricketer_external_id: z.string().max(50).nullable().optional(),
+  // Liability waiver consent (PRD §32.9) — must be an affirmative true,
+  // never defaulted or inferred. Registration is rejected outright
+  // without it, so a users row with liability_waiver_accepted_at set is
+  // always backed by a real acceptance, not an automatic stamp.
+  waiver_accepted: z.literal(true),
 });
 
 // --- Module 2.1 auth/onboarding schemas ---
@@ -145,6 +150,9 @@ export const socialCompleteSchema = z.object({
   role: z.enum(SELF_SERVICE_ROLES as [string, ...string[]]),
   favorite_cricketer_name: z.string().max(100).nullable().optional(),
   favorite_cricketer_external_id: z.string().max(50).nullable().optional(),
+  // Same liability waiver requirement as phone/password registration
+  // (registerUserSchema) — the social signup branch must not skip it.
+  waiver_accepted: z.literal(true),
 });
 
 export const playerSchema = z.object({

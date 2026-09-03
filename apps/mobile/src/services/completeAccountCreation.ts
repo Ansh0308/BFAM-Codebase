@@ -9,6 +9,10 @@ export interface AccountCreationInput {
   socialTicket: string | null;
   favoriteCricketerName: string | null;
   favoriteCricketerExternalId: string | null;
+  // Liability waiver consent (PRD §32.9) — must be true; callers gate
+  // their own "Continue" action on this rather than passing false, since
+  // the backend rejects registration without it either way.
+  waiverAccepted: true;
 }
 
 /**
@@ -27,6 +31,7 @@ export async function completeAccountCreation(input: AccountCreationInput) {
       role: input.role,
       favorite_cricketer_name: input.favoriteCricketerName,
       favorite_cricketer_external_id: input.favoriteCricketerExternalId,
+      waiver_accepted: input.waiverAccepted,
     });
   }
 
@@ -37,5 +42,6 @@ export async function completeAccountCreation(input: AccountCreationInput) {
     signup_token: input.signupToken ?? undefined,
     favorite_cricketer_name: input.favoriteCricketerName,
     favorite_cricketer_external_id: input.favoriteCricketerExternalId,
+    waiver_accepted: input.waiverAccepted,
   });
 }

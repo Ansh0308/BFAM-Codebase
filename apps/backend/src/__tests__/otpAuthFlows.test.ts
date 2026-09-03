@@ -209,6 +209,7 @@ describe('OTP-based signup / login / forgot-password flows', () => {
       signup_token: verifyResponse.body.signup_token,
       favorite_cricketer_name: 'Virat Kohli',
       favorite_cricketer_external_id: 'fixture-virat-kohli',
+      waiver_accepted: true,
     });
 
     expect(registerResponse.status).toBe(201);

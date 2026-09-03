@@ -81,6 +81,7 @@ describe('POST /auth/register', () => {
       password: 'SuperSecret123',
       role: 'PLAYER',
       city: 'Rajkot',
+      waiver_accepted: true,
     });
 
     expect(response.status).toBe(201);
@@ -97,6 +98,7 @@ describe('POST /auth/register', () => {
       role: 'PLAYER',
       favorite_cricketer_name: 'Virat Kohli',
       favorite_cricketer_external_id: 'fixture-virat-kohli',
+      waiver_accepted: true,
     });
 
     expect(response.status).toBe(201);
@@ -122,6 +124,7 @@ describe('POST /auth/register', () => {
           phone_number: `+9198765400${String(index).padStart(2, '0')}`,
           password: 'SuperSecret123',
           role: 'PLAYER',
+          waiver_accepted: true,
         }),
     );
 

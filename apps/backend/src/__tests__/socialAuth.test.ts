@@ -134,6 +134,7 @@ describe('Social auth (Google / Apple)', () => {
       social_ticket: googleResponse.body.social_ticket,
       phone_number: '+919876500010',
       role: 'PLAYER',
+      waiver_accepted: true,
     });
 
     expect(completeResponse.status).toBe(201);
@@ -175,6 +176,7 @@ describe('Social auth (Google / Apple)', () => {
       social_ticket: appleResponse.body.social_ticket,
       phone_number: '+919876500012',
       role: 'TURF_OWNER',
+      waiver_accepted: true,
     });
     expect(completeResponse.status).toBe(201);
     expect(usersTable[0].apple_id).toBe('apple-uid-1');
@@ -188,6 +190,7 @@ describe('Social auth (Google / Apple)', () => {
       social_ticket: 'not-a-real-ticket',
       phone_number: '+919876500013',
       role: 'PLAYER',
+      waiver_accepted: true,
     });
     expect(response.status).toBe(401);
   });
@@ -200,6 +203,7 @@ describe('Social auth (Google / Apple)', () => {
       social_ticket: googleResponse.body.social_ticket,
       phone_number: '+919876500014',
       role: 'ADMIN',
+      waiver_accepted: true,
     });
     expect(response.status).toBe(400);
   });

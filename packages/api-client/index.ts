@@ -122,6 +122,9 @@ export interface RegisterPayload {
   signup_token?: string;
   favorite_cricketer_name?: string | null;
   favorite_cricketer_external_id?: string | null;
+  // Liability waiver consent (PRD §32.9) — must be true; the backend
+  // rejects registration without it.
+  waiver_accepted: true;
 }
 
 export interface RegisterResponse {
@@ -138,6 +141,7 @@ export interface CompleteSocialSignupPayload {
   role: SelfServiceUserRole;
   favorite_cricketer_name?: string | null;
   favorite_cricketer_external_id?: string | null;
+  waiver_accepted: true;
 }
 
 export class BFAMApiClient {
