@@ -46,6 +46,12 @@ export default function PaymentScreen() {
   const [shareCount, setShareCount] = useState('2');
   const [cashReference, setCashReference] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Set once a split is created — this screen only ever settles the
+  // booker's own share (obligations[0] by construction below); the
+  // remaining N-1 shares stay PENDING for other players to pay later
+  // (module 2.6 wires real players to the rest of the shares via the
+  // same obligations endpoint).
+  const [mySplitShareId, setMySplitShareId] = useState<string | null>(null);
 
   const loadObligations = useCallback(async () => {
     const { results } = await apiClient.getObligations(bookingId);
@@ -59,7 +65,9 @@ export default function PaymentScreen() {
       .catch(() => setError('Could not load payment details for this booking.'));
   }, [loadObligations]);
 
-  const myUnpaidObligations = obligations.filter((o) => o.due_status !== 'PAID');
+  const myUnpaidObligations = (
+    mySplitShareId ? obligations.filter((o) => o.obligation_id === mySplitShareId) : obligations
+  ).filter((o) => o.due_status !== 'PAID');
 
   async function ensureSingleObligation(): Promise<PaymentObligation[]> {
     if (obligations.length > 0) return obligations;
@@ -85,7 +93,10 @@ export default function PaymentScreen() {
     // (or newly-created single) obligation(s) via a real instrument.
     try {
       const current = await ensureSingleObligation();
-      const unpaid = current.filter((o) => o.due_status !== 'PAID');
+      const scoped = mySplitShareId
+        ? current.filter((o) => o.obligation_id === mySplitShareId)
+        : current;
+      const unpaid = scoped.filter((o) => o.due_status !== 'PAID');
       if (unpaid.length === 0) {
         setStage('done');
         return;
@@ -111,15 +122,26 @@ export default function PaymentScreen() {
     try {
       // Module 2.4 exposes an even N-way split here; splitting by an actual
       // match/team roster is module 2.6's job, calling into this same
-      // obligations endpoint with real player_ids instead.
-      const { results } = await apiClient.createObligations(bookingId);
-      const total = results.reduce((sum, o) => sum + Number(o.amount_due), 0);
-      // The obligations endpoint already created ONE full-amount obligation
-      // above (we called it with no shares) — re-fetch is not needed since
-      // we only support setting shares at creation time; guide the booker
-      // that a true N-way split needs the shares to be specified up front.
+      // obligations endpoint with real player_ids instead — so every share
+      // here has player_id: null (we don't know who the other N-1 payers
+      // are yet, only a count).
+      const booking = await apiClient.getBookingDetails(bookingId);
+      const total = Number(booking.booking_amount);
+      // Split evenly to the paisa, putting the rounding remainder on the
+      // last share so the shares sum to exactly `total` (the backend
+      // rejects shares whose sum doesn't match the booking amount).
+      const baseShare = Math.floor((total / count) * 100) / 100;
+      const shares = Array.from({ length: count }, (_, i) => ({
+        player_id: null,
+        amount: i < count - 1 ? baseShare : Number((total - baseShare * (count - 1)).toFixed(2)),
+      }));
+
+      const { results } = await apiClient.createObligations(bookingId, { shares });
       setObligations(results);
-      void total;
+      // The booker settles their own share now; the rest stay PENDING for
+      // other players to pay later (this module's "partial collection"
+      // requirement).
+      setMySplitShareId(results[0]?.obligation_id ?? null);
       setStage('select-method');
     } catch (err) {
       if (err instanceof BFAMApiError) setError(err.message);
@@ -322,8 +344,15 @@ export default function PaymentScreen() {
         </Text>
 
         {myUnpaidObligations.length > 0 && (
-          <Text className="font-ui text-button text-text-primary mt-3">
+          <Text className="font-ui text-button text-text-primary mt-3" testID="payment-amount-due">
             ₹{myUnpaidObligations.reduce((sum, o) => sum + Number(o.amount_due), 0)} due
+          </Text>
+        )}
+        {mySplitShareId && obligations.length > 1 && (
+          <Text className="font-ui text-micro text-text-tertiary mt-1">
+            Split {obligations.length} ways — this is your share. The other {obligations.length - 1}{' '}
+            {obligations.length - 1 === 1 ? 'share' : 'shares'} remain
+            {obligations.length - 1 === 1 ? 's' : ''} pending for others to pay.
           </Text>
         )}
 
