@@ -2,11 +2,12 @@
 
 **Source:** Informal hands-on testing feedback (founder + brother) after a first pass through the Phase 2 build, before deep/formal testing.
 **Status:** Documentation only. Nothing in this file has been implemented or scheduled — it exists so the raw feedback isn't lost, and so Phase 3 planning starts from a well-defined list instead of a chat message.
-**How this is organized:** Every item restates the feedback in plain terms, notes what is actually true in the codebase today (verified against the code, not assumed), and is filed under one of three parts:
+**How this is organized:** Every item restates the feedback in plain terms, notes what is actually true in the codebase today (verified against the code, not assumed), and is filed under one of four parts:
 
 - **Part A — Phase 2 Refinements:** extends a module that's already built; no new subsystem or major data model needed.
 - **Part B — Phase 3 / New Subsystems:** needs a new data model, a new major feature area, or doesn't exist in any form yet.
 - **Part C — Decisions Needed Before Scoping:** cross-cutting questions that block estimating several items above until someone (product/founder) decides an answer.
+- **Part D — Additional Feedback: UI Animations:** a separate batch of feedback (navigation transitions, onboarding screens, toss animation) raised after the first 19 items, also Phase 2-scoped.
 
 Items are numbered for reference (e.g. "A-3") — these numbers are just for this document, not a commitment to build order.
 
@@ -34,13 +35,11 @@ Items are numbered for reference (e.g. "A-3") — these numbers are just for thi
 
 ---
 
-### A-3. Remove Pricing from the (player-facing) Turf Details page
+### A-3. ~~Remove Pricing from the (player-facing) Turf Details page~~ — REJECTED, keep as-is
 
-**Feedback:** "Remove Pricing from Turf Details page."
+**Original feedback:** "Remove Pricing from Turf Details page."
 
-**Verified current state:** Turf Details (`apps/mobile/app/(tabs)/discover/turf/[turfId]/index.tsx`) currently renders a "Pricing" section listing each day-type rate before the availability preview.
-
-**Proposed change:** Delete that section from the player-facing Turf Details screen. (Pricing management on the Owner side is unaffected — this is only about what a player sees before booking.) Small, contained UI change.
+**Decision:** Reconsidered — keep the Pricing section on Turf Details exactly as it is today. No change needed here. Left in this document (rather than deleted) so it's on record that this was raised and explicitly declined, not simply forgotten.
 
 ---
 
@@ -231,3 +230,39 @@ These aren't yes/no bugs — each blocks giving a real estimate on one or more i
 4. **What replaces Discover while it's hidden (affects A-12):** If Discover is hidden, does Home's "Book Turf" quick action go straight to the one owned turf's availability screen, skipping the listing entirely? Needs a decision so A-12 isn't just "delete a tab with nothing in its place."
 
 5. **Reference image for the Home redesign (blocks B-7):** The example image referenced in that feedback wasn't attached to the text — it'll need to be provided again when this is scoped.
+
+---
+
+## Part D — Additional Feedback: UI Animations (raised separately, after the first 19 items)
+
+Filed as its own task per the feedback, titled "UI Animations & Admin Panel Scope." Only the animation items below had concrete detail; no Admin Panel scope was described yet — that half of the title is a placeholder for whenever that scope is written up, not something captured here.
+
+All three items are Phase 2 refinements — visual/interaction polish on screens that already exist, no new subsystem.
+
+### D-1. Smooth transition animations across app navigation
+
+**Feedback:** "Whenever a user navigates through the app — clicks something and moves to another screen — some kind of smooth transition or animation should play, to make navigation feel more engaging."
+
+**Verified current state:** No custom transition animation is configured anywhere in the app's navigation — `app/_layout.tsx` and the `(tabs)` layout don't set an `animation` option, so every screen change uses expo-router's bare default (platform-default stack behavior, not a designed transition).
+
+**Proposed change:** A general navigation-transition pass — pick a consistent animation style (e.g. slide + fade) via expo-router/React Navigation's `screenOptions.animation`, applied app-wide rather than screen-by-screen, so it reads as one deliberate motion language instead of default platform behavior. Should be scoped as one design decision (which transition, how fast) applied consistently, not 30 individual screen tweaks.
+
+---
+
+### D-2. Refine the 3 Get Started (onboarding) screens
+
+**Feedback:** "There are currently 3 initial Get Started pages/screens. The interface of these needs to be modified slightly to improve the overall look and user experience."
+
+**Verified current state:** The onboarding carousel (`app/onboarding.tsx`) already has 3 screens ("Book Turfs Instantly" is the first) with a Skip action and paging dots — it's built and functional, just not visually polished.
+
+**Proposed change:** A visual refresh of the existing 3 screens — treated as a design/copy pass on an already-working flow, not a rebuild. Needs the founder to specify what "improve the look" means concretely (updated illustrations, different layout, animation on the paging dots, etc.) before it can be estimated.
+
+---
+
+### D-3. Add animation/visual effect to the Toss feature
+
+**Feedback:** "The Toss feature that's already been provided should also include some suitable animation or interactive visual effect, to make the experience more engaging."
+
+**Verified current state:** The Match Intro's toss step (module 2.7) is functional but static — two rows of plain chip buttons (winning side, bat/bowl decision) with no motion.
+
+**Proposed change:** Add a visual flourish to the toss step regardless of how the winner is decided — e.g. an animated reveal of the result, a spinning/flipping visual, or similar. This overlaps with **A-6** (adding an actual coin-flip _mechanism_ as an alternative to picking the winner manually) — A-6 is about _how the winner gets decided_, D-3 is about _how the moment feels_ once it's decided either way. Worth designing together so the coin-flip mechanism (if built) and the animation aren't done twice.
