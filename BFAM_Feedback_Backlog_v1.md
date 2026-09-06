@@ -2,12 +2,13 @@
 
 **Source:** Informal hands-on testing feedback (founder + brother) after a first pass through the Phase 2 build, before deep/formal testing.
 **Status:** Documentation only. Nothing in this file has been implemented or scheduled — it exists so the raw feedback isn't lost, and so Phase 3 planning starts from a well-defined list instead of a chat message.
-**How this is organized:** Every item restates the feedback in plain terms, notes what is actually true in the codebase today (verified against the code, not assumed), and is filed under one of four parts:
+**How this is organized:** Every item restates the feedback in plain terms, notes what is actually true in the codebase today (verified against the code, not assumed), and is filed under one of five parts:
 
 - **Part A — Phase 2 Refinements:** extends a module that's already built; no new subsystem or major data model needed.
 - **Part B — Phase 3 / New Subsystems:** needs a new data model, a new major feature area, or doesn't exist in any form yet.
 - **Part C — Decisions Needed Before Scoping:** cross-cutting questions that block estimating several items above until someone (product/founder) decides an answer.
 - **Part D — Additional Feedback: UI Animations:** a separate batch of feedback (navigation transitions, onboarding screens, toss animation) raised after the first 19 items, also Phase 2-scoped.
+- **Part E — Admin Panel Scope:** the initial module list for a new Admin Web panel, none of which exists today beyond a couple of unrelated backend endpoints.
 
 Items are numbered for reference (e.g. "A-3") — these numbers are just for this document, not a commitment to build order.
 
@@ -231,11 +232,13 @@ These aren't yes/no bugs — each blocks giving a real estimate on one or more i
 
 5. **Reference image for the Home redesign (blocks B-7):** The example image referenced in that feedback wasn't attached to the text — it'll need to be provided again when this is scoped.
 
+6. **Is Admin Web the same Next.js app as Owner/Staff Web, or a separate one (blocks all of Part E)?** The project's own documents disagree with each other here: the PRD (§9) states Owner Web, Staff Web, and Admin Web are "separate Next.js applications," but the actual precedent already built — Owner Web and Staff Web both live as route groups (`/owner`, `/staff`) inside the one `apps/web` — follows the opposite approach, and that's also how this project's own module 2.12 brief described the intended architecture ("the same Next.js application... no separate codebase per role"). Recommend following the already-built precedent (`/admin` as a third route group in the existing `apps/web`, reusing `DashboardShell` and the shared `apiClient`) rather than starting a fourth app, but this is worth confirming explicitly before Part E is scaffolded, since it directly contradicts the PRD's literal wording.
+
 ---
 
 ## Part D — Additional Feedback: UI Animations (raised separately, after the first 19 items)
 
-Filed as its own task per the feedback, titled "UI Animations & Admin Panel Scope." Only the animation items below had concrete detail; no Admin Panel scope was described yet — that half of the title is a placeholder for whenever that scope is written up, not something captured here.
+Filed as its own task per the feedback, titled "UI Animations & Admin Panel Scope." The Admin Panel half of that title is now written up in Part E below.
 
 All three items are Phase 2 refinements — visual/interaction polish on screens that already exist, no new subsystem.
 
@@ -266,3 +269,55 @@ All three items are Phase 2 refinements — visual/interaction polish on screens
 **Verified current state:** The Match Intro's toss step (module 2.7) is functional but static — two rows of plain chip buttons (winning side, bat/bowl decision) with no motion.
 
 **Proposed change:** Add a visual flourish to the toss step regardless of how the winner is decided — e.g. an animated reveal of the result, a spinning/flipping visual, or similar. This overlaps with **A-6** (adding an actual coin-flip _mechanism_ as an alternative to picking the winner manually) — A-6 is about _how the winner gets decided_, D-3 is about _how the moment feels_ once it's decided either way. Worth designing together so the coin-flip mechanism (if built) and the animation aren't done twice.
+
+---
+
+## Part E — Admin Panel Scope
+
+**Source:** Initial module list for a new Admin Web panel — provided as a starting scope, with the note that "additional modules or functionality may be identified during detailed requirement and workflow discussion." Treated the same way here: documented as given, verified against what already exists, not expanded beyond it.
+
+**Verified current state, platform-wide:** There is effectively no Admin Panel today. The only things gated to the `ADMIN` role anywhere in the backend are the BFAM ID reservation endpoints (`/admin/bfam-ids/*`, from module 2.1) and a single support-ticket status-update endpoint (module 2.13) — neither has a UI. No `apps/web/src/app/admin` route group exists. Every module below starts from zero on the frontend; several have real backend groundwork to build on (noted per module), and a couple depend on subsystems from Part B that don't exist yet.
+
+**This needs an architecture decision before any of it is scaffolded — see Part C-6.**
+
+### E-1. Player Management
+
+**Requested:** Player listing page; create new player; edit existing player; view/manage player details.
+
+**Verified current state:** No admin-side player CRUD exists — every player-profile endpoint today (`GET/PATCH /profile/me`, etc.) is scoped to "me," same limitation noted in B-10. There's also no precedent for _admin-created_ accounts: today every account is created through the self-service signup flow (phone/password or social, plus the module 2.13 liability waiver). "Create new player" from the Admin Panel raises a real question — is this creating a full login-capable account on someone's behalf (needs its own credential/invite flow), or a placeholder profile that gets claimed later? Needs a decision before this can be scoped, not just a CRUD form.
+
+### E-2. Match Management
+
+**Requested:** Matches listing page; view match details; edit/update matches; manage relevant match information.
+
+**Verified current state:** No platform-wide match visibility exists — every match endpoint today is scoped to the match's own organizer/scorer/roster. This needs new admin-only endpoints: list all matches (filterable by status, date, turf), a full detail view for any match regardless of participation, and edit/override capability (reschedule, force a status change, adjust a result). Worth designing alongside **A-5** (Dispute Result): even if the player-facing dispute button is removed or hidden from the app, an admin most likely still needs a way to review and resolve a disputed match — Match Management is the natural place for that, so the two should be scoped together rather than separately.
+
+### E-3. Turf Management
+
+**Requested:** Turf listing page; create new turf; edit existing turf; manage turf details.
+
+**Verified current state:** This is the most-reusable module on the list — Owner Web already has a complete Turf Management flow (create, edit, pricing, operating hours, availability blocks, stadium sound), just scoped to "turfs I own." The admin version is largely the same functionality with the ownership check relaxed to "any turf," plus likely the ability to reassign a turf's owner. Also worth deciding whether admin turf creation needs a moderation/approval step before a turf goes live (there's already a precedent for an approve/reject workflow in the codebase — staff verification, module 2.12 — that could be reused as a pattern if a turf-approval step is wanted).
+
+### E-4. Team Management
+
+**Requested:** Teams listing page; create new team; edit existing team; map/assign teams to a particular match.
+
+**Verified current state — this one surfaces a real data-model gap:** "Map/assign teams to a particular match" assumes a persistent `teams` (module 2.5 — captain, roster, join requests) can be linked to a match's side. That link doesn't exist today: a match's two sides (`match_teams`, "Team A"/"Team B") are ad-hoc rows created fresh at match creation and have no relationship to the `teams` table at all — they're two disconnected concepts that happen to share the word "team." Building this admin capability for real means adding that missing link (e.g. an optional `team_id` on `match_teams`), which also has a knock-on effect worth noting: it's the same missing linkage that blocks a real "my team's fixtures" view anywhere in the app today.
+
+### E-5. Reviews Management
+
+**Requested:** Reviews listing page; view reviews submitted by customers; manage/monitor customer feedback.
+
+**Hard dependency — blocked on Part B-4.** There is no review subsystem anywhere in BFAM yet (`turfs.average_rating` is always `null`, confirmed in B-4). This admin module can't be built before the review submission flow itself exists — it's the "view what came in" half of a feature whose "let a player submit one" half hasn't been built.
+
+### E-6. Reports
+
+**Requested:** Peak Playing Timings, Repeated Players Report, extensible to more reports as needed.
+
+**Verified current state — the good news item in this section:** no reporting/analytics endpoints exist today, but unlike Reviews, the _raw data_ for both example reports already exists: `bookings` already has date/time on every row (Peak Playing Timings is a straightforward group-by), and booking/match history is already tied to `booked_by`/`player_id` (Repeated Players is a frequency count over existing data). This is new aggregation queries and a reporting UI, not new data collection — meaningfully cheaper than most of this document.
+
+### E-7. Home Page / Topic & Content Management
+
+**Requested:** A CMS section where the Admin creates and publishes sliders, promotional banners, images, offers, and other content, which then appears live on the Players' Home page without a code change.
+
+**This is the admin-side half of two items already in this document — build together, not separately:** **B-6** (home carousel/slider, already noted as needing "an admin CMS that doesn't exist yet") and **B-7** (the Home page redesign around top player/winning team/fair-play content) both assume exactly this module exists. Scoping E-7, B-6, and B-7 as one piece of work — the CMS, the data model for a "content item" (type, image, link, schedule/publish window), and the player-facing Home rendering — will be more coherent than building the admin form first and the player-facing consumer later.
