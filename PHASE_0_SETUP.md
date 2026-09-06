@@ -285,8 +285,8 @@ npm run web
 1. **Backend (.env):**
 
 ```bash
-cp apps/backend/.env.example apps/backend/.env.local
-# Edit .env.local and set:
+cp apps/backend/.env.example apps/backend/.env
+# Edit .env and set:
 # - DB_HOST=localhost (from docker-compose)
 # - DB_PASSWORD=bfam_password (from docker-compose)
 # - JWT_SECRET=your-secret-key (generate one for dev)
@@ -296,8 +296,8 @@ cp apps/backend/.env.example apps/backend/.env.local
 2. **Mobile (.env):**
 
 ```bash
-cp apps/mobile/.env.example apps/mobile/.env.local
-# Edit .env.local:
+cp apps/mobile/.env.example apps/mobile/.env
+# Edit .env:
 # - EXPO_PUBLIC_API_BASE_URL=http://localhost:5000
 # - EXPO_PUBLIC_SENTRY_DSN= (optional)
 ```
@@ -305,8 +305,8 @@ cp apps/mobile/.env.example apps/mobile/.env.local
 3. **Web (.env):**
 
 ```bash
-cp apps/web/.env.example apps/web/.env.local
-# Edit .env.local:
+cp apps/web/.env.example apps/web/.env
+# Edit .env:
 # - NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
 # - NEXT_PUBLIC_SENTRY_DSN= (optional)
 ```
