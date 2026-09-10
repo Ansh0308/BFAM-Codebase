@@ -98,13 +98,24 @@ export default function ScoringInterfaceScreen() {
     }
   }
 
-  async function submitBall(input: {
-    runs_scored: number;
-    extra_type: 'NONE' | ExtraKind;
-    extra_runs: number;
-    is_wicket: boolean;
-    wicket_type?: WicketType | null;
-  }) {
+  // One-tap strike swap (feedback A-7: "minimal clicks everywhere") — lets
+  // the organizer flip ends without re-picking both players from the chip
+  // lists, e.g. after a run-out at the non-striker's end.
+  function swapStrike() {
+    setStrikerId(nonStrikerId);
+    setNonStrikerId(strikerId);
+  }
+
+  async function submitBall(
+    input: {
+      runs_scored: number;
+      extra_type: 'NONE' | ExtraKind;
+      extra_runs: number;
+      is_wicket: boolean;
+      wicket_type?: WicketType | null;
+    },
+    options?: { rotateStrike?: boolean; clearStriker?: boolean },
+  ) {
     if (!live?.innings || !strikerId || !bowlerId) return;
     setBusy(true);
     setError(null);
@@ -117,6 +128,17 @@ export default function ScoringInterfaceScreen() {
       });
       if (res.audio_trigger !== 'NONE') {
         playTriggerSound(res.audio_trigger, musicEnabled).catch(() => {});
+      }
+      // Real-cricket strike rotation, done automatically instead of asking
+      // the organizer to tap Swap after every odd-run ball — the single
+      // biggest tap-count win in this screen since it fires on ~1 in 3
+      // deliveries. A wicket instead clears the striker slot: the outgoing
+      // batter can't just stay selected, and guessing the incoming one
+      // would risk recording the next ball against the wrong player.
+      if (options?.clearStriker) {
+        setStrikerId(null);
+      } else if (options?.rotateStrike) {
+        swapStrike();
       }
       setPendingExtra(null);
       setPendingWicket(false);
@@ -131,28 +153,42 @@ export default function ScoringInterfaceScreen() {
 
   function pressRun(n: number) {
     if (pendingWicket) return; // wicket flow uses its own confirm
+    // The batsmen physically cross on an odd number of runs run, whatever
+    // the delivery type — n is exactly that count for every button here
+    // (the extra runs above wide/no-ball's automatic 1, or the runs
+    // themselves for a normal ball/bye/leg-bye).
+    const rotateStrike = n % 2 === 1;
     if (pendingExtra) {
       const isWideOrNoBall = pendingExtra === 'WIDE' || pendingExtra === 'NO_BALL';
-      submitBall({
-        runs_scored: isWideOrNoBall ? 0 : n,
-        extra_type: pendingExtra,
-        extra_runs: isWideOrNoBall ? 1 + n : n,
-        is_wicket: false,
-      });
+      submitBall(
+        {
+          runs_scored: isWideOrNoBall ? 0 : n,
+          extra_type: pendingExtra,
+          extra_runs: isWideOrNoBall ? 1 + n : n,
+          is_wicket: false,
+        },
+        { rotateStrike },
+      );
       return;
     }
-    submitBall({ runs_scored: n, extra_type: 'NONE', extra_runs: 0, is_wicket: false });
+    submitBall(
+      { runs_scored: n, extra_type: 'NONE', extra_runs: 0, is_wicket: false },
+      { rotateStrike },
+    );
   }
 
   function confirmWicket() {
     if (!wicketType) return;
-    submitBall({
-      runs_scored: 0,
-      extra_type: 'NONE',
-      extra_runs: 0,
-      is_wicket: true,
-      wicket_type: wicketType,
-    });
+    submitBall(
+      {
+        runs_scored: 0,
+        extra_type: 'NONE',
+        extra_runs: 0,
+        is_wicket: true,
+        wicket_type: wicketType,
+      },
+      { clearStriker: true },
+    );
   }
 
   async function undo() {
@@ -268,6 +304,20 @@ export default function ScoringInterfaceScreen() {
         </Text>
 
         <View className="mt-4">
+          <View className="flex-row items-center justify-between">
+            <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary">
+              Striker &amp; Non-Striker
+            </Text>
+            <Pressable
+              onPress={swapStrike}
+              disabled={!strikerId || !nonStrikerId}
+              className="flex-row items-center"
+              style={{ opacity: !strikerId || !nonStrikerId ? 0.4 : 1 }}
+              testID="swap-strike-button"
+            >
+              <Text className="font-ui font-bold text-micro text-brand-red mr-1">⇄ SWAP</Text>
+            </Pressable>
+          </View>
           <ChipSelect
             label="Striker"
             options={playerOptions}
@@ -381,43 +431,44 @@ export default function ScoringInterfaceScreen() {
                   </Text>
                 </Pressable>
               ))}
-              <Pressable
-                onPress={() => setPendingWicket(true)}
-                className="rounded-md bg-ink-black px-4 py-3 m-1"
-                testID="wicket-button"
-              >
-                <Text className="font-ui font-bold text-body text-white">WICKET</Text>
-              </Pressable>
             </View>
+
+            <Pressable
+              onPress={() => setPendingWicket(true)}
+              disabled={busy || !strikerId || !bowlerId}
+              className="rounded-md bg-ink-black items-center justify-center mt-3"
+              style={{ height: 52, opacity: busy || !strikerId || !bowlerId ? 0.5 : 1 }}
+              testID="wicket-button"
+            >
+              <Text className="font-ui font-bold text-button text-white uppercase tracking-wide">
+                Wicket
+              </Text>
+            </Pressable>
           </>
         )}
 
         <View className="mt-6 mb-10">
-          <Button
-            label="Undo Last Ball"
-            variant="secondary"
-            onPress={undo}
-            loading={busy}
-            testID="undo-button"
-          />
-          {live.innings.innings_number === 1 && (
-            <View className="mt-3">
+          <View className="flex-row" style={{ marginHorizontal: -6 }}>
+            <View className="flex-1 mx-1.5">
               <Button
-                label="End Innings & Start Next"
+                label="Undo Last Ball"
                 variant="secondary"
-                onPress={endInningsAndStartNext}
+                onPress={undo}
                 loading={busy}
-                testID="end-innings-button"
+                testID="undo-button"
               />
             </View>
-          )}
-          <View className="mt-3">
-            <Button
-              label="View Live Score"
-              variant="ghost"
-              onPress={() => router.push(`/(tabs)/matches/${matchId}/live`)}
-              testID="back-to-live"
-            />
+            {live.innings.innings_number === 1 && (
+              <View className="flex-1 mx-1.5">
+                <Button
+                  label="End Innings & Start Next"
+                  variant="secondary"
+                  onPress={endInningsAndStartNext}
+                  loading={busy}
+                  testID="end-innings-button"
+                />
+              </View>
+            )}
           </View>
           {live.innings.innings_number >= 2 && (
             <View className="mt-3">
@@ -428,6 +479,13 @@ export default function ScoringInterfaceScreen() {
               />
             </View>
           )}
+          <View className="mt-3">
+            <Button
+              label="View Live Score"
+              onPress={() => router.push(`/(tabs)/matches/${matchId}/live`)}
+              testID="back-to-live"
+            />
+          </View>
         </View>
       </View>
     </ScrollView>
