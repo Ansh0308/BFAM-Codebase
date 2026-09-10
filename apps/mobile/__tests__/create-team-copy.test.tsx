@@ -58,8 +58,45 @@ describe('Create Team screen — copy from an existing team (backlog A-11)', () 
         home_city: 'Rajkot',
         skill_level: 'ADVANCED',
         is_open_for_players: false,
+        min_skill_rating: null,
       });
     });
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)/teams/new-team-1');
+  });
+
+  // Backlog B-8: rating-gated team vacancies.
+  describe('minimum skill rating', () => {
+    it('sends the entered minimum skill rating', async () => {
+      const { getByTestId } = render(<CreateTeamScreen />);
+
+      fireEvent.changeText(getByTestId('team-name-input'), 'Elite XI');
+      fireEvent.changeText(getByTestId('min-skill-rating-input'), '600');
+      fireEvent.press(getByTestId('submit-create-team'));
+
+      await waitFor(() =>
+        expect(mockCreateTeam).toHaveBeenCalledWith(
+          expect.objectContaining({ min_skill_rating: 600 }),
+        ),
+      );
+    });
+
+    it('hides the field when the team is not open for new players', () => {
+      const { getByTestId, queryByTestId } = render(<CreateTeamScreen />);
+
+      fireEvent.press(getByTestId('is-open-toggle-switch'));
+
+      expect(queryByTestId('min-skill-rating-input')).toBeNull();
+    });
+
+    it('rejects a non-numeric minimum skill rating', async () => {
+      const { getByTestId, findByText } = render(<CreateTeamScreen />);
+
+      fireEvent.changeText(getByTestId('team-name-input'), 'Elite XI');
+      fireEvent.changeText(getByTestId('min-skill-rating-input'), 'abc');
+      fireEvent.press(getByTestId('submit-create-team'));
+
+      await findByText(/whole number/i);
+      expect(mockCreateTeam).not.toHaveBeenCalled();
+    });
   });
 });

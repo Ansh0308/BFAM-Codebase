@@ -6,6 +6,8 @@
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { UserRole } from './authService';
+import { PlayerNotFoundError } from '../domain/errors';
+import { getFollowSummary, type FollowSummary } from './followService';
 
 export interface MyProfile {
   user_id: string;
@@ -110,6 +112,50 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       coin_balance: null,
     }),
   };
+}
+
+// Backlog B-10: another player's profile, viewed from a roster/team row —
+// deliberately a much smaller shape than MyProfile. Excludes everything
+// privacy-sensitive (phone_number, email, date_of_birth, gender,
+// coin_balance) and everything only meaningful to the account owner.
+// skill_rating/reliability_score ARE included — both are already shown in
+// team/match-facing contexts elsewhere in the app (Open Teams' Fair Play
+// score, the scorecard), so there's no new exposure in showing them on a
+// profile a teammate taps into from a roster row.
+export interface PublicPlayerProfile {
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+  profile_photo_url: string | null;
+  city: string | null;
+  playing_role: string | null;
+  batting_style: string | null;
+  bowling_style: string | null;
+  experience_level: string | null;
+  skill_rating: number;
+  reliability_score: string;
+  favorite_cricketer_name: string | null;
+  // Backlog B-9 — follower/following counts, plus whether the viewer
+  // (if any) currently follows this player.
+  follow_summary: FollowSummary;
+}
+
+export async function getPublicProfile(
+  playerId: string,
+  viewerUserId?: string,
+): Promise<PublicPlayerProfile> {
+  const [row] = await sequelize.query<Omit<PublicPlayerProfile, 'follow_summary'>>(
+    `SELECT p.player_id, p.bfam_id, p.full_name, u.profile_photo_url, u.city,
+            p.playing_role, p.batting_style, p.bowling_style, p.experience_level,
+            p.skill_rating, p.reliability_score, p.favorite_cricketer_name
+     FROM players p
+     JOIN users u ON u.user_id = p.user_id
+     WHERE p.player_id = :playerId AND u.deleted_at IS NULL`,
+    { type: QueryTypes.SELECT, replacements: { playerId } },
+  );
+  if (!row) throw new PlayerNotFoundError(playerId);
+  const follow_summary = await getFollowSummary(playerId, viewerUserId);
+  return { ...row, follow_summary };
 }
 
 // Note: `email` is deliberately NOT part of this generic update — it can

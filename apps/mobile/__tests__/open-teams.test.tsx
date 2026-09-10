@@ -69,6 +69,41 @@ describe('OpenTeamsScreen (module 2.5)', () => {
     expect(queryByTestId('fair-play-score-team-1')).toBeNull();
   });
 
+  // Backlog B-8: rating-gated team vacancies.
+  it('shows the minimum skill rating requirement when the team has one', async () => {
+    mockGetOpenTeams.mockResolvedValueOnce({
+      results: [{ ...OPEN_TEAM, min_skill_rating: 600 }],
+    });
+    const { findByText } = render(<OpenTeamsScreen />);
+
+    await findByText(/requires 600\+ skill rating/i);
+  });
+
+  it('hides the requirement line for a team with no minimum', async () => {
+    mockGetOpenTeams.mockResolvedValueOnce({
+      results: [{ ...OPEN_TEAM, min_skill_rating: null }],
+    });
+    const { findByTestId, queryByTestId } = render(<OpenTeamsScreen />);
+
+    await findByTestId('open-team-row-team-1');
+    expect(queryByTestId('min-skill-rating-team-1')).toBeNull();
+  });
+
+  it('surfaces the backend rejection when the player is below the minimum', async () => {
+    mockGetOpenTeams.mockResolvedValueOnce({
+      results: [{ ...OPEN_TEAM, min_skill_rating: 600 }],
+    });
+    const { BFAMApiError } = jest.requireActual('@bfam/api-client');
+    mockRequestToJoinTeam.mockRejectedValueOnce(
+      new BFAMApiError('This team requires a Basic Skill Rating of at least 600 to join.', 409),
+    );
+
+    const { findByTestId, findByText } = render(<OpenTeamsScreen />);
+    fireEvent.press(await findByTestId('request-to-join-team-1'));
+
+    await findByText(/requires a basic skill rating of at least 600/i);
+  });
+
   it('refetches on every focus, not just first mount, so a newly-open team appears without restarting the app', async () => {
     mockGetOpenTeams.mockResolvedValue({ results: [] });
     render(<OpenTeamsScreen />);

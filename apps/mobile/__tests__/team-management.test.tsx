@@ -22,8 +22,10 @@ jest.mock('expo-contacts', () => ({
   Fields: { PhoneNumbers: 'phoneNumbers' },
 }));
 
+const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ teamId: 'team-1' }),
+  useRouter: () => ({ push: mockPush }),
 }));
 
 // useFocusEffect normally needs a real NavigationContainer (which expo-router
@@ -112,6 +114,15 @@ describe('ManageTeamScreen (module 2.5)', () => {
     expect(queryByTestId('make-captain-captain-player')).toBeNull();
     expect(queryByTestId('remove-member-captain-player')).toBeNull();
     expect(await findByTestId('make-captain-member-player')).toBeTruthy();
+  });
+
+  // Backlog B-10: view another player's profile from a roster/team row.
+  it('navigates to the public player profile when a member row is tapped', async () => {
+    const { findByTestId } = render(<ManageTeamScreen />);
+
+    fireEvent.press(await findByTestId('manage-member-avatar-member-player'));
+
+    expect(mockPush).toHaveBeenCalledWith('/player-profile?playerId=member-player');
   });
 
   it('changes the captain when "Make Captain" is pressed for another member', async () => {

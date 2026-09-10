@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import type { JoinRequest, TeamDetails } from '@bfam/shared-types';
@@ -20,6 +20,7 @@ import { ContactsInviteSection } from '../../../../src/components/ContactsInvite
 // third invite path, alongside BFAM ID entry.
 export default function ManageTeamScreen() {
   const { teamId } = useLocalSearchParams<{ teamId: string }>();
+  const router = useRouter();
   const [team, setTeam] = useState<TeamDetails | null>(null);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,7 +127,11 @@ export default function ManageTeamScreen() {
           className="flex-row items-center justify-between py-3 border-b border-border-subtle"
           testID={`manage-member-${member.player_id}`}
         >
-          <View className="flex-row items-center flex-1">
+          <Pressable
+            className="flex-row items-center flex-1"
+            onPress={() => router.push(`/player-profile?playerId=${member.player_id}`)}
+            testID={`manage-member-avatar-${member.player_id}`}
+          >
             <Avatar size={36} />
             <View className="ml-3">
               <Text className="text-text-primary text-body">
@@ -138,7 +143,7 @@ export default function ManageTeamScreen() {
                 </View>
               )}
             </View>
-          </View>
+          </Pressable>
           {member.role_in_team !== 'CAPTAIN' && (
             <View className="flex-row items-center">
               <Pressable

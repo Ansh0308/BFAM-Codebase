@@ -9,6 +9,7 @@ import {
   JoinRequestNotFoundError,
   PlayerNotFoundByBfamIdError,
   PlayerProfileNotFoundError,
+  SkillRatingTooLowError,
   TeamNotFoundError,
 } from '../domain/errors';
 import { sendNotification } from './notificationService';
@@ -25,6 +26,8 @@ interface TeamRow {
   created_by: string;
   created_at: Date;
   updated_at: Date;
+  // Backlog B-8 — null means no constraint (anyone may request to join).
+  min_skill_rating: number | null;
 }
 
 interface MemberRow {
@@ -99,6 +102,9 @@ export interface CreateTeamInput {
   skill_level?: string | null;
   home_city?: string | null;
   is_open_for_players?: boolean;
+  // Backlog B-8: a join request from a player below this Basic Skill
+  // Rating (module 2.10) is rejected — null/omitted means no constraint.
+  min_skill_rating?: number | null;
 }
 
 // Creates a team and, in the same transaction, makes the creator its first
@@ -123,6 +129,7 @@ export async function createTeam(userId: string, input: CreateTeamInput) {
           skill_level: input.skill_level ?? null,
           home_city: input.home_city ?? null,
           is_open_for_players: input.is_open_for_players ?? false,
+          min_skill_rating: input.min_skill_rating ?? null,
           team_status: 'ACTIVE',
           created_by: userId,
           created_at: now,
@@ -481,6 +488,19 @@ export async function requestToJoinTeam(teamId: string, userId: string) {
   const existingMembership = await fetchMembership(teamId, playerId);
   if (existingMembership && existingMembership.membership_status === 'ACTIVE') {
     throw new AlreadyTeamMemberError();
+  }
+
+  // Backlog B-8: a captain-set minimum Basic Skill Rating gate — checked
+  // against the same players.skill_rating value the Player Profile screen
+  // shows (module 2.10), not a separate copy.
+  if (team.min_skill_rating != null) {
+    const [player] = await sequelize.query<{ skill_rating: number }>(
+      'SELECT skill_rating FROM players WHERE player_id = :playerId',
+      { type: QueryTypes.SELECT, replacements: { playerId } },
+    );
+    if (!player || player.skill_rating < team.min_skill_rating) {
+      throw new SkillRatingTooLowError(team.min_skill_rating);
+    }
   }
 
   const [pending] = await sequelize.query<{ request_id: string }>(

@@ -28,11 +28,12 @@ export type PrdNotificationEvent = (typeof PRD_NOTIFICATION_EVENTS)[number];
 
 // A notification_type this codebase used before module 2.11 (kept for
 // backward compatibility, e.g. TEAM_INVITE is used outside the §12.45 list)
-// plus every PRD event above, plus NEW_MESSAGE (backlog B-3 — not in the
-// original PRD §12.45 list, added the same way TEAM_INVITE/BOOKING_UPDATE
-// were) — the full set notificationService can send.
+// plus every PRD event above, plus NEW_MESSAGE (backlog B-3) and
+// PLAYER_PLAYING (backlog B-9) — neither in the original PRD §12.45 list,
+// added the same way TEAM_INVITE/BOOKING_UPDATE were — the full set
+// notificationService can send.
 export type NotificationEventType =
-  PrdNotificationEvent | 'TEAM_INVITE' | 'BOOKING_UPDATE' | 'NEW_MESSAGE';
+  PrdNotificationEvent | 'TEAM_INVITE' | 'BOOKING_UPDATE' | 'NEW_MESSAGE' | 'PLAYER_PLAYING';
 
 export type NotificationPreferenceCategory =
   'match_updates' | 'booking_reminders' | 'team_invites' | 'promotions';
@@ -139,5 +140,14 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationEventType, NotificationT
     category: 'match_updates',
     title: (p: { matchName: string }) => `New message in ${p.matchName}`,
     body: (p: { preview: string }) => p.preview,
+  },
+  // Backlog B-9: "notify a user whenever someone they follow plays a
+  // match" — fired at the same moment MATCH_STARTING fires for the
+  // roster itself (matchIntroService.startIntro).
+  PLAYER_PLAYING: {
+    category: 'match_updates',
+    title: (p: { playerName: string }) => `${p.playerName} is playing`,
+    body: (p: { playerName: string; matchName: string }) =>
+      `${p.playerName} just started playing in ${p.matchName}.`,
   },
 };

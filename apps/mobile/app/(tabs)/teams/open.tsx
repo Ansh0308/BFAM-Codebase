@@ -123,6 +123,17 @@ export default function OpenTeamsScreen() {
                         {item.home_city ?? 'City not set'} · {item.skill_level ?? 'Any level'} ·{' '}
                         {item.active_member_count} members
                       </Text>
+                      {/* Backlog B-8: shown so a player knows the
+                          requirement before requesting, rather than only
+                          finding out from a rejected request. */}
+                      {item.min_skill_rating != null && (
+                        <Text
+                          className="text-text-tertiary text-micro mt-0.5"
+                          testID={`min-skill-rating-${item.team_id}`}
+                        >
+                          Requires {item.min_skill_rating}+ Skill Rating
+                        </Text>
+                      )}
                     </View>
                   </View>
                   <Pressable

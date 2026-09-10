@@ -591,6 +591,8 @@ export const createTeamSchema = z.object({
   skill_level: z.enum(TEAM_SKILL_LEVELS).nullable().optional(),
   home_city: z.string().max(100).nullable().optional(),
   is_open_for_players: z.boolean().optional(),
+  // Backlog B-8.
+  min_skill_rating: z.number().int().min(0).max(999).nullable().optional(),
 });
 
 // Accepts either the internal player_id (UUID) or the human-friendly

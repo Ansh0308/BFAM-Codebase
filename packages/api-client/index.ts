@@ -40,6 +40,7 @@ import {
   AuthSuccessResponse,
   Cricketer,
   MyProfile,
+  PublicPlayerProfile,
   UpdateProfilePayload,
   PlayerStatistics,
   PlayerRating,
@@ -339,6 +340,20 @@ export class BFAMApiClient {
 
   async getMyProfile(): Promise<MyProfile> {
     return this.request<MyProfile>('/profile/me');
+  }
+
+  // Backlog B-10: another player's public profile.
+  async getPlayerProfile(playerId: string): Promise<PublicPlayerProfile> {
+    return this.request<PublicPlayerProfile>(`/players/${playerId}`);
+  }
+
+  // Backlog B-9: follow/unfollow, idempotent.
+  async followPlayer(playerId: string): Promise<{ following: boolean }> {
+    return this.request(`/players/${playerId}/follow`, { method: 'POST' });
+  }
+
+  async unfollowPlayer(playerId: string): Promise<{ following: boolean }> {
+    return this.request(`/players/${playerId}/follow`, { method: 'DELETE' });
   }
 
   async updateMyProfile(payload: UpdateProfilePayload): Promise<MyProfile> {

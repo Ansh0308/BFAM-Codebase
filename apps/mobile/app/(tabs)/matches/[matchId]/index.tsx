@@ -295,12 +295,18 @@ function RosterRow({
   const attendance = ATTENDANCE_META[player.attendance_status];
   const canVacate = (isSelf || isManager) && player.invitation_status === 'CONFIRMED';
 
+  const router = useRouter();
+
   return (
     <View
       className="flex-row items-center justify-between py-3 border-b border-border-subtle"
       testID={`roster-row-${player.player_id}`}
     >
-      <View className="flex-row items-center flex-1">
+      <Pressable
+        className="flex-row items-center flex-1"
+        onPress={() => router.push(`/player-profile?playerId=${player.player_id}`)}
+        testID={`roster-row-avatar-${player.player_id}`}
+      >
         <Avatar size={36} />
         <View className="ml-3 flex-1">
           <View className="flex-row items-center">
@@ -332,7 +338,7 @@ function RosterRow({
             ) : null}
           </View>
         </View>
-      </View>
+      </Pressable>
       {canVacate && (
         <Pressable
           onPress={onVacate}

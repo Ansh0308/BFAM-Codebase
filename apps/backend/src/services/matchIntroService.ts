@@ -3,6 +3,7 @@ import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { getIo, matchRoom } from '../realtime/io';
 import { sendNotificationToMany } from './notificationService';
+import { notifyFollowersOfMatchStart } from './followService';
 import {
   ForbiddenActionError,
   InvalidMatchStateError,
@@ -164,6 +165,16 @@ export async function startIntro(matchId: string, actorUserId: string) {
     } catch (error) {
       console.error(`[matchIntroService] Failed to send MATCH_STARTING for ${matchId}:`, error);
     }
+
+    // Backlog B-9: tell followers of anyone on this roster that they just
+    // started playing — same first-start-only condition as MATCH_STARTING
+    // above, and never allowed to fail Start Match (see the function's own
+    // internal try/catch).
+    await notifyFollowersOfMatchStart(
+      matchId,
+      match.match_name,
+      players.map((p) => p.player_id),
+    );
   }
 
   return { intro, players, matchTeams };

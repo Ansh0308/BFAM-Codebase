@@ -66,6 +66,33 @@ export interface MyProfile {
   coin_balance: number | null;
 }
 
+// Backlog B-10: another player's profile, viewed from a roster/team row.
+// Deliberately a much smaller shape than MyProfile — see
+// profileService.getPublicProfile (backend) for what's excluded and why.
+// Backlog B-9: follower/following counts, plus whether the viewer
+// currently follows this player.
+export interface FollowSummary {
+  followers_count: number;
+  following_count: number;
+  is_following: boolean;
+}
+
+export interface PublicPlayerProfile {
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+  profile_photo_url: string | null;
+  city: string | null;
+  playing_role: string | null;
+  batting_style: string | null;
+  bowling_style: string | null;
+  experience_level: string | null;
+  skill_rating: number;
+  reliability_score: string;
+  favorite_cricketer_name: string | null;
+  follow_summary: FollowSummary;
+}
+
 // `email` is deliberately not part of this payload — it can only be set via
 // the verified-email flow (sendEmailOtp / verifyEmailOtp below), never a
 // plain PATCH, so an unverified email can never reach a profile.
@@ -346,6 +373,8 @@ export interface Team {
   created_by: string;
   created_at: string;
   updated_at: string;
+  // Backlog B-8: minimum Basic Skill Rating required to join; null = no constraint.
+  min_skill_rating: number | null;
 }
 
 export interface TeamMember {
@@ -392,6 +421,7 @@ export interface CreateTeamInput {
   skill_level?: TeamSkillLevel | null;
   home_city?: string | null;
   is_open_for_players?: boolean;
+  min_skill_rating?: number | null;
 }
 
 export interface JoinRequest {

@@ -151,6 +151,17 @@ export class PlayerNotFoundByBfamIdError extends Error {
   }
 }
 
+// Backlog B-10 — looking up someone else's public profile by their
+// internal player_id (e.g. from a roster row), as opposed to
+// PlayerProfileNotFoundError (the *caller's own* missing profile) or
+// PlayerNotFoundByBfamIdError (looked up by BFAM ID instead).
+export class PlayerNotFoundError extends Error {
+  constructor(playerId: string) {
+    super(`No player found with id ${playerId}.`);
+    this.name = 'PlayerNotFoundError';
+  }
+}
+
 export class InvalidTeamStateError extends Error {
   constructor(message: string) {
     super(message);
@@ -338,6 +349,24 @@ export class MatchNotYetCompletedError extends Error {
   constructor() {
     super('You can only review a match after it has finished.');
     this.name = 'MatchNotYetCompletedError';
+  }
+}
+
+// ---- Backlog B-9: Follows ----
+
+export class CannotFollowSelfError extends Error {
+  constructor() {
+    super("You can't follow yourself.");
+    this.name = 'CannotFollowSelfError';
+  }
+}
+
+// ---- Backlog B-8: Rating-Gated Team Vacancies ----
+
+export class SkillRatingTooLowError extends Error {
+  constructor(minSkillRating: number) {
+    super(`This team requires a Basic Skill Rating of at least ${minSkillRating} to join.`);
+    this.name = 'SkillRatingTooLowError';
   }
 }
 
