@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act, within } from '@testing-library/react-native';
 import { apiClient } from '../src/lib/apiClient';
 
 jest.mock('../src/lib/apiClient', () => ({
@@ -21,7 +21,7 @@ jest.mock('../src/lib/sounds', () => ({
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ matchId: 'match-1' }),
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
 }));
 
 const mockGetGameRoom = apiClient.getGameRoom as jest.Mock;
@@ -58,7 +58,7 @@ const LIVE_SCORE = {
   },
 };
 
-describe('Scoring Interface (backlog A-7: fewer taps)', () => {
+describe('Scoring Interface (backlog A-7: fewer taps; UI rebuild per reference screenshot)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetGameRoom.mockResolvedValue(ROOM);
@@ -76,12 +76,19 @@ describe('Scoring Interface (backlog A-7: fewer taps)', () => {
     });
   });
 
+  // A player-picker row is collapsed by default — open it, then tap the
+  // option, same as the reference design's tap-to-open row cards.
+  function selectPlayer(utils: ReturnType<typeof render>, rowTestId: string, playerId: string) {
+    fireEvent.press(utils.getByTestId(rowTestId));
+    fireEvent.press(utils.getByTestId(`${rowTestId}-options-${playerId}`));
+  }
+
   async function renderReady() {
     const utils = render(<ScoringInterfaceScreen />);
     await waitFor(() => expect(utils.getByTestId('scoring-interface-screen')).toBeTruthy());
-    fireEvent.press(utils.getByTestId('striker-select-p1'));
-    fireEvent.press(utils.getByTestId('non-striker-select-p2'));
-    fireEvent.press(utils.getByTestId('bowler-select-p3'));
+    selectPlayer(utils, 'striker-select', 'p1');
+    selectPlayer(utils, 'non-striker-select', 'p2');
+    selectPlayer(utils, 'bowler-select', 'p3');
     return utils;
   }
 
@@ -90,9 +97,9 @@ describe('Scoring Interface (backlog A-7: fewer taps)', () => {
 
     fireEvent.press(getByTestId('swap-strike-button'));
 
-    // p2 (was non-striker) is now the selected striker.
-    expect(getByTestId('striker-select-p2').props.accessibilityState.selected).toBe(true);
-    expect(getByTestId('non-striker-select-p1').props.accessibilityState.selected).toBe(true);
+    // p2 (was non-striker) is now shown as the selected striker, and vice versa.
+    expect(within(getByTestId('striker-select')).getByText('BF1002')).toBeTruthy();
+    expect(within(getByTestId('non-striker-select')).getByText('BF1001')).toBeTruthy();
   });
 
   it('automatically rotates strike after an odd-run ball, with no extra tap', async () => {
@@ -103,8 +110,8 @@ describe('Scoring Interface (backlog A-7: fewer taps)', () => {
     });
 
     await waitFor(() => expect(mockRecordBall).toHaveBeenCalled());
-    expect(getByTestId('striker-select-p2').props.accessibilityState.selected).toBe(true);
-    expect(getByTestId('non-striker-select-p1').props.accessibilityState.selected).toBe(true);
+    expect(within(getByTestId('striker-select')).getByText('BF1002')).toBeTruthy();
+    expect(within(getByTestId('non-striker-select')).getByText('BF1001')).toBeTruthy();
   });
 
   it('does not rotate strike after an even-run ball', async () => {
@@ -115,8 +122,8 @@ describe('Scoring Interface (backlog A-7: fewer taps)', () => {
     });
 
     await waitFor(() => expect(mockRecordBall).toHaveBeenCalled());
-    expect(getByTestId('striker-select-p1').props.accessibilityState.selected).toBe(true);
-    expect(getByTestId('non-striker-select-p2').props.accessibilityState.selected).toBe(true);
+    expect(within(getByTestId('striker-select')).getByText('BF1001')).toBeTruthy();
+    expect(within(getByTestId('non-striker-select')).getByText('BF1002')).toBeTruthy();
   });
 
   it('records the extra runs on top of a wide as runs run for rotation purposes', async () => {
@@ -133,7 +140,7 @@ describe('Scoring Interface (backlog A-7: fewer taps)', () => {
         expect.objectContaining({ extra_type: 'WIDE', extra_runs: 2, runs_scored: 0 }),
       ),
     );
-    expect(getByTestId('striker-select-p2').props.accessibilityState.selected).toBe(true);
+    expect(within(getByTestId('striker-select')).getByText('BF1002')).toBeTruthy();
   });
 
   it('clears the striker slot after a confirmed wicket, forcing a fresh pick', async () => {
@@ -146,8 +153,23 @@ describe('Scoring Interface (backlog A-7: fewer taps)', () => {
     });
 
     await waitFor(() => expect(mockRecordBall).toHaveBeenCalled());
-    for (const id of ['striker-select-p1', 'striker-select-p2', 'striker-select-p3']) {
-      expect(getByTestId(id).props.accessibilityState.selected).toBe(false);
+    expect(within(getByTestId('striker-select')).getByText('Not Selected')).toBeTruthy();
+  });
+
+  it('shows the current-over dots and fills one in after each legal ball', async () => {
+    const { getByTestId } = await renderReady();
+
+    // All six start as placeholders.
+    for (let i = 0; i < 6; i++) {
+      expect(within(getByTestId(`over-dot-${i}`)).getByText('-')).toBeTruthy();
     }
+
+    await act(async () => {
+      fireEvent.press(getByTestId('run-4'));
+    });
+    await waitFor(() => expect(mockRecordBall).toHaveBeenCalled());
+
+    expect(within(getByTestId('over-dot-0')).getByText('4')).toBeTruthy();
+    expect(within(getByTestId('over-dot-1')).getByText('-')).toBeTruthy();
   });
 });

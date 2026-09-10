@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import type { GameRoom, IntroMatchTeam, LiveScore, WicketType } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
@@ -12,7 +13,16 @@ import { TextField } from '../../../../src/components/TextField';
 import { ToggleRow } from '../../../../src/components/ToggleRow';
 import { playTriggerSound } from '../../../../src/lib/sounds';
 
-const RUN_BUTTONS = [0, 1, 2, 3, 4, 6];
+// A ball this over, purely for the "Current Over" dots display — tracked
+// locally rather than from the backend (there's no ball-history read
+// endpoint), so it resets if this screen is left mid-over and reopened.
+// Legal-ball count (everything but a wide/no-ball) is what actually rolls
+// over into a new over, matching overs_completed's own definition.
+interface OverBall {
+  label: string;
+  isLegal: boolean;
+}
+
 const WICKET_TYPES: WicketType[] = [
   'BOWLED',
   'CAUGHT',
@@ -29,6 +39,79 @@ type ExtraKind = 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE';
 // the BFAM ID for a player who hasn't set a name yet.
 function displayName(p: { full_name?: string | null; bfam_id?: string }): string {
   return p.full_name || p.bfam_id || '';
+}
+
+// Striker/Non-Striker/Bowler row: shows who's currently selected and, when
+// tapped, expands the same option list ChipSelect always offered — kept
+// collapsed by default so three long player lists don't dominate the
+// screen, matching the row-card layout of the reference design.
+function PlayerPickerRow({
+  label,
+  icon,
+  iconBg,
+  iconColor,
+  selectedLabel,
+  isOpen,
+  onToggle,
+  options,
+  value,
+  onChange,
+  testID,
+}: {
+  label: string;
+  icon: React.ComponentProps<typeof Feather>['name'];
+  iconBg: string;
+  iconColor: string;
+  selectedLabel: string | null;
+  isOpen: boolean;
+  onToggle: () => void;
+  options: { value: string; label: string }[];
+  value: string | null;
+  onChange: (value: string) => void;
+  testID: string;
+}) {
+  return (
+    <View className="mb-3">
+      <Pressable
+        onPress={onToggle}
+        className={`flex-row items-center rounded-lg border p-3 ${
+          isOpen ? 'border-brand-red' : 'border-border-subtle'
+        }`}
+        style={{ backgroundColor: isOpen ? '#FDEAEA' : colors.surfaceAlt }}
+        testID={testID}
+      >
+        <View
+          className="rounded-full items-center justify-center mr-3"
+          style={{ width: 40, height: 40, backgroundColor: iconBg }}
+        >
+          <Feather name={icon} size={18} color={iconColor} />
+        </View>
+        <View className="flex-1">
+          <Text className="font-ui font-bold text-body text-ink-black">
+            {selectedLabel ?? 'Not Selected'}
+          </Text>
+          <Text className="font-ui text-micro text-text-secondary">
+            {selectedLabel ? label : `Select ${label}`}
+          </Text>
+        </View>
+        <Feather name={isOpen ? 'chevron-down' : 'chevron-right'} size={20} color="#9A9A9A" />
+      </Pressable>
+      {isOpen && (
+        <View className="mt-2 pl-1">
+          <ChipSelect
+            label={`Choose ${label}`}
+            options={options}
+            value={value}
+            onChange={(v) => {
+              onChange(v);
+              onToggle();
+            }}
+            testID={`${testID}-options`}
+          />
+        </View>
+      )}
+    </View>
+  );
 }
 
 // Scoring Interface (PRD §12.18 requirement 2). Organizer/scorer only —
@@ -66,6 +149,13 @@ export default function ScoringInterfaceScreen() {
   // screen (or a page that assigned sides earlier, e.g. the Playing XI
   // reveal) doesn't lose prior work.
   const [sideAssignments, setSideAssignments] = useState<Record<string, string>>({});
+
+  const [overBalls, setOverBalls] = useState<OverBall[]>([]);
+  const legalCountRef = useRef(0);
+  // Which of Striker/Non-Striker/Bowler is currently expanded for picking —
+  // only one at a time, tap-to-open/tap-to-close instead of always showing
+  // all three lists at once.
+  const [openPicker, setOpenPicker] = useState<'striker' | 'nonStriker' | 'bowler' | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -148,12 +238,57 @@ export default function ScoringInterfaceScreen() {
         bowling_match_team_id: bowlingSide,
         target_runs: targetRuns ? Number(targetRuns) : null,
       });
+      resetOverBalls();
       await load();
     } catch (err) {
       setError(err instanceof BFAMApiError ? err.message : 'Could not start the innings.');
     } finally {
       setBusy(false);
     }
+  }
+
+  function ballLabel(input: {
+    runs_scored: number;
+    extra_type: 'NONE' | ExtraKind;
+    extra_runs: number;
+    is_wicket: boolean;
+  }): string {
+    if (input.is_wicket) return 'W';
+    switch (input.extra_type) {
+      case 'WIDE':
+        return input.extra_runs > 1 ? `wd+${input.extra_runs - 1}` : 'wd';
+      case 'NO_BALL':
+        return input.extra_runs > 1 ? `nb+${input.extra_runs - 1}` : 'nb';
+      case 'BYE':
+        return `${input.extra_runs}b`;
+      case 'LEG_BYE':
+        return `${input.extra_runs}lb`;
+      default:
+        return String(input.runs_scored);
+    }
+  }
+
+  function recordOverBall(input: {
+    runs_scored: number;
+    extra_type: 'NONE' | ExtraKind;
+    extra_runs: number;
+    is_wicket: boolean;
+  }) {
+    const isLegal = input.extra_type !== 'WIDE' && input.extra_type !== 'NO_BALL';
+    const label = ballLabel(input);
+    setOverBalls((prev) => {
+      if (isLegal && legalCountRef.current >= 6) {
+        legalCountRef.current = 1;
+        return [{ label, isLegal }];
+      }
+      if (isLegal) legalCountRef.current += 1;
+      return [...prev, { label, isLegal }];
+    });
+  }
+
+  function resetOverBalls() {
+    legalCountRef.current = 0;
+    setOverBalls([]);
   }
 
   // One-tap strike swap (feedback A-7: "minimal clicks everywhere") — lets
@@ -198,6 +333,7 @@ export default function ScoringInterfaceScreen() {
       } else if (options?.rotateStrike) {
         swapStrike();
       }
+      recordOverBall(input);
       setPendingExtra(null);
       setPendingWicket(false);
       setWicketType(null);
@@ -254,6 +390,11 @@ export default function ScoringInterfaceScreen() {
     setBusy(true);
     try {
       await apiClient.undoBall(live.innings.innings_id);
+      setOverBalls((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.isLegal) legalCountRef.current = Math.max(0, legalCountRef.current - 1);
+        return prev.slice(0, -1);
+      });
       await load();
     } catch {
       setError('Nothing to undo.');
@@ -280,6 +421,7 @@ export default function ScoringInterfaceScreen() {
       setStrikerId(null);
       setNonStrikerId(null);
       setBowlerId(null);
+      resetOverBalls();
       await load();
     } catch (err) {
       setError(err instanceof BFAMApiError ? err.message : 'Could not start the next innings.');
@@ -413,29 +555,120 @@ export default function ScoringInterfaceScreen() {
     );
   }
 
-  return (
-    <ScrollView className="flex-1 bg-surface" testID="scoring-interface-screen">
-      <View className="px-6 pt-6">
-        <Text className="font-ui font-bold text-title-xl text-ink-black">
-          {live.innings.total_runs}/{live.innings.total_wickets}
-          <Text className="font-ui text-body text-text-secondary">
-            {' '}
-            ({live.innings.overs_completed} ov)
-          </Text>
-        </Text>
-        {live.extras_count_toward_score === false && (
-          <Text
-            className="font-ui text-micro text-text-tertiary mt-1"
-            testID="extras-excluded-note"
-          >
-            Extras don&apos;t count toward this score (still recorded for the record)
-          </Text>
-        )}
+  const legalOverBalls = overBalls.filter((b) => b.isLegal);
 
-        <View className="mt-4">
-          <View className="flex-row items-center justify-between">
-            <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary">
-              Striker &amp; Non-Striker
+  return (
+    <View className="flex-1 bg-surface" testID="scoring-interface-screen">
+      {/* Custom branded header (Design §5's diagonal red motif, compact
+          version) — this screen hides the default Stack header so it can
+          carry the BFAM mark like the reference layout. */}
+      <View
+        className="flex-row items-center justify-between px-4"
+        style={{ height: 56, overflow: 'hidden', backgroundColor: '#FFFFFF' }}
+      >
+        <View className="flex-row items-center">
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            testID="scoring-header-back"
+          >
+            <Feather name="chevron-left" size={24} color="#0D0D0D" />
+          </Pressable>
+          <Text className="font-ui font-bold text-section-header text-ink-black ml-3">Scoring</Text>
+        </View>
+        <View style={{ width: 120, height: 56 }} pointerEvents="none">
+          <View
+            style={{
+              position: 'absolute',
+              right: -40,
+              top: -30,
+              width: 160,
+              height: 130,
+              backgroundColor: colors.brandRed,
+              transform: [{ rotate: '18deg' }],
+            }}
+          />
+          <Text
+            className="font-ui font-bold"
+            style={{
+              position: 'absolute',
+              right: 14,
+              top: 17,
+              fontSize: 18,
+              color: '#FFFFFF',
+              letterSpacing: 0.5,
+            }}
+          >
+            BFAM
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView className="flex-1">
+        <View className="px-6 pt-4">
+          {/* Score + Current Over card */}
+          <View
+            className="rounded-lg flex-row items-center justify-between p-4 mb-5"
+            style={{ backgroundColor: colors.surfaceAlt }}
+            testID="score-card"
+          >
+            <View>
+              <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-1">
+                Score
+              </Text>
+              <Text className="font-ui font-bold text-title-xl text-ink-black">
+                {live.innings.total_runs}/{live.innings.total_wickets}
+                <Text className="font-ui text-body text-text-secondary">
+                  {' '}
+                  ({live.innings.overs_completed} ov)
+                </Text>
+              </Text>
+              {live.extras_count_toward_score === false && (
+                <Text
+                  className="font-ui text-micro text-text-tertiary mt-1"
+                  testID="extras-excluded-note"
+                >
+                  Extras don&apos;t count toward this score (still recorded)
+                </Text>
+              )}
+            </View>
+            <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: '#E0E0E0' }} />
+            <View>
+              <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-2">
+                Current Over
+              </Text>
+              <View className="flex-row" testID="current-over-dots">
+                {Array.from({ length: 6 }).map((_, i) => {
+                  const ball = legalOverBalls[i];
+                  return (
+                    <View
+                      key={i}
+                      className="rounded-full items-center justify-center ml-1"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        backgroundColor: ball ? colors.brandRed : '#E0E0E0',
+                      }}
+                      testID={`over-dot-${i}`}
+                    >
+                      <Text
+                        className="font-ui font-bold"
+                        style={{ fontSize: 11, color: ball ? '#FFFFFF' : '#9A9A9A' }}
+                      >
+                        {ball ? ball.label : '-'}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="font-ui font-bold text-brand-red text-micro uppercase tracking-wide">
+              Striker
             </Text>
             <Pressable
               onPress={swapStrike}
@@ -444,179 +677,246 @@ export default function ScoringInterfaceScreen() {
               style={{ opacity: !strikerId || !nonStrikerId ? 0.4 : 1 }}
               testID="swap-strike-button"
             >
-              <Text className="font-ui font-bold text-micro text-brand-red mr-1">⇄ SWAP</Text>
+              <Feather name="repeat" size={14} color={colors.brandRed} />
+              <Text className="font-ui font-bold text-micro text-brand-red ml-1">SWAP</Text>
             </Pressable>
           </View>
-          <ChipSelect
+          <PlayerPickerRow
             label="Striker"
+            icon="disc"
+            iconBg={colors.brandRed}
+            iconColor="#FFFFFF"
+            selectedLabel={
+              strikerId ? (battingOptions.find((o) => o.value === strikerId)?.label ?? null) : null
+            }
+            isOpen={openPicker === 'striker'}
+            onToggle={() => setOpenPicker((cur) => (cur === 'striker' ? null : 'striker'))}
             options={battingOptions}
             value={strikerId}
             onChange={setStrikerId}
             testID="striker-select"
           />
-          <ChipSelect
+
+          <Text className="font-ui font-bold text-text-secondary text-micro uppercase tracking-wide mb-2">
+            Non-Striker
+          </Text>
+          <PlayerPickerRow
             label="Non-Striker"
+            icon="disc"
+            iconBg="#E5E5E5"
+            iconColor="#767676"
+            selectedLabel={
+              nonStrikerId
+                ? (battingOptions.find((o) => o.value === nonStrikerId)?.label ?? null)
+                : null
+            }
+            isOpen={openPicker === 'nonStriker'}
+            onToggle={() => setOpenPicker((cur) => (cur === 'nonStriker' ? null : 'nonStriker'))}
             options={battingOptions}
             value={nonStrikerId}
             onChange={setNonStrikerId}
             testID="non-striker-select"
           />
-          <ChipSelect
+
+          <Text className="font-ui font-bold text-text-secondary text-micro uppercase tracking-wide mb-2">
+            Bowler
+          </Text>
+          <PlayerPickerRow
             label="Bowler"
+            icon="circle"
+            iconBg="#FBDADA"
+            iconColor={colors.brandRed}
+            selectedLabel={
+              bowlerId ? (bowlingOptions.find((o) => o.value === bowlerId)?.label ?? null) : null
+            }
+            isOpen={openPicker === 'bowler'}
+            onToggle={() => setOpenPicker((cur) => (cur === 'bowler' ? null : 'bowler'))}
             options={bowlingOptions}
             value={bowlerId}
             onChange={setBowlerId}
             testID="bowler-select"
           />
-        </View>
 
-        {error && <Text className="text-brand-red text-body mb-3">{error}</Text>}
+          {error && <Text className="text-brand-red text-body mb-3">{error}</Text>}
 
-        {pendingWicket ? (
-          <View className="mt-2">
-            <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
-              Wicket Type
-            </Text>
-            <View className="flex-row flex-wrap" style={{ marginHorizontal: -4 }}>
-              {WICKET_TYPES.map((wt) => (
-                <Pressable
-                  key={wt}
-                  onPress={() => setWicketType(wt)}
-                  className={`rounded-md border px-3 py-2 m-1 ${wicketType === wt ? 'bg-brand-red border-brand-red' : 'bg-surface border-border-strong'}`}
-                  testID={`wicket-type-${wt}`}
-                >
-                  <Text
-                    className={`font-ui text-body ${wicketType === wt ? 'text-white font-bold' : 'text-text-primary'}`}
+          {pendingWicket ? (
+            <View className="mt-2">
+              <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
+                Wicket Type
+              </Text>
+              <View className="flex-row flex-wrap" style={{ marginHorizontal: -4 }}>
+                {WICKET_TYPES.map((wt) => (
+                  <Pressable
+                    key={wt}
+                    onPress={() => setWicketType(wt)}
+                    className={`rounded-md border px-3 py-2 m-1 ${wicketType === wt ? 'bg-brand-red border-brand-red' : 'bg-surface border-border-strong'}`}
+                    testID={`wicket-type-${wt}`}
                   >
-                    {wt.replace('_', ' ')}
+                    <Text
+                      className={`font-ui text-body ${wicketType === wt ? 'text-white font-bold' : 'text-text-primary'}`}
+                    >
+                      {wt.replace('_', ' ')}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View className="flex-row mt-3">
+                <View className="flex-1 mr-2">
+                  <Button
+                    label="Confirm Wicket"
+                    onPress={confirmWicket}
+                    disabled={!wicketType}
+                    loading={busy}
+                    testID="confirm-wicket"
+                  />
+                </View>
+                <View className="flex-1">
+                  <Button
+                    label="Cancel"
+                    variant="secondary"
+                    onPress={() => {
+                      setPendingWicket(false);
+                      setWicketType(null);
+                    }}
+                    testID="cancel-wicket"
+                  />
+                </View>
+              </View>
+            </View>
+          ) : (
+            <>
+              <Text className="font-ui font-bold text-text-secondary text-micro uppercase tracking-wide mt-3 mb-2">
+                Runs
+              </Text>
+              {pendingExtra && (
+                <View className="bg-surface-alt rounded-md p-3 mb-2">
+                  <Text className="font-ui text-micro text-text-secondary">
+                    {pendingExtra.replace('_', ' ')} armed — tap a run value for additional runs, or
+                    0 for none.
                   </Text>
-                </Pressable>
-              ))}
-            </View>
-            <View className="flex-row mt-3">
-              <View className="flex-1 mr-2">
-                <Button
-                  label="Confirm Wicket"
-                  onPress={confirmWicket}
-                  disabled={!wicketType}
-                  loading={busy}
-                  testID="confirm-wicket"
-                />
-              </View>
-              <View className="flex-1">
-                <Button
-                  label="Cancel"
-                  variant="secondary"
-                  onPress={() => {
-                    setPendingWicket(false);
-                    setWicketType(null);
-                  }}
-                  testID="cancel-wicket"
-                />
-              </View>
-            </View>
-          </View>
-        ) : (
-          <>
-            {pendingExtra && (
-              <View className="bg-surface-alt rounded-md p-3 mt-2 mb-2">
-                <Text className="font-ui text-micro text-text-secondary">
-                  {pendingExtra.replace('_', ' ')} armed — tap a run value for additional runs, or 0
-                  for none.
-                </Text>
-              </View>
-            )}
-            <View className="flex-row flex-wrap mt-2" style={{ marginHorizontal: -4 }}>
-              {RUN_BUTTONS.map((n) => (
-                <Pressable
-                  key={n}
-                  onPress={() => pressRun(n)}
-                  disabled={busy || !strikerId || !bowlerId}
-                  className="items-center justify-center bg-brand-red rounded-md m-1"
-                  style={{
-                    width: 64,
-                    height: 56,
-                    opacity: busy || !strikerId || !bowlerId ? 0.5 : 1,
-                  }}
-                  testID={`run-${n}`}
-                >
-                  <Text className="font-ui font-bold text-title-xl text-white">{n}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <View className="flex-row flex-wrap mt-2" style={{ marginHorizontal: -4 }}>
-              {(['WIDE', 'NO_BALL', 'BYE', 'LEG_BYE'] as ExtraKind[]).map((kind) => (
-                <Pressable
-                  key={kind}
-                  onPress={() => setPendingExtra((cur) => (cur === kind ? null : kind))}
-                  className={`rounded-md border px-3 py-3 m-1 ${pendingExtra === kind ? 'bg-brand-red border-brand-red' : 'bg-surface border-border-strong'}`}
-                  testID={`extra-${kind}`}
-                >
-                  <Text
-                    className={`font-ui text-body ${pendingExtra === kind ? 'text-white font-bold' : 'text-text-primary'}`}
+                </View>
+              )}
+              <View className="flex-row" style={{ marginHorizontal: -4 }}>
+                {[0, 1, 2, 3, 4].map((n) => (
+                  <Pressable
+                    key={n}
+                    onPress={() => pressRun(n)}
+                    disabled={busy || !strikerId || !bowlerId}
+                    className="flex-1 items-center justify-center rounded-md mx-1"
+                    style={{
+                      height: 56,
+                      backgroundColor: n === 4 ? colors.brandRed : colors.surfaceAlt,
+                      opacity: busy || !strikerId || !bowlerId ? 0.5 : 1,
+                    }}
+                    testID={`run-${n}`}
                   >
-                    {kind.replace('_', ' ')}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+                    <Text
+                      className="font-ui font-bold text-title-xl"
+                      style={{ color: n === 4 ? '#FFFFFF' : '#0D0D0D' }}
+                    >
+                      {n}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable
+                onPress={() => pressRun(6)}
+                disabled={busy || !strikerId || !bowlerId}
+                className="items-center justify-center rounded-md mt-2"
+                style={{
+                  height: 56,
+                  width: '18%',
+                  backgroundColor: colors.brandRed,
+                  opacity: busy || !strikerId || !bowlerId ? 0.5 : 1,
+                }}
+                testID="run-6"
+              >
+                <Text className="font-ui font-bold text-title-xl text-white">6</Text>
+              </Pressable>
 
-            <Pressable
-              onPress={() => setPendingWicket(true)}
-              disabled={busy || !strikerId || !bowlerId}
-              className="rounded-md bg-ink-black items-center justify-center mt-3"
-              style={{ height: 52, opacity: busy || !strikerId || !bowlerId ? 0.5 : 1 }}
-              testID="wicket-button"
-            >
-              <Text className="font-ui font-bold text-button text-white uppercase tracking-wide">
+              <Text className="font-ui font-bold text-text-secondary text-micro uppercase tracking-wide mt-4 mb-2">
+                Extras
+              </Text>
+              <View className="flex-row flex-wrap" style={{ marginHorizontal: -4 }}>
+                {(['WIDE', 'NO_BALL', 'BYE', 'LEG_BYE'] as ExtraKind[]).map((kind) => (
+                  <Pressable
+                    key={kind}
+                    onPress={() => setPendingExtra((cur) => (cur === kind ? null : kind))}
+                    className={`rounded-md border px-3 py-3 m-1 ${pendingExtra === kind ? 'bg-brand-red border-brand-red' : 'bg-surface border-border-strong'}`}
+                    testID={`extra-${kind}`}
+                  >
+                    <Text
+                      className={`font-ui text-body ${pendingExtra === kind ? 'text-white font-bold' : 'text-text-primary'}`}
+                    >
+                      {kind.replace('_', ' ')}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Text className="font-ui font-bold text-text-secondary text-micro uppercase tracking-wide mt-4 mb-2">
                 Wicket
               </Text>
-            </Pressable>
-          </>
-        )}
+              <Pressable
+                onPress={() => setPendingWicket(true)}
+                disabled={busy || !strikerId || !bowlerId}
+                className="rounded-md bg-ink-black flex-row items-center justify-center"
+                style={{ height: 52, opacity: busy || !strikerId || !bowlerId ? 0.5 : 1 }}
+                testID="wicket-button"
+              >
+                <Feather name="x-octagon" size={18} color="#FFFFFF" />
+                <Text className="font-ui font-bold text-button text-white uppercase tracking-wide ml-2">
+                  Wicket
+                </Text>
+              </Pressable>
+            </>
+          )}
 
-        <View className="mt-6 mb-10">
-          <View className="flex-row" style={{ marginHorizontal: -6 }}>
-            <View className="flex-1 mx-1.5">
-              <Button
-                label="Undo Last Ball"
-                variant="secondary"
-                onPress={undo}
-                loading={busy}
-                testID="undo-button"
-              />
-            </View>
-            {live.innings.innings_number === 1 && (
+          <View className="mt-6 mb-10">
+            <View className="flex-row" style={{ marginHorizontal: -6 }}>
               <View className="flex-1 mx-1.5">
                 <Button
-                  label="End Innings & Start Next"
+                  label="Undo Last Ball"
                   variant="secondary"
-                  onPress={endInningsAndStartNext}
+                  iconLeft={<Feather name="rotate-ccw" size={16} color="#0D0D0D" />}
+                  onPress={undo}
                   loading={busy}
-                  testID="end-innings-button"
+                  testID="undo-button"
+                />
+              </View>
+              {live.innings.innings_number === 1 && (
+                <View className="flex-1 mx-1.5">
+                  <Button
+                    label="End Innings"
+                    variant="secondary"
+                    iconLeft={<Feather name="square" size={16} color="#0D0D0D" />}
+                    onPress={endInningsAndStartNext}
+                    loading={busy}
+                    testID="end-innings-button"
+                  />
+                </View>
+              )}
+            </View>
+            {live.innings.innings_number >= 2 && (
+              <View className="mt-3">
+                <Button
+                  label="Finish Match"
+                  onPress={() => router.push(`/(tabs)/matches/${matchId}/result`)}
+                  testID="finish-match-button"
                 />
               </View>
             )}
-          </View>
-          {live.innings.innings_number >= 2 && (
             <View className="mt-3">
               <Button
-                label="Finish Match"
-                onPress={() => router.push(`/(tabs)/matches/${matchId}/result`)}
-                testID="finish-match-button"
+                label="View Live Score"
+                iconLeft={<Feather name="bar-chart-2" size={16} color="#FFFFFF" />}
+                onPress={() => router.push(`/(tabs)/matches/${matchId}/live`)}
+                testID="back-to-live"
               />
             </View>
-          )}
-          <View className="mt-3">
-            <Button
-              label="View Live Score"
-              onPress={() => router.push(`/(tabs)/matches/${matchId}/live`)}
-              testID="back-to-live"
-            />
           </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
