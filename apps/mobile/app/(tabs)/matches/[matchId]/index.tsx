@@ -202,22 +202,7 @@ export default function GameRoomScreen() {
         </View>
 
         {/* Actions */}
-        {myRow &&
-          myRow.invitation_status === 'CONFIRMED' &&
-          myRow.attendance_status === 'PENDING' && (
-            <View className="mt-4">
-              <Button
-                label="I'm Running Late"
-                variant="secondary"
-                onPress={() =>
-                  withBusy(() => apiClient.updateMyAttendance(matchId, 'RUNNING_LATE'))
-                }
-                loading={busy}
-                testID="mark-running-late"
-              />
-            </View>
-          )}
-        <View className="mt-3">
+        <View className="mt-4">
           <Button
             label="Check In"
             variant="secondary"
