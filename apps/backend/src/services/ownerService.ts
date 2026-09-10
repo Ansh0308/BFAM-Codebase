@@ -1,16 +1,17 @@
 import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
-import { ForbiddenActionError, TurfNotFoundError } from '../domain/errors';
+import { ForbiddenActionError, TurfNotFoundError, VenueNotFoundError } from '../domain/errors';
 
 interface TurfRow {
   turf_id: string;
   owner_id: string;
+  venue_id: string | null;
 }
 
 async function fetchTurfOrThrow(turfId: string): Promise<TurfRow> {
   const [turf] = await sequelize.query<TurfRow>(
-    'SELECT turf_id, owner_id FROM turfs WHERE turf_id = :turfId AND deleted_at IS NULL',
+    'SELECT turf_id, owner_id, venue_id FROM turfs WHERE turf_id = :turfId AND deleted_at IS NULL',
     { type: QueryTypes.SELECT, replacements: { turfId } },
   );
   if (!turf) throw new TurfNotFoundError(turfId);
@@ -23,39 +24,224 @@ async function assertIsOwner(turf: TurfRow, actorUserId: string) {
   }
 }
 
+interface VenueRow {
+  venue_id: string;
+  owner_id: string;
+  venue_name: string;
+  address_line: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+}
+
+async function fetchVenueOrThrow(venueId: string): Promise<VenueRow> {
+  const [venue] = await sequelize.query<VenueRow>(
+    'SELECT * FROM venues WHERE venue_id = :venueId AND deleted_at IS NULL',
+    { type: QueryTypes.SELECT, replacements: { venueId } },
+  );
+  if (!venue) throw new VenueNotFoundError(venueId);
+  return venue;
+}
+
+async function assertOwnsVenue(venue: VenueRow, actorUserId: string) {
+  if (venue.owner_id !== actorUserId) {
+    throw new ForbiddenActionError('Only this venue’s owner can do that.');
+  }
+}
+
 // Owner Dashboard (module 2.12, PRD §8.3) — every turf this owner runs.
 export async function listMyTurfs(ownerUserId: string) {
   return sequelize.query(
-    `SELECT * FROM turfs WHERE owner_id = :ownerUserId AND deleted_at IS NULL ORDER BY created_at DESC`,
+    `SELECT t.*, v.venue_name FROM turfs t
+     LEFT JOIN venues v ON v.venue_id = t.venue_id
+     WHERE t.owner_id = :ownerUserId AND t.deleted_at IS NULL
+     ORDER BY t.created_at DESC`,
     { type: QueryTypes.SELECT, replacements: { ownerUserId } },
   );
+}
+
+// Venues (feedback backlog A-2) — a display/grouping layer over one or more
+// `turfs` rows at the same physical location (e.g. "Redline Sports Complex"
+// grouping Pitch 1/Pitch 2). Each turf under a venue is still its own
+// independently bookable listing; nothing about booking changes.
+export interface CreateVenueInput {
+  venue_name: string;
+  address_line: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+}
+
+export async function createVenue(ownerUserId: string, input: CreateVenueInput) {
+  const venueId = randomUUID();
+  const now = new Date();
+  await sequelize.getQueryInterface().bulkInsert('venues', [
+    {
+      venue_id: venueId,
+      owner_id: ownerUserId,
+      venue_name: input.venue_name,
+      address_line: input.address_line,
+      city: input.city,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    },
+  ]);
+  return fetchVenueOrThrow(venueId);
+}
+
+export async function listMyVenues(ownerUserId: string) {
+  return sequelize.query(
+    `SELECT v.*,
+       (SELECT COUNT(*) FROM turfs t WHERE t.venue_id = v.venue_id AND t.deleted_at IS NULL) AS pitch_count
+     FROM venues v
+     WHERE v.owner_id = :ownerUserId AND v.deleted_at IS NULL
+     ORDER BY v.created_at DESC`,
+    { type: QueryTypes.SELECT, replacements: { ownerUserId } },
+  );
+}
+
+export async function getVenueForOwner(venueId: string, ownerUserId: string) {
+  const venue = await fetchVenueOrThrow(venueId);
+  await assertOwnsVenue(venue, ownerUserId);
+  const turfs = await sequelize.query(
+    'SELECT * FROM turfs WHERE venue_id = :venueId AND deleted_at IS NULL ORDER BY created_at ASC',
+    { type: QueryTypes.SELECT, replacements: { venueId } },
+  );
+  return { ...venue, turfs };
+}
+
+export type UpdateVenueInput = Partial<CreateVenueInput>;
+
+// Editing a venue's address cascades to every pitch under it — confirmed
+// with the founder that a venue's pitches share one real-world address
+// rather than independently-editable ones (see the migration's comment).
+// turf_name/description/ball_types_supported etc. are untouched — only the
+// address-shaped columns a venue actually owns.
+export async function updateVenue(venueId: string, ownerUserId: string, input: UpdateVenueInput) {
+  const venue = await fetchVenueOrThrow(venueId);
+  await assertOwnsVenue(venue, ownerUserId);
+
+  const now = new Date();
+  const nextVenue = { ...venue, ...input };
+  await sequelize.getQueryInterface().bulkUpdate(
+    'venues',
+    {
+      venue_name: nextVenue.venue_name,
+      address_line: nextVenue.address_line,
+      city: nextVenue.city,
+      latitude: nextVenue.latitude,
+      longitude: nextVenue.longitude,
+      updated_at: now,
+    },
+    { venue_id: venueId },
+  );
+
+  const addressChanged =
+    input.address_line !== undefined ||
+    input.city !== undefined ||
+    input.latitude !== undefined ||
+    input.longitude !== undefined;
+  if (addressChanged) {
+    await sequelize.getQueryInterface().bulkUpdate(
+      'turfs',
+      {
+        address_line: nextVenue.address_line,
+        city: nextVenue.city,
+        latitude: nextVenue.latitude,
+        longitude: nextVenue.longitude,
+        updated_at: now,
+      },
+      { venue_id: venueId },
+    );
+  }
+
+  return getVenueForOwner(venueId, ownerUserId);
+}
+
+// Retroactively groups an already-existing standalone turf into a venue —
+// locks its address to the venue's, same as a pitch created under the
+// venue from the start.
+export async function assignTurfToVenue(turfId: string, ownerUserId: string, venueId: string) {
+  const turf = await fetchTurfOrThrow(turfId);
+  await assertIsOwner(turf, ownerUserId);
+  const venue = await fetchVenueOrThrow(venueId);
+  await assertOwnsVenue(venue, ownerUserId);
+
+  await sequelize.getQueryInterface().bulkUpdate(
+    'turfs',
+    {
+      venue_id: venueId,
+      address_line: venue.address_line,
+      city: venue.city,
+      latitude: venue.latitude,
+      longitude: venue.longitude,
+      updated_at: new Date(),
+    },
+    { turf_id: turfId },
+  );
+
+  return getTurfForOwner(turfId, ownerUserId);
 }
 
 export interface CreateTurfInput {
   turf_name: string;
   description?: string | null;
-  address_line: string;
-  city: string;
-  latitude: number;
-  longitude: number;
+  // Required unless venue_id is given — a pitch created under a venue
+  // inherits (and stays locked to) that venue's address (backlog A-2).
+  address_line?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
   ball_types_supported?: string[];
+  venue_id?: string | null;
 }
 
 // Turf Management (module 2.12, PRD §8.3/§9.2) — the module 2.3 turfService
 // only ever read turfs (discovery); this is the first owner-authoring path.
 export async function createTurf(ownerUserId: string, input: CreateTurfInput) {
+  let addressLine = input.address_line;
+  let city = input.city;
+  let latitude = input.latitude;
+  let longitude = input.longitude;
+
+  if (input.venue_id) {
+    const venue = await fetchVenueOrThrow(input.venue_id);
+    await assertOwnsVenue(venue, ownerUserId);
+    addressLine = venue.address_line;
+    city = venue.city;
+    latitude = venue.latitude;
+    longitude = venue.longitude;
+  }
+
+  // Guaranteed non-null by createTurfSchema's superRefine (address fields
+  // required unless venue_id is set) — the venue branch above fills them
+  // from the venue either way, so this can't actually happen; it's here so
+  // TypeScript knows the values are defined below, not a real runtime path.
+  if (
+    addressLine === undefined ||
+    city === undefined ||
+    latitude === undefined ||
+    longitude === undefined
+  ) {
+    throw new Error('Address, city, latitude, and longitude are required.');
+  }
+
   const turfId = randomUUID();
   const now = new Date();
   await sequelize.getQueryInterface().bulkInsert('turfs', [
     {
       turf_id: turfId,
       owner_id: ownerUserId,
+      venue_id: input.venue_id ?? null,
       turf_name: input.turf_name,
       description: input.description ?? null,
-      address_line: input.address_line,
-      city: input.city,
-      latitude: input.latitude,
-      longitude: input.longitude,
+      address_line: addressLine,
+      city: city,
+      latitude: latitude,
+      longitude: longitude,
       ball_types_supported: JSON.stringify(input.ball_types_supported ?? []),
       stadium_sound_enabled: true,
       turf_status: 'ACTIVE',
@@ -71,10 +257,12 @@ export async function createTurf(ownerUserId: string, input: CreateTurfInput) {
 export async function getTurfForOwner(turfId: string, ownerUserId: string) {
   const turf = await fetchTurfOrThrow(turfId);
   await assertIsOwner(turf, ownerUserId);
-  const [row] = await sequelize.query('SELECT * FROM turfs WHERE turf_id = :turfId', {
-    type: QueryTypes.SELECT,
-    replacements: { turfId },
-  });
+  const [row] = await sequelize.query(
+    `SELECT t.*, v.venue_name FROM turfs t
+     LEFT JOIN venues v ON v.venue_id = t.venue_id
+     WHERE t.turf_id = :turfId`,
+    { type: QueryTypes.SELECT, replacements: { turfId } },
+  );
   return row;
 }
 
@@ -91,6 +279,20 @@ export interface UpdateTurfInput {
 export async function updateTurf(turfId: string, ownerUserId: string, updates: UpdateTurfInput) {
   const turf = await fetchTurfOrThrow(turfId);
   await assertIsOwner(turf, ownerUserId);
+
+  // A pitch linked to a venue has its address auto-filled and locked to
+  // that venue (backlog A-2) — edit the venue's address instead, which
+  // cascades to every pitch under it.
+  const editingAddress =
+    updates.address_line !== undefined ||
+    updates.city !== undefined ||
+    updates.latitude !== undefined ||
+    updates.longitude !== undefined;
+  if (turf.venue_id && editingAddress) {
+    throw new ForbiddenActionError(
+      'This pitch’s address is managed by its venue. Edit the venue instead.',
+    );
+  }
 
   const values: Record<string, unknown> = { updated_at: new Date() };
   if (updates.turf_name !== undefined) values.turf_name = updates.turf_name;

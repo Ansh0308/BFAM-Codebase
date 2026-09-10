@@ -9,6 +9,7 @@ import type {
   TurfAvailabilityBlock,
   TurfOperatingHours,
   TurfPricingRule,
+  VenueListItem,
 } from '@bfam/shared-types';
 import { apiClient } from '../../../../lib/apiClient';
 import { BFAMApiError } from '../../../../lib/auth';
@@ -44,6 +45,13 @@ export default function ManageTurfPage() {
   const [addressLine, setAddressLine] = useState('');
   const [city, setCity] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Venues (backlog A-2) — a pitch linked to a venue has its address
+  // auto-filled and locked there; this section is only for a standalone
+  // turf that the owner wants to retroactively group.
+  const [venues, setVenues] = useState<VenueListItem[]>([]);
+  const [assignVenueId, setAssignVenueId] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState(false);
 
   const [pricing, setPricing] = useState<TurfPricingRule[]>([]);
   const [dayType, setDayType] = useState<(typeof DAY_TYPES)[number]>('WEEKDAY');
@@ -84,6 +92,12 @@ export default function ManageTurfPage() {
           byDay[h.day_of_week] = { open: h.open_time.slice(0, 5), close: h.close_time.slice(0, 5) };
         }
         setHoursByDay(byDay);
+        if (!t.venue_id) {
+          apiClient
+            .getMyVenues()
+            .then((res) => setVenues(res.results))
+            .catch(() => setVenues([]));
+        }
       })
       .catch(() => setError('Could not load this turf.'))
       .finally(() => setLoading(false));
@@ -96,14 +110,33 @@ export default function ManageTurfPage() {
   async function saveTurf() {
     setError(null);
     try {
-      const t = await apiClient.updateTurf(turfId, {
-        turf_name: turfName,
-        address_line: addressLine,
-        city,
-      });
+      // A venue-linked pitch's address is locked to its venue (backlog
+      // A-2) — never send address fields for it, or updateTurf 403s.
+      const t = await apiClient.updateTurf(
+        turfId,
+        turf?.venue_id
+          ? { turf_name: turfName }
+          : { turf_name: turfName, address_line: addressLine, city },
+      );
       setTurf(t);
     } catch (err) {
       setError(err instanceof BFAMApiError ? err.message : 'Could not save turf details.');
+    }
+  }
+
+  async function assignToVenue() {
+    if (!assignVenueId) return;
+    setAssigning(true);
+    setError(null);
+    try {
+      await apiClient.assignTurfToVenue(turfId, assignVenueId);
+      load();
+    } catch (err) {
+      setError(
+        err instanceof BFAMApiError ? err.message : 'Could not assign this turf to a venue.',
+      );
+    } finally {
+      setAssigning(false);
     }
   }
 
@@ -210,9 +243,56 @@ export default function ManageTurfPage() {
             Turf Details
           </h2>
           <TextInput label="Turf Name" value={turfName} onChange={setTurfName} />
-          <TextInput label="Address" value={addressLine} onChange={setAddressLine} />
-          <TextInput label="City" value={city} onChange={setCity} />
+          {turf.venue_id ? (
+            <>
+              <p
+                className="font-ui text-micro text-text-tertiary mb-2"
+                data-testid="turf-venue-note"
+              >
+                {turf.venue_name} · address is managed by this venue.
+              </p>
+              <TextInput label="Address" value={addressLine} onChange={() => {}} disabled />
+              <TextInput label="City" value={city} onChange={() => {}} disabled />
+            </>
+          ) : (
+            <>
+              <TextInput label="Address" value={addressLine} onChange={setAddressLine} />
+              <TextInput label="City" value={city} onChange={setCity} />
+            </>
+          )}
           <PrimaryButton onClick={saveTurf}>Save Details</PrimaryButton>
+
+          {!turf.venue_id && venues.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-border-subtle">
+              <h3 className="font-ui font-bold text-body text-text-secondary uppercase text-micro mb-2">
+                Group into a Venue
+              </h3>
+              <p className="font-ui text-micro text-text-tertiary mb-3">
+                Already have another pitch at this same location? Group this turf under an existing
+                venue — its address will switch to the venue&apos;s.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-3" data-testid="assign-venue-select">
+                {venues.map((v) => (
+                  <button
+                    key={v.venue_id}
+                    type="button"
+                    onClick={() => setAssignVenueId(v.venue_id)}
+                    data-testid={`assign-venue-${v.venue_id}`}
+                    className={`rounded-md border px-4 py-2 font-ui text-body ${
+                      assignVenueId === v.venue_id
+                        ? 'bg-brand-red border-brand-red text-white font-bold'
+                        : 'bg-surface border-border-strong text-text-primary'
+                    }`}
+                  >
+                    {v.venue_name}
+                  </button>
+                ))}
+              </div>
+              <PrimaryButton onClick={assignToVenue} disabled={!assignVenueId || assigning}>
+                {assigning ? 'Assigning…' : 'Assign to Venue'}
+              </PrimaryButton>
+            </div>
+          )}
 
           <div className="flex items-center justify-between mt-6 pt-6 border-t border-border-subtle">
             <span className="font-ui text-body text-text-primary">Stadium Sound</span>

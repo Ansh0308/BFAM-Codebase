@@ -8,6 +8,7 @@ import type {
   TurfAvailabilityBlock,
   TurfOperatingHours,
   TurfPricingRule,
+  VenueListItem,
 } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { ScreenContainer } from '../../src/components/ScreenContainer';
@@ -59,6 +60,13 @@ export default function ManageTurfScreen() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [savingSound, setSavingSound] = useState(false);
 
+  // Venues (backlog A-2) — a pitch linked to a venue has its address
+  // auto-filled and locked there; this section is only for a standalone
+  // turf that the owner wants to retroactively group.
+  const [venues, setVenues] = useState<VenueListItem[]>([]);
+  const [assignVenueId, setAssignVenueId] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState(false);
+
   const [pricing, setPricing] = useState<TurfPricingRule[]>([]);
   const [dayType, setDayType] = useState<'WEEKDAY' | 'WEEKEND' | 'HOLIDAY'>('WEEKDAY');
   const [startTime, setStartTime] = useState('06:00');
@@ -102,10 +110,32 @@ export default function ManageTurfScreen() {
           byDay[h.day_of_week] = { open: h.open_time.slice(0, 5), close: h.close_time.slice(0, 5) };
         }
         setHoursByDay(byDay);
+        if (!t.venue_id) {
+          apiClient
+            .getMyVenues()
+            .then((res) => setVenues(res.results))
+            .catch(() => setVenues([]));
+        }
       })
       .catch(() => setError('Could not load this turf.'))
       .finally(() => setLoading(false));
   }, [turfId]);
+
+  async function assignToVenue() {
+    if (!assignVenueId) return;
+    setAssigning(true);
+    setError(null);
+    try {
+      await apiClient.assignTurfToVenue(turfId, assignVenueId);
+      load();
+    } catch (err) {
+      setError(
+        err instanceof BFAMApiError ? err.message : 'Could not assign this turf to a venue.',
+      );
+    } finally {
+      setAssigning(false);
+    }
+  }
 
   useEffect(() => {
     load();
@@ -115,11 +145,14 @@ export default function ManageTurfScreen() {
     setSavingTurf(true);
     setError(null);
     try {
-      const t = await apiClient.updateTurf(turfId, {
-        turf_name: turfName,
-        address_line: addressLine,
-        city,
-      });
+      // A venue-linked pitch's address is locked to its venue (backlog
+      // A-2) — never send address fields for it, or updateTurf 403s.
+      const t = await apiClient.updateTurf(
+        turfId,
+        turf?.venue_id
+          ? { turf_name: turfName }
+          : { turf_name: turfName, address_line: addressLine, city },
+      );
       setTurf(t);
     } catch (err) {
       setError(err instanceof BFAMApiError ? err.message : 'Could not save turf details.');
@@ -256,19 +289,63 @@ export default function ManageTurfScreen() {
         onChangeText={setTurfName}
         testID="edit-turf-name"
       />
-      <TextField
-        label="Address"
-        value={addressLine}
-        onChangeText={setAddressLine}
-        testID="edit-turf-address"
-      />
-      <TextField label="City" value={city} onChangeText={setCity} testID="edit-turf-city" />
+      {turf.venue_id ? (
+        <>
+          <Text className="font-ui text-micro text-text-tertiary mb-3" testID="turf-venue-note">
+            {turf.venue_name} · address is managed by this venue.
+          </Text>
+          <TextField
+            label="Address"
+            value={addressLine}
+            editable={false}
+            testID="edit-turf-address"
+          />
+          <TextField label="City" value={city} editable={false} testID="edit-turf-city" />
+        </>
+      ) : (
+        <>
+          <TextField
+            label="Address"
+            value={addressLine}
+            onChangeText={setAddressLine}
+            testID="edit-turf-address"
+          />
+          <TextField label="City" value={city} onChangeText={setCity} testID="edit-turf-city" />
+        </>
+      )}
       <Button
         label="Save Details"
         onPress={saveTurf}
         loading={savingTurf}
         testID="save-turf-details"
       />
+
+      {!turf.venue_id && venues.length > 0 && (
+        <View className="mt-6">
+          <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
+            Group into a Venue
+          </Text>
+          <Text className="font-ui text-micro text-text-tertiary mb-3">
+            Already have another pitch at this same location? Group this turf under an existing
+            venue — its address will switch to the venue&apos;s.
+          </Text>
+          <ChipSelect
+            label="Venue"
+            options={venues.map((v) => ({ value: v.venue_id, label: v.venue_name }))}
+            value={assignVenueId}
+            onChange={setAssignVenueId}
+            testID="assign-venue-select"
+          />
+          <Button
+            label="Assign to Venue"
+            variant="secondary"
+            onPress={assignToVenue}
+            loading={assigning}
+            disabled={!assignVenueId}
+            testID="assign-to-venue"
+          />
+        </View>
+      )}
 
       <View className="mt-6">
         <ToggleRow

@@ -676,17 +676,48 @@ export const finalizeMatchSchema = z.object({
 
 // ---- Module 2.12: Turf Owner & Turf Staff ----
 
-export const createTurfSchema = z.object({
+// address_line/city/latitude/longitude are optional at the field level —
+// required unless venue_id is set (superRefine below), since a pitch
+// created under a venue inherits that venue's address (backlog A-2).
+const turfFieldsSchema = z.object({
   turf_name: z.string().min(2).max(150),
   description: z.string().max(2000).nullable().optional(),
+  address_line: z.string().min(2).max(255).optional(),
+  city: z.string().min(2).max(100).optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  ball_types_supported: z.array(z.enum(BALL_TYPES)).optional(),
+  venue_id: uuid.optional(),
+});
+
+export const createTurfSchema = turfFieldsSchema.superRefine((data, ctx) => {
+  if (data.venue_id) return;
+  for (const field of ['address_line', 'city', 'latitude', 'longitude'] as const) {
+    if (data[field] === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [field],
+        message: 'Required unless venue_id is set.',
+      });
+    }
+  }
+});
+
+export const updateTurfSchema = turfFieldsSchema.partial();
+
+export const createVenueSchema = z.object({
+  venue_name: z.string().min(2).max(150),
   address_line: z.string().min(2).max(255),
   city: z.string().min(2).max(100),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
-  ball_types_supported: z.array(z.enum(BALL_TYPES)).optional(),
 });
 
-export const updateTurfSchema = createTurfSchema.partial();
+export const updateVenueSchema = createVenueSchema.partial();
+
+export const assignTurfToVenueSchema = z.object({
+  venue_id: uuid,
+});
 
 export const setSoundSettingSchema = z.object({
   stadium_sound_enabled: z.boolean(),

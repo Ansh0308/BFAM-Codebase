@@ -26,6 +26,18 @@ export function OwnerDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Venues (backlog A-2) — group pitches that share a venue under one card
+  // ("Redline Sports Complex — 2 pitches"); a standalone turf keeps its own
+  // card exactly as before this feature existed.
+  const standaloneTurfs = turfs.filter((t) => !t.venue_id);
+  const venueGroups = new Map<string, { venue_name: string; turfs: Turf[] }>();
+  for (const t of turfs) {
+    if (!t.venue_id) continue;
+    const group = venueGroups.get(t.venue_id) ?? { venue_name: t.venue_name ?? '', turfs: [] };
+    group.turfs.push(t);
+    venueGroups.set(t.venue_id, group);
+  }
+
   useEffect(() => {
     load();
   }, [load]);
@@ -76,9 +88,18 @@ export function OwnerDashboard() {
           <Text className="font-ui font-bold text-text-secondary text-micro uppercase">
             My Turfs ({turfs.length})
           </Text>
-          <Pressable onPress={() => router.push('/owner-turfs/create')} testID="add-turf-button">
-            <Text className="font-ui font-bold text-body text-brand-red">+ Add Turf</Text>
-          </Pressable>
+          <View className="flex-row">
+            <Pressable
+              onPress={() => router.push('/owner-venues/create')}
+              testID="add-venue-button"
+              className="mr-4"
+            >
+              <Text className="font-ui font-bold text-body text-brand-red">+ Add Venue</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/owner-turfs/create')} testID="add-turf-button">
+              <Text className="font-ui font-bold text-body text-brand-red">+ Add Turf</Text>
+            </Pressable>
+          </View>
         </View>
 
         {loading ? (
@@ -93,19 +114,36 @@ export function OwnerDashboard() {
             No turfs yet — add your first one to get started.
           </Text>
         ) : (
-          turfs.map((t) => (
-            <Pressable
-              key={t.turf_id}
-              onPress={() => router.push(`/owner-turfs/${t.turf_id}`)}
-              className="bg-surface-alt rounded-lg p-4 mb-3"
-              testID={`turf-card-${t.turf_id}`}
-            >
-              <Text className="font-ui font-bold text-body text-text-primary">{t.turf_name}</Text>
-              <Text className="font-ui text-micro text-text-tertiary mt-1">
-                {t.city} · {t.turf_status}
-              </Text>
-            </Pressable>
-          ))
+          <>
+            {Array.from(venueGroups.entries()).map(([venueId, group]) => (
+              <Pressable
+                key={venueId}
+                onPress={() => router.push(`/owner-venues/${venueId}`)}
+                className="bg-surface-alt rounded-lg p-4 mb-3"
+                testID={`venue-card-${venueId}`}
+              >
+                <Text className="font-ui font-bold text-body text-text-primary">
+                  {group.venue_name}
+                </Text>
+                <Text className="font-ui text-micro text-text-tertiary mt-1">
+                  {group.turfs.length} pitch{group.turfs.length === 1 ? '' : 'es'}
+                </Text>
+              </Pressable>
+            ))}
+            {standaloneTurfs.map((t) => (
+              <Pressable
+                key={t.turf_id}
+                onPress={() => router.push(`/owner-turfs/${t.turf_id}`)}
+                className="bg-surface-alt rounded-lg p-4 mb-3"
+                testID={`turf-card-${t.turf_id}`}
+              >
+                <Text className="font-ui font-bold text-body text-text-primary">{t.turf_name}</Text>
+                <Text className="font-ui text-micro text-text-tertiary mt-1">
+                  {t.city} · {t.turf_status}
+                </Text>
+              </Pressable>
+            ))}
+          </>
         )}
 
         <View className="mb-10" />

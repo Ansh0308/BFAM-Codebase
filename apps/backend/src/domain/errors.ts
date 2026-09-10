@@ -10,6 +10,13 @@ export class TurfNotFoundError extends Error {
   }
 }
 
+export class VenueNotFoundError extends Error {
+  constructor(venueId: string) {
+    super(`Venue ${venueId} not found`);
+    this.name = 'VenueNotFoundError';
+  }
+}
+
 export class BookingNotFoundError extends Error {
   constructor(bookingId: string) {
     super(`Booking ${bookingId} not found`);

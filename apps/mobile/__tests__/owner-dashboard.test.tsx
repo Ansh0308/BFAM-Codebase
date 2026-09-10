@@ -60,6 +60,47 @@ describe('OwnerDashboard (module 2.12, PRD §8.3)', () => {
     expect(mockPush).toHaveBeenCalledWith('/owner-turfs/t1');
   });
 
+  it('groups pitches that share a venue under one card (backlog A-2)', async () => {
+    mockGetMyTurfs.mockResolvedValueOnce({
+      results: [
+        {
+          turf_id: 't1',
+          turf_name: 'Pitch 1',
+          city: 'Rajkot',
+          turf_status: 'ACTIVE',
+          venue_id: 'v1',
+          venue_name: 'Redline Sports Complex',
+        },
+        {
+          turf_id: 't2',
+          turf_name: 'Pitch 2',
+          city: 'Rajkot',
+          turf_status: 'ACTIVE',
+          venue_id: 'v1',
+          venue_name: 'Redline Sports Complex',
+        },
+        {
+          turf_id: 't3',
+          turf_name: 'Solo Turf',
+          city: 'Rajkot',
+          turf_status: 'ACTIVE',
+          venue_id: null,
+        },
+      ],
+    });
+
+    const { findByTestId, findByText, queryByTestId } = render(<OwnerDashboard />);
+
+    expect(await findByTestId('venue-card-v1')).toBeTruthy();
+    expect(await findByText('Redline Sports Complex')).toBeTruthy();
+    expect(await findByText('2 pitches')).toBeTruthy();
+    expect(await findByTestId('turf-card-t3')).toBeTruthy();
+    expect(queryByTestId('turf-card-t1')).toBeNull();
+
+    fireEvent.press(await findByTestId('venue-card-v1'));
+    expect(mockPush).toHaveBeenCalledWith('/owner-venues/v1');
+  });
+
   it('every quick link navigates to its own screen', async () => {
     mockGetMyTurfs.mockResolvedValueOnce({ results: [] });
     const { findByTestId } = render(<OwnerDashboard />);

@@ -143,6 +143,11 @@ export interface Turf {
   // Matches the actual DB/model column name (average_rating) — the previous
   // `averagerating` field name here didn't match the schema.
   average_rating?: number | null;
+  // Backlog A-2 — null for a standalone turf (the vast majority today).
+  // When set, address/city/lat/long are auto-filled from and locked to the
+  // venue, so every existing consumer of these fields keeps working as-is.
+  venue_id?: string | null;
+  venue_name?: string | null;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string;
@@ -160,6 +165,8 @@ export interface TurfListItem {
   cover_image_url: string | null;
   min_price_per_hour: number | null;
   distance_km: number | null;
+  venue_id: string | null;
+  venue_name: string | null;
 }
 
 export interface TurfListResponse {
@@ -211,12 +218,21 @@ export interface TurfAvailability {
   slots: AvailabilitySlot[];
 }
 
+export interface SiblingPitch {
+  turf_id: string;
+  turf_name: string;
+  min_price_per_hour: number | null;
+}
+
 export interface TurfDetails extends Turf {
   images: TurfImage[];
   facilities: TurfFacility[];
   operating_hours: TurfOperatingHours[];
   pricing: TurfPricingRule[];
   availability_preview: { date: string; slots: AvailabilitySlot[] } | null;
+  // Other pitches at the same venue (backlog A-2) — empty when venue_id is
+  // null. Each is its own independently bookable turf.
+  sibling_pitches: SiblingPitch[];
 }
 
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
@@ -663,14 +679,47 @@ export interface Notification {
 
 // ---- Module 2.12: Turf Owner & Turf Staff ----
 
-export interface CreateTurfInput {
-  turf_name: string;
-  description?: string | null;
+export interface Venue {
+  venue_id: string;
+  owner_id: string;
+  venue_name: string;
   address_line: string;
   city: string;
   latitude: number;
   longitude: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface VenueListItem extends Venue {
+  pitch_count: number;
+}
+
+export interface VenueDetails extends Venue {
+  turfs: Turf[];
+}
+
+export interface CreateVenueInput {
+  venue_name: string;
+  address_line: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+}
+
+export type UpdateVenueInput = Partial<CreateVenueInput>;
+
+export interface CreateTurfInput {
+  turf_name: string;
+  description?: string | null;
+  // Required unless venue_id is set, in which case address/city/lat/long
+  // are auto-filled from (and locked to) the venue.
+  address_line?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
   ball_types_supported?: string[];
+  venue_id?: string | null;
 }
 
 export type UpdateTurfInput = Partial<CreateTurfInput>;

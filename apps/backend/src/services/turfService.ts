@@ -56,6 +56,11 @@ interface TurfRow {
   distance_km?: number;
   cover_image_url?: string | null;
   min_price_per_hour?: number | null;
+  // Venues (backlog A-2) — an owner grouping multiple pitches at the same
+  // physical location. venue_id/venue_name are null for a standalone turf
+  // (the vast majority today), exactly as before this feature existed.
+  venue_id?: string | null;
+  venue_name?: string | null;
 }
 
 function parseBallTypes(value: TurfRow['ball_types_supported']): string[] {
@@ -119,12 +124,13 @@ export async function listTurfs(filters: TurfListFilters) {
     SELECT
       t.turf_id, t.owner_id, t.turf_name, t.description, t.address_line, t.city,
       t.latitude, t.longitude, t.ball_types_supported, t.stadium_sound_enabled,
-      t.turf_status, t.average_rating,
+      t.turf_status, t.average_rating, t.venue_id, v.venue_name,
       ${distanceExpr} AS distance_km,
       (SELECT image_url FROM turf_images ti WHERE ti.turf_id = t.turf_id ORDER BY ti.display_order ASC LIMIT 1) AS cover_image_url,
       (SELECT MIN(price_per_hour) FROM turf_pricing tp WHERE tp.turf_id = t.turf_id
         AND (tp.effective_to IS NULL OR tp.effective_to >= CURDATE())) AS min_price_per_hour
     FROM turfs t
+    LEFT JOIN venues v ON v.venue_id = t.venue_id
     WHERE ${conditions.join(' AND ')}
     ${priceHaving.length ? `HAVING ${priceHaving.join(' AND ')}` : ''}
     ORDER BY ${orderBy}
@@ -146,19 +152,47 @@ export async function listTurfs(filters: TurfListFilters) {
       cover_image_url: row.cover_image_url ?? null,
       min_price_per_hour: row.min_price_per_hour ?? null,
       distance_km: row.distance_km === null ? null : Number(row.distance_km),
+      venue_id: row.venue_id ?? null,
+      venue_name: row.venue_name ?? null,
     })),
   };
 }
 
+interface SiblingPitchRow {
+  turf_id: string;
+  turf_name: string;
+  min_price_per_hour: number | null;
+}
+
 export async function getTurfDetails(turfId: string) {
   const [turf] = await sequelize.query<TurfRow>(
-    `SELECT turf_id, owner_id, turf_name, description, address_line, city, latitude, longitude,
-            ball_types_supported, stadium_sound_enabled, turf_status, average_rating
-     FROM turfs WHERE turf_id = :turfId AND turf_status = 'ACTIVE' AND deleted_at IS NULL`,
+    `SELECT t.turf_id, t.owner_id, t.turf_name, t.description, t.address_line, t.city,
+            t.latitude, t.longitude, t.ball_types_supported, t.stadium_sound_enabled,
+            t.turf_status, t.average_rating, t.venue_id, v.venue_name
+     FROM turfs t
+     LEFT JOIN venues v ON v.venue_id = t.venue_id
+     WHERE t.turf_id = :turfId AND t.turf_status = 'ACTIVE' AND t.deleted_at IS NULL`,
     { type: QueryTypes.SELECT, replacements: { turfId } },
   );
 
   if (!turf) return null;
+
+  // Other pitches at the same venue (backlog A-2) — so a player sees them
+  // as siblings ("Redline Sports Complex — Pitch 1 / Pitch 2") rather than
+  // unrelated, identically-addressed listings. Each still links to its own
+  // independent Turf Details/booking flow, unchanged.
+  const siblingPitches = turf.venue_id
+    ? await sequelize.query<SiblingPitchRow>(
+        `SELECT t.turf_id, t.turf_name,
+           (SELECT MIN(price_per_hour) FROM turf_pricing tp WHERE tp.turf_id = t.turf_id
+             AND (tp.effective_to IS NULL OR tp.effective_to >= CURDATE())) AS min_price_per_hour
+         FROM turfs t
+         WHERE t.venue_id = :venueId AND t.turf_id != :turfId
+           AND t.turf_status = 'ACTIVE' AND t.deleted_at IS NULL
+         ORDER BY t.turf_name ASC`,
+        { type: QueryTypes.SELECT, replacements: { venueId: turf.venue_id, turfId } },
+      )
+    : [];
 
   const [images, facilities, operatingHours, pricing] = await Promise.all([
     sequelize.query(
@@ -189,6 +223,8 @@ export async function getTurfDetails(turfId: string) {
 
   return {
     ...turf,
+    venue_id: turf.venue_id ?? null,
+    venue_name: turf.venue_name ?? null,
     ball_types_supported: parseBallTypes(turf.ball_types_supported),
     images,
     facilities,
@@ -199,6 +235,11 @@ export async function getTurfDetails(turfId: string) {
     availability_preview: availabilityPreview
       ? { date: availabilityPreview.date, slots: availabilityPreview.slots.slice(0, 8) }
       : null,
+    sibling_pitches: siblingPitches.map((s) => ({
+      turf_id: s.turf_id,
+      turf_name: s.turf_name,
+      min_price_per_hour: s.min_price_per_hour ?? null,
+    })),
   };
 }
 
