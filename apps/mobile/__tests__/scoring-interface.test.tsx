@@ -7,9 +7,11 @@ jest.mock('../src/lib/apiClient', () => ({
     getGameRoom: jest.fn(),
     getMatchIntro: jest.fn(),
     getLiveScore: jest.fn(),
+    getScorecard: jest.fn(),
     recordBall: jest.fn(),
     undoBall: jest.fn(),
     startInnings: jest.fn(),
+    setExtrasCountTowardScore: jest.fn(),
   },
 }));
 
@@ -25,6 +27,7 @@ jest.mock('expo-router', () => ({
 const mockGetGameRoom = apiClient.getGameRoom as jest.Mock;
 const mockGetMatchIntro = apiClient.getMatchIntro as jest.Mock;
 const mockGetLiveScore = apiClient.getLiveScore as jest.Mock;
+const mockGetScorecard = apiClient.getScorecard as jest.Mock;
 const mockRecordBall = apiClient.recordBall as jest.Mock;
 
 import ScoringInterfaceScreen from '../app/(tabs)/matches/[matchId]/scoring';
@@ -61,6 +64,11 @@ describe('Scoring Interface (backlog A-7: fewer taps)', () => {
     mockGetGameRoom.mockResolvedValue(ROOM);
     mockGetMatchIntro.mockResolvedValue(null);
     mockGetLiveScore.mockResolvedValue(LIVE_SCORE);
+    mockGetScorecard.mockResolvedValue({
+      match_id: 'match-1',
+      extras_count_toward_score: true,
+      innings: [],
+    });
     mockRecordBall.mockResolvedValue({
       event: {},
       innings: LIVE_SCORE.innings,

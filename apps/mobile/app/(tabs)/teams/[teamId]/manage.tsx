@@ -107,7 +107,9 @@ export default function ManageTeamScreen() {
           <View className="flex-row items-center flex-1">
             <Avatar size={36} />
             <View className="ml-3">
-              <Text className="text-text-primary text-body">{member.bfam_id}</Text>
+              <Text className="text-text-primary text-body">
+                {member.full_name || member.bfam_id}
+              </Text>
               {member.role_in_team === 'CAPTAIN' && (
                 <View className="rounded-full border border-brand-red px-2 py-0.5 mt-1 self-start">
                   <Text className="font-ui text-micro font-bold text-brand-red">Captain</Text>

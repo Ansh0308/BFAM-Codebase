@@ -250,11 +250,12 @@ export async function getGameRoom(matchId: string, _actorUserId: string) {
   const players = await sequelize.query<
     MatchPlayerRow & {
       bfam_id: string;
+      full_name: string | null;
       favorite_cricketer_name: string | null;
       side_label: string | null;
     }
   >(
-    `SELECT mp.*, p.bfam_id, p.favorite_cricketer_name, mt.side_label
+    `SELECT mp.*, p.bfam_id, p.full_name, p.favorite_cricketer_name, mt.side_label
      FROM match_players mp
      JOIN players p ON p.player_id = mp.player_id
      LEFT JOIN match_teams mt ON mt.match_team_id = mp.match_team_id

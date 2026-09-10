@@ -7,6 +7,7 @@ import { AuthScreenBackground } from '../src/components/AuthScreenBackground';
 import { Avatar } from '../src/components/Avatar';
 import { ChipSelect } from '../src/components/ChipSelect';
 import { DateOfBirthField } from '../src/components/DateOfBirthField';
+import { TextField } from '../src/components/TextField';
 import { Button } from '../src/components/Button';
 import {
   AVATAR_PRESETS,
@@ -57,6 +58,7 @@ export default function ProfileSetup() {
   const authUser = useAuthStore((s) => s.user);
   const isPlayer = authUser?.role === 'PLAYER';
 
+  const [fullName, setFullName] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [playingRole, setPlayingRole] = useState<string | null>(null);
   const [battingStyle, setBattingStyle] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export default function ProfileSetup() {
     apiClient
       .getMyProfile()
       .then((profile) => {
+        setFullName(profile.full_name ?? '');
         setPhotoUri(profile.profile_photo_url);
         setPlayingRole(profile.playing_role);
         setBattingStyle(profile.batting_style);
@@ -146,6 +149,7 @@ export default function ProfileSetup() {
     setLoading(true);
     try {
       await apiClient.updateMyProfile({
+        full_name: fullName.trim() || null,
         profile_photo_url: photoUri,
         ...(isPlayer
           ? {
@@ -240,6 +244,14 @@ export default function ProfileSetup() {
           </View>
         </ScrollView>
       </View>
+
+      <TextField
+        label="Full Name"
+        value={fullName}
+        onChangeText={setFullName}
+        placeholder="So teammates can find you by name"
+        testID="full-name-input"
+      />
 
       {isPlayer ? (
         <>

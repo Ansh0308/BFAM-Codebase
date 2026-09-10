@@ -30,6 +30,10 @@ export interface MyProfile {
   reliability_score: string | null;
   favorite_cricketer_name: string | null;
   favorite_cricketer_external_id: string | null;
+  // Backlog A-9 — shown in place of the BFAM ID everywhere a player is
+  // listed; null for a player who hasn't set one yet, and always null for
+  // non-PLAYER roles (no `players` row to hold it).
+  full_name: string | null;
 }
 
 export async function getMyProfile(userId: string): Promise<MyProfile | null> {
@@ -62,6 +66,7 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       reliability_score: null,
       favorite_cricketer_name: null,
       favorite_cricketer_external_id: null,
+      full_name: null,
     };
   }
 
@@ -76,8 +81,9 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
     reliability_score: string | null;
     favorite_cricketer_name: string | null;
     favorite_cricketer_external_id: string | null;
+    full_name: string | null;
   }>(
-    'SELECT playing_role, batting_style, bowling_style, experience_level, date_of_birth, gender, skill_rating, reliability_score, favorite_cricketer_name, favorite_cricketer_external_id FROM players WHERE user_id = :userId LIMIT 1',
+    'SELECT playing_role, batting_style, bowling_style, experience_level, date_of_birth, gender, skill_rating, reliability_score, favorite_cricketer_name, favorite_cricketer_external_id, full_name FROM players WHERE user_id = :userId LIMIT 1',
     { type: QueryTypes.SELECT, replacements: { userId } },
   );
 
@@ -94,6 +100,7 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       reliability_score: null,
       favorite_cricketer_name: null,
       favorite_cricketer_external_id: null,
+      full_name: null,
     }),
   };
 }
@@ -112,6 +119,7 @@ export interface UpdateProfileInput {
   experience_level?: string;
   date_of_birth?: string | null;
   gender?: string | null;
+  full_name?: string | null;
 }
 
 // Thrown when the requested email is already registered to another account
@@ -157,6 +165,7 @@ export async function updateMyProfile(
     if ('experience_level' in input) playerFields.experience_level = input.experience_level;
     if ('date_of_birth' in input) playerFields.date_of_birth = input.date_of_birth;
     if ('gender' in input) playerFields.gender = input.gender;
+    if ('full_name' in input) playerFields.full_name = input.full_name;
 
     if (Object.keys(playerFields).length > 0) {
       const setClauses = Object.keys(playerFields)

@@ -294,7 +294,9 @@ function RosterRow({
         <Avatar size={36} />
         <View className="ml-3 flex-1">
           <View className="flex-row items-center">
-            <Text className="text-text-primary text-body">{player.bfam_id}</Text>
+            <Text className="text-text-primary text-body">
+              {player.full_name || player.bfam_id}
+            </Text>
             {player.participant_role === 'CAPTAIN' && (
               <View className="ml-2 rounded-full border border-brand-red px-2 py-0.5">
                 <Text className="font-ui text-micro font-bold text-brand-red">Captain</Text>

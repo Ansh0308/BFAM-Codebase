@@ -93,6 +93,11 @@ export const registerUserSchema = z.object({
   // persisted onto the `players` row created alongside `users`.
   favorite_cricketer_name: z.string().max(100).nullable().optional(),
   favorite_cricketer_external_id: z.string().max(50).nullable().optional(),
+  // Backlog A-9: a real name to show in place of the BFAM ID everywhere a
+  // player is listed (roster rows, scoring selectors, invite lists).
+  // Optional at signup — collectible/editable later via Profile Setup —
+  // since backfilling it for every account isn't feasible.
+  full_name: z.string().max(100).nullable().optional(),
   // Liability waiver consent (PRD §32.9) — must be an affirmative true,
   // never defaulted or inferred. Registration is rejected outright
   // without it, so a users row with liability_waiver_accepted_at set is
@@ -150,6 +155,7 @@ export const socialCompleteSchema = z.object({
   role: z.enum(SELF_SERVICE_ROLES as [string, ...string[]]),
   favorite_cricketer_name: z.string().max(100).nullable().optional(),
   favorite_cricketer_external_id: z.string().max(50).nullable().optional(),
+  full_name: z.string().max(100).nullable().optional(),
   // Same liability waiver requirement as phone/password registration
   // (registerUserSchema) — the social signup branch must not skip it.
   waiver_accepted: z.literal(true),
@@ -534,6 +540,8 @@ export const updateProfileSchema = z.object({
   batting_style: z.enum(BATTING_STYLES).nullable().optional(),
   bowling_style: z.enum(BOWLING_ARMS).nullable().optional(),
   experience_level: z.enum(EXPERIENCE_LEVELS).optional(),
+  // Backlog A-9.
+  full_name: z.string().max(100).nullable().optional(),
 });
 
 // POST /profile/email/send-otp and /verify-otp — optional post-signup
@@ -648,12 +656,29 @@ export const confirmPlayingXiSchema = z.object({
   side: z.enum(['TEAM_A', 'TEAM_B']),
 });
 
+// Backlog A-10: assign each confirmed roster player to a match_team_id
+// before scoring can restrict batter/bowler pickers to the correct side.
+export const assignPlayerSidesSchema = z.object({
+  assignments: z
+    .array(
+      z.object({
+        player_id: uuid,
+        match_team_id: uuid,
+      }),
+    )
+    .min(1),
+});
+
 export const recordTossSchema = z.object({
   toss_winner_match_team_id: uuid,
   decision: z.enum(['BAT', 'BOWL']),
 });
 
 // ---- Module 2.8: Live Scoring ----
+
+export const setExtrasCountTowardScoreSchema = z.object({
+  extras_count_toward_score: z.boolean(),
+});
 
 export const startInningsSchema = z.object({
   innings_number: z.number().int().min(1),

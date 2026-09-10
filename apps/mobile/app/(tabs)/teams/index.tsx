@@ -103,6 +103,32 @@ export default function MyTeamsScreen() {
                     {item.home_city ?? 'No home city set'}
                   </Text>
                 </View>
+                {/* Backlog A-11: copy this team's details into a brand-new
+                    Create Team form — minimal-clicks alternative to
+                    starting from scratch, same precedent as Rebook Same
+                    Players (module 2.10). */}
+                <Pressable
+                  onPress={(e) => {
+                    e?.stopPropagation();
+                    router.push({
+                      pathname: '/(tabs)/teams/create',
+                      params: {
+                        copyFromTeamName: item.team_name,
+                        copyFromDescription: item.description ?? '',
+                        copyFromHomeCity: item.home_city ?? '',
+                        copyFromSkillLevel: item.skill_level ?? '',
+                        copyFromIsOpen: String(item.is_open_for_players),
+                      },
+                    });
+                  }}
+                  className="rounded-full bg-surface-alt items-center justify-center mr-2"
+                  style={{ width: 34, height: 34 }}
+                  testID={`copy-team-${item.team_id}`}
+                  accessibilityLabel={`Copy ${item.team_name} into a new team`}
+                  hitSlop={8}
+                >
+                  <Feather name="copy" size={16} color="#D80000" />
+                </Pressable>
                 <Feather name="chevron-right" size={20} color="#9A9A9A" />
               </Pressable>
             )}

@@ -244,7 +244,10 @@ export default function MatchResultScreen() {
 
         <ChipSelect
           label="Player of the Match"
-          options={confirmedPlayers.map((p) => ({ value: p.player_id, label: p.bfam_id ?? '' }))}
+          options={confirmedPlayers.map((p) => ({
+            value: p.player_id,
+            label: p.full_name || p.bfam_id || '',
+          }))}
           value={potmId}
           onChange={setPotmId}
           testID="potm-select"

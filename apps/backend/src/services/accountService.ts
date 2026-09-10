@@ -28,6 +28,8 @@ export interface CreateAccountInput {
   phoneVerified?: boolean;
   favoriteCricketerName?: string | null;
   favoriteCricketerExternalId?: string | null;
+  /** Backlog A-9 — a real name, shown in place of the BFAM ID everywhere a player is listed. */
+  fullName?: string | null;
 }
 
 export interface CreatedAccount {
@@ -95,6 +97,7 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
           skill_rating: 500,
           reliability_score: 100,
           bio: null,
+          full_name: input.fullName ?? null,
           date_of_birth: null,
           favorite_cricketer_name: input.favoriteCricketerName ?? null,
           favorite_cricketer_external_id: input.favoriteCricketerExternalId ?? null,

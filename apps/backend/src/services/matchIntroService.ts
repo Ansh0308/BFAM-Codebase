@@ -5,6 +5,7 @@ import { getIo, matchRoom } from '../realtime/io';
 import { sendNotificationToMany } from './notificationService';
 import {
   ForbiddenActionError,
+  InvalidMatchStateError,
   MatchIntroNotFoundError,
   MatchNotFoundError,
 } from '../domain/errors';
@@ -33,6 +34,7 @@ interface MatchIntroRow {
 interface PlayingXiPlayer {
   player_id: string;
   bfam_id: string;
+  full_name: string | null;
   participant_role: string;
   side_label: string | null;
 }
@@ -61,14 +63,13 @@ async function fetchIntro(matchId: string): Promise<MatchIntroRow | null> {
 // Playing XI (PRD §12.61 requirement 3): derived live from match_players
 // where invitation_status = 'CONFIRMED' — never hardcoded/separately
 // stored, so it's always exactly whoever is actually confirmed right now.
-// side_label will be null for everyone until a "assign player to side"
-// step exists (no prior module builds one — match_players.match_team_id
-// is set to null at creation and never populated) — the mobile reveal
-// screen shows a single unified list rather than pretending it can split
-// by team.
+// side_label is null until assignPlayerSides (backlog A-10) has been run
+// for a player — the mobile reveal screen falls back to a single unified
+// list when it's still null for everyone (e.g. an older match, or before
+// the organizer has assigned sides yet).
 async function getPlayingXi(matchId: string): Promise<PlayingXiPlayer[]> {
   return sequelize.query<PlayingXiPlayer>(
-    `SELECT mp.player_id, p.bfam_id, mp.participant_role, mt.side_label
+    `SELECT mp.player_id, p.bfam_id, p.full_name, mp.participant_role, mt.side_label
      FROM match_players mp
      JOIN players p ON p.player_id = mp.player_id
      LEFT JOIN match_teams mt ON mt.match_team_id = mp.match_team_id
@@ -85,9 +86,8 @@ interface MatchTeamRow {
 
 // Toss capture needs a real match_team_id per side — always available
 // (createMatch always makes two ad-hoc TEAM_A/TEAM_B rows), independent
-// of whether individual players have been assigned to a side yet (no
-// prior module builds that assignment step, so match_players.match_team_id
-// is null for everyone in this MVP — see getPlayingXi's comment).
+// of whether individual players have been assigned to a side yet via
+// assignPlayerSides (backlog A-10).
 async function getMatchTeams(matchId: string): Promise<MatchTeamRow[]> {
   return sequelize.query<MatchTeamRow>(
     'SELECT match_team_id, side_label FROM match_teams WHERE match_id = :matchId',
@@ -174,6 +174,67 @@ export async function getIntroContext(matchId: string) {
   if (!intro) throw new MatchIntroNotFoundError(matchId);
   const [players, matchTeams] = await Promise.all([getPlayingXi(matchId), getMatchTeams(matchId)]);
   return { intro, players, matchTeams };
+}
+
+// Assign Players to a Side (backlog A-10) — the step this project's own
+// module 2.7 review already flagged as missing: match_players.match_team_id
+// was never populated anywhere, so the Scoring Interface had no way to
+// restrict a striker/non-striker/bowler pick to the correct side. Every
+// CONFIRMED roster player must be assigned to exactly one of the match's
+// two match_teams rows before scoring can filter by side — done here as
+// one atomic bulk update, most naturally called right after the Playing
+// XI reveal and before the toss (per the backlog's own suggested
+// placement), but idempotent so it can be re-run if the organizer needs
+// to correct a mistake before scoring starts.
+export interface SideAssignment {
+  player_id: string;
+  match_team_id: string;
+}
+
+export async function assignPlayerSides(
+  matchId: string,
+  actorUserId: string,
+  assignments: SideAssignment[],
+) {
+  const match = await fetchMatch(matchId);
+  if (!match) throw new MatchNotFoundError(matchId);
+  await assertCanManage(match, actorUserId);
+
+  const [matchTeams, confirmedPlayers] = await Promise.all([
+    getMatchTeams(matchId),
+    sequelize.query<{ player_id: string }>(
+      `SELECT player_id FROM match_players WHERE match_id = :matchId AND invitation_status = 'CONFIRMED'`,
+      { type: QueryTypes.SELECT, replacements: { matchId } },
+    ),
+  ]);
+  const validTeamIds = new Set(matchTeams.map((t) => t.match_team_id));
+  const confirmedPlayerIds = new Set(confirmedPlayers.map((p) => p.player_id));
+
+  for (const a of assignments) {
+    if (!validTeamIds.has(a.match_team_id)) {
+      throw new InvalidMatchStateError('One of the selected sides does not belong to this match.');
+    }
+    if (!confirmedPlayerIds.has(a.player_id)) {
+      throw new InvalidMatchStateError('Only a confirmed roster player can be assigned to a side.');
+    }
+  }
+
+  await sequelize.transaction(async (transaction) => {
+    for (const a of assignments) {
+      await sequelize
+        .getQueryInterface()
+        .bulkUpdate(
+          'match_players',
+          { match_team_id: a.match_team_id },
+          { match_id: matchId, player_id: a.player_id },
+          { transaction },
+        );
+    }
+  });
+
+  const players = await getPlayingXi(matchId);
+  broadcastStage(matchId, 'SIDES_ASSIGNED', { players });
+  return { players };
 }
 
 // Playing XI reveal confirmation — the derived CONFIRMED roster IS the XI

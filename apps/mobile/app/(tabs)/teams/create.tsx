@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { TeamSkillLevel } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../src/lib/apiClient';
@@ -20,13 +20,30 @@ const SKILL_LEVELS: { value: TeamSkillLevel; label: string }[] = [
 // Create Team (PRD §12.3): name, description, skill level, home city, and
 // whether it's open for players to discover. The creator becomes Captain
 // automatically (enforced server-side, atomically, with the booking).
+//
+// Backlog A-11: "Create from an existing team" arrives here via
+// copyFrom* query params (set by My Teams' copy action) — purely a
+// client-side prefill of the same form, fully editable before saving as a
+// distinct new team. No backend changes: this still calls createTeam like
+// any from-scratch submission.
 export default function CreateTeamScreen() {
   const router = useRouter();
-  const [teamName, setTeamName] = useState('');
-  const [description, setDescription] = useState('');
-  const [homeCity, setHomeCity] = useState('');
-  const [skillLevel, setSkillLevel] = useState<TeamSkillLevel | null>(null);
-  const [isOpen, setIsOpen] = useState(true);
+  const params = useLocalSearchParams<{
+    copyFromTeamName?: string;
+    copyFromDescription?: string;
+    copyFromHomeCity?: string;
+    copyFromSkillLevel?: string;
+    copyFromIsOpen?: string;
+  }>();
+  const [teamName, setTeamName] = useState(params.copyFromTeamName ?? '');
+  const [description, setDescription] = useState(params.copyFromDescription ?? '');
+  const [homeCity, setHomeCity] = useState(params.copyFromHomeCity ?? '');
+  const [skillLevel, setSkillLevel] = useState<TeamSkillLevel | null>(
+    (params.copyFromSkillLevel as TeamSkillLevel) || null,
+  );
+  const [isOpen, setIsOpen] = useState(
+    params.copyFromIsOpen != null ? params.copyFromIsOpen === 'true' : true,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

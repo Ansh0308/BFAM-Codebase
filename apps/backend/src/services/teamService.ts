@@ -158,9 +158,13 @@ export async function getTeamDetails(teamId: string) {
   if (!team) throw new TeamNotFoundError(teamId);
 
   const members = await sequelize.query<
-    MemberRow & { bfam_id: string; favorite_cricketer_name: string | null }
+    MemberRow & {
+      bfam_id: string;
+      full_name: string | null;
+      favorite_cricketer_name: string | null;
+    }
   >(
-    `SELECT tm.*, p.bfam_id, p.favorite_cricketer_name
+    `SELECT tm.*, p.bfam_id, p.full_name, p.favorite_cricketer_name
      FROM team_members tm JOIN players p ON p.player_id = tm.player_id
      WHERE tm.team_id = :teamId AND tm.membership_status = 'ACTIVE'
      ORDER BY tm.role_in_team ASC, tm.joined_at ASC`,

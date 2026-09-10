@@ -151,7 +151,6 @@ export default function RoleSelection() {
           label="Continue"
           onPress={handleContinue}
           loading={loading}
-          disabled={!waiverAccepted}
           testID="role-selection-continue"
           iconRight={<Feather name="arrow-right" size={18} color="#FFFFFF" />}
         />

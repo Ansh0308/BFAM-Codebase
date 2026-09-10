@@ -52,9 +52,25 @@ export function runsConcededForBall(
   return ball.runs_scored + ball.extra_runs;
 }
 
-export function applyBall(totals: InningsTotals, ball: BallInput): InningsTotals {
+// Runs that go toward the official team total for this ball. When a match
+// has extras_count_toward_score = false (backlog A-8), extras (wide/
+// no-ball/bye/leg-bye) are still bowled and still recorded in score_events
+// for the record, but they don't move the official score — only runs off
+// the bat do.
+export function officialRunsForBall(
+  ball: Pick<BallInput, 'runs_scored' | 'extra_runs'>,
+  extrasCountTowardScore: boolean,
+): number {
+  return extrasCountTowardScore ? totalRunsForBall(ball) : ball.runs_scored;
+}
+
+export function applyBall(
+  totals: InningsTotals,
+  ball: BallInput,
+  extrasCountTowardScore = true,
+): InningsTotals {
   return {
-    total_runs: totals.total_runs + totalRunsForBall(ball),
+    total_runs: totals.total_runs + officialRunsForBall(ball, extrasCountTowardScore),
     total_wickets: totals.total_wickets + (ball.is_wicket ? 1 : 0),
     legal_balls: totals.legal_balls + (isLegalDelivery(ball.extra_type) ? 1 : 0),
   };
@@ -62,10 +78,15 @@ export function applyBall(totals: InningsTotals, ball: BallInput): InningsTotals
 
 // Undo is the exact inverse of applyBall — subtracting the same amounts a
 // prior applyBall call added, so re-applying then undoing always returns
-// the original totals bit-for-bit.
-export function reverseBall(totals: InningsTotals, ball: BallInput): InningsTotals {
+// the original totals bit-for-bit. Must be called with the same
+// extrasCountTowardScore value the original applyBall used for this ball.
+export function reverseBall(
+  totals: InningsTotals,
+  ball: BallInput,
+  extrasCountTowardScore = true,
+): InningsTotals {
   return {
-    total_runs: totals.total_runs - totalRunsForBall(ball),
+    total_runs: totals.total_runs - officialRunsForBall(ball, extrasCountTowardScore),
     total_wickets: totals.total_wickets - (ball.is_wicket ? 1 : 0),
     legal_balls: totals.legal_balls - (isLegalDelivery(ball.extra_type) ? 1 : 0),
   };

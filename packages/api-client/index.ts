@@ -131,6 +131,8 @@ export interface RegisterPayload {
   signup_token?: string;
   favorite_cricketer_name?: string | null;
   favorite_cricketer_external_id?: string | null;
+  // Backlog A-9 — shown in place of the BFAM ID everywhere a player is listed.
+  full_name?: string | null;
   // Liability waiver consent (PRD §32.9) — must be true; the backend
   // rejects registration without it.
   waiver_accepted: true;
@@ -150,6 +152,7 @@ export interface CompleteSocialSignupPayload {
   role: SelfServiceUserRole;
   favorite_cricketer_name?: string | null;
   favorite_cricketer_external_id?: string | null;
+  full_name?: string | null;
   waiver_accepted: true;
 }
 
@@ -635,6 +638,18 @@ export class BFAMApiClient {
     });
   }
 
+  // Backlog A-10: assign each confirmed roster player to a side before
+  // scoring can restrict batter/bowler pickers to the correct team.
+  async assignPlayerSides(
+    matchId: string,
+    assignments: { player_id: string; match_team_id: string }[],
+  ): Promise<{ players: PlayingXiPlayer[] }> {
+    return this.request<{ players: PlayingXiPlayer[] }>(`/matches/${matchId}/intro/assign-sides`, {
+      method: 'POST',
+      body: JSON.stringify({ assignments }),
+    });
+  }
+
   async recordToss(
     matchId: string,
     tossWinnerMatchTeamId: string,
@@ -651,6 +666,16 @@ export class BFAMApiClient {
   }
 
   // ---- Module 2.8: Live Scoring ----
+
+  async setExtrasCountTowardScore(
+    matchId: string,
+    extrasCountTowardScore: boolean,
+  ): Promise<{ extras_count_toward_score: boolean }> {
+    return this.request(`/matches/${matchId}/extras-setting`, {
+      method: 'POST',
+      body: JSON.stringify({ extras_count_toward_score: extrasCountTowardScore }),
+    });
+  }
 
   async startInnings(
     matchId: string,

@@ -281,6 +281,7 @@ app.post('/auth/register', async (req: Request, res: Response) => {
       phoneVerified,
       favoriteCricketerName: profile.favorite_cricketer_name,
       favoriteCricketerExternalId: profile.favorite_cricketer_external_id,
+      fullName: profile.full_name,
     });
 
     const token = issueJwt({ userId, role: profile.role, bfamId });
@@ -637,6 +638,7 @@ app.post('/auth/social/complete', async (req: Request, res: Response) => {
     role,
     favorite_cricketer_name,
     favorite_cricketer_external_id,
+    full_name,
   } = parsed.data;
 
   // Ticket verification is checked separately from account creation so ANY
@@ -664,6 +666,7 @@ app.post('/auth/social/complete', async (req: Request, res: Response) => {
       appleId: ticket.provider === 'apple' ? ticket.apple_id : null,
       favoriteCricketerName: favorite_cricketer_name,
       favoriteCricketerExternalId: favorite_cricketer_external_id,
+      fullName: full_name,
     });
 
     const token = issueJwt({ userId, role: role as UserRole, bfamId });

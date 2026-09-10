@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateJwt } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import {
+  assignPlayerSidesSchema,
   checkInSchema,
   confirmPlayingXiSchema,
   createMatchSchema,
@@ -12,6 +13,7 @@ import {
   updateAttendanceSchema,
 } from '../validation/schemas';
 import {
+  assignPlayerSides,
   completeIntro,
   confirmPlayingXi,
   getIntroContext,
@@ -432,6 +434,32 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     try {
       const result = await getIntroContext(req.params.matchId);
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /matches/:matchId/intro/assign-sides — assign each confirmed
+// roster player to a side (backlog A-10), so the Scoring Interface can
+// restrict batter/bowler pickers to the correct team.
+router.post(
+  '/:matchId/intro/assign-sides',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = assignPlayerSidesSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid payload', status: 400 } });
+    }
+    try {
+      const result = await assignPlayerSides(
+        req.params.matchId,
+        req.auth!.sub,
+        parsed.data.assignments,
+      );
       return res.status(200).json(result);
     } catch (error) {
       const handled = handleMatchError(error, res);

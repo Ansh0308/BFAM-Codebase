@@ -7,6 +7,7 @@ import {
   computeAudioTrigger,
   isLegalDelivery,
   legalBallsToOversNotation,
+  officialRunsForBall,
   oversNotationToLegalBalls,
   positionForNextBall,
   reverseBall,
@@ -56,6 +57,50 @@ describe('totalRunsForBall / runsConcededForBall', () => {
     const b = ball({ extra_type: 'WIDE', extra_runs: 1 });
     expect(totalRunsForBall(b)).toBe(1);
     expect(runsConcededForBall(b)).toBe(1);
+  });
+});
+
+// Backlog A-8: "extras count toward the score" toggle. Extras are always
+// recorded on the ball (score_events keeps the raw truth); this only
+// controls whether they move the *official* team total.
+describe('officialRunsForBall (backlog A-8 extras toggle)', () => {
+  it('with the toggle on, behaves exactly like totalRunsForBall', () => {
+    const wide = ball({ extra_type: 'WIDE', extra_runs: 1 });
+    const bye = ball({ extra_type: 'BYE', extra_runs: 2 });
+    const four = ball({ runs_scored: 4 });
+    expect(officialRunsForBall(wide, true)).toBe(totalRunsForBall(wide));
+    expect(officialRunsForBall(bye, true)).toBe(totalRunsForBall(bye));
+    expect(officialRunsForBall(four, true)).toBe(totalRunsForBall(four));
+  });
+
+  it('with the toggle off, extras contribute nothing but bat runs still do', () => {
+    expect(officialRunsForBall(ball({ extra_type: 'WIDE', extra_runs: 1 }), false)).toBe(0);
+    expect(officialRunsForBall(ball({ extra_type: 'NO_BALL', extra_runs: 1 }), false)).toBe(0);
+    expect(officialRunsForBall(ball({ extra_type: 'BYE', extra_runs: 4 }), false)).toBe(0);
+    expect(officialRunsForBall(ball({ extra_type: 'LEG_BYE', extra_runs: 1 }), false)).toBe(0);
+    expect(officialRunsForBall(ball({ runs_scored: 4 }), false)).toBe(4);
+    // A no-ball hit for four: the no-ball extra is dropped, the batter's 4 still counts.
+    expect(
+      officialRunsForBall(ball({ runs_scored: 4, extra_type: 'NO_BALL', extra_runs: 1 }), false),
+    ).toBe(4);
+  });
+});
+
+describe('applyBall / reverseBall respect the extras toggle', () => {
+  it('applyBall omits extras from the official total when the toggle is off', () => {
+    const next = applyBall(ZERO, ball({ extra_type: 'WIDE', extra_runs: 1 }), false);
+    expect(next).toEqual({ total_runs: 0, total_wickets: 0, legal_balls: 0 });
+  });
+
+  it('reverseBall with the toggle off is still the exact inverse of applyBall', () => {
+    const b = ball({ runs_scored: 1, extra_type: 'BYE', extra_runs: 3 });
+    const after = applyBall(ZERO, b, false);
+    expect(reverseBall(after, b, false)).toEqual(ZERO);
+  });
+
+  it('bowler figures (runsConcededForBall) are unaffected by the toggle either way', () => {
+    const wide = ball({ extra_type: 'WIDE', extra_runs: 1 });
+    expect(runsConcededForBall(wide)).toBe(1); // unchanged regardless of the display toggle
   });
 });
 

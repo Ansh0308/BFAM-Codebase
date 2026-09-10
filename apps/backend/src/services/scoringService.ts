@@ -8,11 +8,11 @@ import {
   applyBall,
   computeAudioTrigger,
   legalBallsToOversNotation,
+  officialRunsForBall,
   oversNotationToLegalBalls,
   positionForNextBall,
   reverseBall,
   runsConcededForBall,
-  totalRunsForBall,
   type AudioTrigger,
   type BallInput,
   type ExtraType,
@@ -32,6 +32,7 @@ interface MatchRow {
   assigned_scorer_id: string | null;
   scoring_mode: string;
   match_status: string;
+  extras_count_toward_score: boolean;
 }
 
 interface InningsRow {
@@ -71,7 +72,9 @@ interface ScoreEventRow {
 
 async function fetchMatch(matchId: string): Promise<MatchRow | null> {
   const [row] = await sequelize.query<MatchRow>(
-    'SELECT match_id, organizer_id, assigned_scorer_id, scoring_mode, match_status FROM matches WHERE match_id = :matchId',
+    `SELECT match_id, organizer_id, assigned_scorer_id, scoring_mode, match_status,
+            extras_count_toward_score
+     FROM matches WHERE match_id = :matchId`,
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
   return row ?? null;
@@ -133,6 +136,41 @@ function broadcastScoreUpdate(matchId: string, payload: unknown) {
   getIo()
     ?.to(matchRoom(matchId))
     .emit('match:score_update', { matchId, ...(payload as object) });
+}
+
+// Extras Toggle (backlog A-8): must be set before the first innings is
+// started — once balls are being recorded against a running total, letting
+// the rule change mid-innings would make every ball scored so far
+// ambiguous about which rule it followed. Idempotent otherwise, same as
+// the other pre-scoring intro settings.
+export async function setExtrasCountTowardScore(
+  matchId: string,
+  actorUserId: string,
+  extrasCountTowardScore: boolean,
+) {
+  const match = await fetchMatch(matchId);
+  if (!match) throw new MatchNotFoundError(matchId);
+  await assertCanScore(match, actorUserId);
+
+  const [existingInnings] = await sequelize.query<{ innings_id: string }>(
+    'SELECT innings_id FROM innings WHERE match_id = :matchId LIMIT 1',
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+  if (existingInnings) {
+    throw new InvalidScoringStateError(
+      'The extras setting can only be changed before scoring starts.',
+    );
+  }
+
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate(
+      'matches',
+      { extras_count_toward_score: extrasCountTowardScore },
+      { match_id: matchId },
+    );
+
+  return { extras_count_toward_score: extrasCountTowardScore };
 }
 
 export interface StartInningsInput {
@@ -241,7 +279,7 @@ export async function recordBall(inningsId: string, actorUserId: string, input: 
 
     const totalsBefore = toTotals(innings);
     const position = positionForNextBall(totalsBefore.legal_balls);
-    const totalsAfter = applyBall(totalsBefore, input);
+    const totalsAfter = applyBall(totalsBefore, input, match.extras_count_toward_score);
 
     const { strikerRunsBeforeBall, bowlerConsecutiveWickets } = await getAudioContext(
       inningsId,
@@ -361,7 +399,11 @@ export async function undoLastBall(inningsId: string, actorUserId: string) {
     if (!lastEvent) throw new NoBallToUndoError();
 
     const totalsBefore = toTotals(innings);
-    const totalsAfter = reverseBall(totalsBefore, lastEvent as unknown as BallInput);
+    const totalsAfter = reverseBall(
+      totalsBefore,
+      lastEvent as unknown as BallInput,
+      match.extras_count_toward_score,
+    );
 
     await sequelize
       .getQueryInterface()
@@ -429,6 +471,7 @@ export async function getLiveScore(matchId: string) {
   return {
     match_id: matchId,
     innings,
+    extras_count_toward_score: match.extras_count_toward_score,
     current_striker_player_id: lastEvent?.striker_player_id ?? null,
     current_non_striker_player_id: lastEvent?.non_striker_player_id ?? null,
     current_bowler_player_id: lastEvent?.bowler_player_id ?? null,
@@ -441,6 +484,9 @@ export async function getLiveScore(matchId: string) {
 // score_events at read time — always consistent with the ledger, no
 // separate cache that could drift.
 export async function getScorecard(matchId: string) {
+  const match = await fetchMatch(matchId);
+  if (!match) throw new MatchNotFoundError(matchId);
+
   const inningsList = await sequelize.query<InningsRow>(
     'SELECT * FROM innings WHERE match_id = :matchId ORDER BY innings_number ASC',
     { type: QueryTypes.SELECT, replacements: { matchId } },
@@ -525,7 +571,7 @@ export async function getScorecard(matchId: string) {
 
       if (e.extra_type !== 'NONE') extras[e.extra_type as keyof typeof extras] += e.extra_runs;
 
-      runningScore += totalRunsForBall(e);
+      runningScore += officialRunsForBall(e, match.extras_count_toward_score);
       if (e.is_wicket) {
         wicketCount += 1;
         const dismissedId = e.dismissed_player_id ?? e.striker_player_id;
@@ -559,7 +605,11 @@ export async function getScorecard(matchId: string) {
     });
   }
 
-  return { match_id: matchId, innings: result };
+  return {
+    match_id: matchId,
+    extras_count_toward_score: match.extras_count_toward_score,
+    innings: result,
+  };
 }
 
 export interface FinalizeMatchInput {

@@ -6,6 +6,17 @@ jest.mock('../src/lib/apiClient', () => ({
   apiClient: { getOpenTeams: jest.fn(), requestToJoinTeam: jest.fn() },
 }));
 
+// useFocusEffect normally needs a real NavigationContainer (which expo-router
+// provides at runtime); this test renders the screen standalone, so swap it
+// for a plain mount-time effect — same pattern as team-management.test.tsx.
+jest.mock('@react-navigation/native', () => ({
+  useFocusEffect: (callback: () => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ReactForMock = require('react');
+    ReactForMock.useEffect(callback, []);
+  },
+}));
+
 const mockGetOpenTeams = apiClient.getOpenTeams as jest.Mock;
 const mockRequestToJoinTeam = apiClient.requestToJoinTeam as jest.Mock;
 

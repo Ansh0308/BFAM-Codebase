@@ -1,13 +1,19 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJwt } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
-import { finalizeMatchSchema, recordBallSchema, startInningsSchema } from '../validation/schemas';
+import {
+  finalizeMatchSchema,
+  recordBallSchema,
+  setExtrasCountTowardScoreSchema,
+  startInningsSchema,
+} from '../validation/schemas';
 import {
   finalizeMatch,
   getLiveScore,
   getMatchResult,
   getScorecard,
   recordBall,
+  setExtrasCountTowardScore,
   startInnings,
   undoLastBall,
 } from '../services/scoringService';
@@ -33,6 +39,31 @@ function handleScoringError(error: unknown, res: Response) {
   }
   return null;
 }
+
+// POST /matches/:matchId/extras-setting — choose before scoring starts
+// whether extras count toward the official score (backlog A-8).
+router.post(
+  '/matches/:matchId/extras-setting',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = setExtrasCountTowardScoreSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid payload', status: 400 } });
+    }
+    try {
+      const result = await setExtrasCountTowardScore(
+        req.params.matchId,
+        req.auth!.sub,
+        parsed.data.extras_count_toward_score,
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = handleScoringError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
 
 // POST /matches/:matchId/innings — start an innings.
 router.post(

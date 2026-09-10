@@ -9,6 +9,7 @@ import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
 import { ChipSelect } from '../../../../src/components/ChipSelect';
 import { TextField } from '../../../../src/components/TextField';
+import { ToggleRow } from '../../../../src/components/ToggleRow';
 import { playTriggerSound } from '../../../../src/lib/sounds';
 
 const RUN_BUTTONS = [0, 1, 2, 3, 4, 6];
@@ -22,6 +23,13 @@ const WICKET_TYPES: WicketType[] = [
   'RETIRED',
 ];
 type ExtraKind = 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE';
+
+// Backlog A-9: shows the player's real name where they've set one — not
+// everyone playing together knows each other's BFAM ID — falling back to
+// the BFAM ID for a player who hasn't set a name yet.
+function displayName(p: { full_name?: string | null; bfam_id?: string }): string {
+  return p.full_name || p.bfam_id || '';
+}
 
 // Scoring Interface (PRD §12.18 requirement 2). Organizer/scorer only —
 // the backend re-enforces Scorer Selection (module §12.19: player- vs
@@ -49,19 +57,37 @@ export default function ScoringInterfaceScreen() {
   const [battingSide, setBattingSide] = useState<string | null>(null);
   const [bowlingSide, setBowlingSide] = useState<string | null>(null);
   const [targetRuns, setTargetRuns] = useState<string>('');
+  // Backlog A-8: chosen once, before the very first innings — the backend
+  // rejects changing it after any innings exists, so this only matters on
+  // the pre-first-innings screen below.
+  const [extrasCountTowardScore, setExtrasCountTowardScore] = useState(true);
+  // Backlog A-10: local edits to each player's side before they're saved —
+  // seeded from match_players.match_team_id on load, so re-entering this
+  // screen (or a page that assigned sides earlier, e.g. the Playing XI
+  // reveal) doesn't lose prior work.
+  const [sideAssignments, setSideAssignments] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [gameRoom, intro, liveScore] = await Promise.all([
+      const [gameRoom, intro, liveScore, scorecard] = await Promise.all([
         apiClient.getGameRoom(matchId),
         apiClient.getMatchIntro(matchId).catch(() => null),
         apiClient.getLiveScore(matchId),
+        apiClient.getScorecard(matchId).catch(() => null),
       ]);
       setRoom(gameRoom);
       setMatchTeams(intro?.matchTeams ?? []);
       setLive(liveScore);
       if (intro) setMusicEnabled(intro.intro.background_music_enabled);
+      if (scorecard) setExtrasCountTowardScore(scorecard.extras_count_toward_score);
+      setSideAssignments((prev) => {
+        const next = { ...prev };
+        for (const p of gameRoom.players) {
+          if (p.match_team_id && !next[p.player_id]) next[p.player_id] = p.match_team_id;
+        }
+        return next;
+      });
     } catch {
       setError('Could not load scoring data.');
     } finally {
@@ -74,16 +100,48 @@ export default function ScoringInterfaceScreen() {
   }, [load]);
 
   const confirmedPlayers = room?.players.filter((p) => p.invitation_status === 'CONFIRMED') ?? [];
-  const playerOptions = confirmedPlayers.map((p) => ({
-    value: p.player_id,
-    label: p.bfam_id ?? '',
-  }));
+  const allSidesAssigned =
+    confirmedPlayers.length > 0 && confirmedPlayers.every((p) => sideAssignments[p.player_id]);
+
+  // Backlog A-10: once sides are assigned, the striker/non-striker pickers
+  // only offer the batting side's players and the bowler picker only the
+  // bowling side's — a player with no assignment yet (e.g. an older match
+  // scored before this feature existed) falls back to appearing in both,
+  // so nothing silently disappears for pre-existing matches.
+  function optionsForSide(matchTeamId: string | null) {
+    return confirmedPlayers
+      .filter((p) => {
+        const assigned = sideAssignments[p.player_id] ?? p.match_team_id;
+        return !assigned || !matchTeamId || assigned === matchTeamId;
+      })
+      .map((p) => ({ value: p.player_id, label: displayName(p) }));
+  }
+
+  const battingOptions = live?.innings
+    ? optionsForSide(live.innings.batting_match_team_id)
+    : confirmedPlayers.map((p) => ({ value: p.player_id, label: displayName(p) }));
+  const bowlingOptions = live?.innings
+    ? optionsForSide(live.innings.bowling_match_team_id)
+    : confirmedPlayers.map((p) => ({ value: p.player_id, label: displayName(p) }));
 
   async function startInnings() {
     if (!battingSide || !bowlingSide) return;
     setBusy(true);
     setError(null);
     try {
+      // Only actually needed the first time (subsequent innings reuse the
+      // same assignments), but idempotent — safe to send every time.
+      const assignments = confirmedPlayers
+        .filter((p) => sideAssignments[p.player_id])
+        .map((p) => ({ player_id: p.player_id, match_team_id: sideAssignments[p.player_id] }));
+      if (assignments.length > 0) {
+        await apiClient.assignPlayerSides(matchId, assignments);
+      }
+      // Only meaningful before the very first innings — the backend
+      // rejects this call once any innings exists, so only send it then.
+      if (!live?.innings) {
+        await apiClient.setExtrasCountTowardScore(matchId, extrasCountTowardScore);
+      }
       await apiClient.startInnings(matchId, {
         innings_number: (live?.innings ? live.innings.innings_number : 0) + 1,
         batting_match_team_id: battingSide,
@@ -257,36 +315,99 @@ export default function ScoringInterfaceScreen() {
       <ScreenContainer scroll>
         <View className="pt-6" testID="start-innings-screen">
           <Text className="font-ui font-bold text-title-xl text-ink-black mb-4">Start Innings</Text>
-          <ChipSelect
-            label="Batting Side"
-            options={matchTeams.map((t) => ({
-              value: t.match_team_id,
-              label: t.side_label === 'TEAM_A' ? 'Team A' : 'Team B',
-            }))}
-            value={battingSide}
-            onChange={(v) => {
-              setBattingSide(v);
-              const other = matchTeams.find((t) => t.match_team_id !== v);
-              setBowlingSide(other?.match_team_id ?? null);
-            }}
-            testID="batting-side"
+
+          {/* Backlog A-10: every confirmed player must be assigned to a
+              side before scoring can restrict pickers to the correct
+              team — a one-time step for the whole match, done here since
+              this screen only appears before the very first innings. */}
+          <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-2">
+            Assign Players to a Side
+          </Text>
+          {confirmedPlayers.map((p) => (
+            <View
+              key={p.player_id}
+              className="flex-row items-center justify-between py-2 border-b border-border-subtle"
+              testID={`side-assignment-row-${p.player_id}`}
+            >
+              <Text className="font-ui text-body text-text-primary">{displayName(p)}</Text>
+              <View className="flex-row">
+                {matchTeams.map((t) => {
+                  const selected = sideAssignments[p.player_id] === t.match_team_id;
+                  return (
+                    <Pressable
+                      key={t.match_team_id}
+                      onPress={() =>
+                        setSideAssignments((prev) => ({ ...prev, [p.player_id]: t.match_team_id }))
+                      }
+                      className={`rounded-md border px-3 py-1.5 ml-2 ${
+                        selected
+                          ? 'bg-brand-red border-brand-red'
+                          : 'bg-surface border-border-strong'
+                      }`}
+                      testID={`assign-${p.player_id}-${t.side_label}`}
+                    >
+                      <Text
+                        className={`font-ui text-micro ${selected ? 'text-white font-bold' : 'text-text-primary'}`}
+                      >
+                        {t.side_label === 'TEAM_A' ? 'Team A' : 'Team B'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+          {!allSidesAssigned && (
+            <Text className="font-ui text-micro text-text-tertiary mt-2 mb-2">
+              Assign every player to a side before starting the innings.
+            </Text>
+          )}
+
+          {/* Backlog A-8: a per-match rule, chosen once before the first
+              ball is bowled — extras are always recorded exactly as
+              bowled in score_events either way; this only controls
+              whether they add to the official team total shown here on
+              out. */}
+          <ToggleRow
+            label="Extras count toward the score"
+            description="Wides, no-balls, byes and leg-byes still get recorded either way — this only controls whether they add to the team's official total."
+            value={extrasCountTowardScore}
+            onValueChange={setExtrasCountTowardScore}
+            testID="extras-count-toggle"
           />
-          <TextField
-            label="Target Runs (2nd innings only)"
-            value={targetRuns}
-            onChangeText={setTargetRuns}
-            placeholder="Leave blank for 1st innings"
-            keyboardType="number-pad"
-            testID="target-runs-input"
-          />
-          {error && <Text className="text-brand-red text-body mb-4">{error}</Text>}
-          <Button
-            label="Start Innings"
-            onPress={startInnings}
-            loading={busy}
-            disabled={!battingSide}
-            testID="start-innings-button"
-          />
+
+          <View className="mt-5">
+            <ChipSelect
+              label="Batting Side"
+              options={matchTeams.map((t) => ({
+                value: t.match_team_id,
+                label: t.side_label === 'TEAM_A' ? 'Team A' : 'Team B',
+              }))}
+              value={battingSide}
+              onChange={(v) => {
+                setBattingSide(v);
+                const other = matchTeams.find((t) => t.match_team_id !== v);
+                setBowlingSide(other?.match_team_id ?? null);
+              }}
+              testID="batting-side"
+            />
+            <TextField
+              label="Target Runs (2nd innings only)"
+              value={targetRuns}
+              onChangeText={setTargetRuns}
+              placeholder="Leave blank for 1st innings"
+              keyboardType="number-pad"
+              testID="target-runs-input"
+            />
+            {error && <Text className="text-brand-red text-body mb-4">{error}</Text>}
+            <Button
+              label="Start Innings"
+              onPress={startInnings}
+              loading={busy}
+              disabled={!battingSide || !allSidesAssigned}
+              testID="start-innings-button"
+            />
+          </View>
         </View>
       </ScreenContainer>
     );
@@ -302,6 +423,14 @@ export default function ScoringInterfaceScreen() {
             ({live.innings.overs_completed} ov)
           </Text>
         </Text>
+        {live.extras_count_toward_score === false && (
+          <Text
+            className="font-ui text-micro text-text-tertiary mt-1"
+            testID="extras-excluded-note"
+          >
+            Extras don&apos;t count toward this score (still recorded for the record)
+          </Text>
+        )}
 
         <View className="mt-4">
           <View className="flex-row items-center justify-between">
@@ -320,21 +449,21 @@ export default function ScoringInterfaceScreen() {
           </View>
           <ChipSelect
             label="Striker"
-            options={playerOptions}
+            options={battingOptions}
             value={strikerId}
             onChange={setStrikerId}
             testID="striker-select"
           />
           <ChipSelect
             label="Non-Striker"
-            options={playerOptions}
+            options={battingOptions}
             value={nonStrikerId}
             onChange={setNonStrikerId}
             testID="non-striker-select"
           />
           <ChipSelect
             label="Bowler"
-            options={playerOptions}
+            options={bowlingOptions}
             value={bowlerId}
             onChange={setBowlerId}
             testID="bowler-select"

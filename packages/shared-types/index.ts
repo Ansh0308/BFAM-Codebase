@@ -59,6 +59,9 @@ export interface MyProfile {
   reliability_score: string | null;
   favorite_cricketer_name: string | null;
   favorite_cricketer_external_id: string | null;
+  // Backlog A-9 — shown in place of the BFAM ID everywhere a player is
+  // listed (roster rows, scoring selectors, invite lists).
+  full_name: string | null;
 }
 
 // `email` is deliberately not part of this payload — it can only be set via
@@ -74,6 +77,7 @@ export interface UpdateProfilePayload {
   experience_level?: string;
   date_of_birth?: string | null;
   gender?: string | null;
+  full_name?: string | null;
 }
 
 export interface Cricketer {
@@ -340,6 +344,7 @@ export interface TeamMember {
   joined_at: string;
   left_at: string | null;
   bfam_id?: string;
+  full_name?: string | null;
   favorite_cricketer_name?: string | null;
 }
 
@@ -417,6 +422,7 @@ export interface MatchPlayer {
   checked_in_at: string | null;
   added_at: string;
   bfam_id?: string;
+  full_name?: string | null;
   favorite_cricketer_name?: string | null;
   side_label?: string | null;
 }
@@ -523,6 +529,7 @@ export interface RecordBallInput {
 export interface LiveScore {
   match_id: string;
   innings: Innings | null;
+  extras_count_toward_score?: boolean;
   current_striker_player_id?: string | null;
   current_non_striker_player_id?: string | null;
   current_bowler_player_id?: string | null;
@@ -571,6 +578,7 @@ export interface InningsScorecard {
 
 export interface Scorecard {
   match_id: string;
+  extras_count_toward_score: boolean;
   innings: InningsScorecard[];
 }
 
@@ -601,6 +609,7 @@ export interface MatchIntro {
 export interface PlayingXiPlayer {
   player_id: string;
   bfam_id: string;
+  full_name: string | null;
   participant_role: 'PLAYER' | 'CAPTAIN' | 'SCORER';
   side_label: 'TEAM_A' | 'TEAM_B' | null;
 }
