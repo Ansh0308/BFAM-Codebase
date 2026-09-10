@@ -52,6 +52,7 @@ import {
   VenueDetails,
   CreateVenueInput,
   UpdateVenueInput,
+  PublicVenueDetails,
   SetOperatingHoursRow,
   SetPricingRow,
   TurfOperatingHours,
@@ -220,6 +221,12 @@ export class BFAMApiClient {
     return this.request<TurfAvailability>(
       `/turfs/${turfId}/availability${toQueryString({ date })}`,
     );
+  }
+
+  // Player-facing venue pitch-picker: Discover shows one card per venue;
+  // this lists its pitches so the player can pick one to book.
+  async getVenueDetails(venueId: string): Promise<PublicVenueDetails> {
+    return this.request<PublicVenueDetails>(`/venues/${venueId}`);
   }
 
   async createBooking(input: CreateBookingInput): Promise<Booking> {

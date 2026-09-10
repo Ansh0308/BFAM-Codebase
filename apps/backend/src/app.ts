@@ -68,6 +68,7 @@ import {
 } from './domain/errors';
 import { registerExpoPushToken } from './services/pushNotificationService';
 import turfsRouter from './routes/turfs';
+import venuesRouter from './routes/venues';
 import bookingsRouter from './routes/bookings';
 import paymentsRouter from './routes/payments';
 import teamsRouter from './routes/teams';
@@ -1005,6 +1006,7 @@ app.post('/push/expo-token', authenticateJwt, (req: Request, res: Response) => {
 
 // Module 2.3 — Turf Discovery & Booking (PRD §12.7, §15).
 app.use('/turfs', turfsRouter);
+app.use('/venues', venuesRouter);
 app.use('/bookings', bookingsRouter);
 // Module 2.4 — Payments (PRD §17, §12.16).
 app.use('/payments', paymentsRouter);

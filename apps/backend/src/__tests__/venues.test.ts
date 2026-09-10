@@ -92,6 +92,22 @@ jest.mock('../config/sequelize', () => {
             }));
         }
 
+        if (sql.includes('t.venue_id = :venueId') && sql.includes("t.turf_status = 'ACTIVE'")) {
+          // Player-facing venue pitch-picker (turfService.getVenueForPlayer).
+          return turfs
+            .filter(
+              (t) =>
+                t.venue_id === r.venueId && t.turf_status === 'ACTIVE' && t.deleted_at === null,
+            )
+            .sort((a, b) => a.turf_name.localeCompare(b.turf_name))
+            .map((t) => ({
+              turf_id: t.turf_id,
+              turf_name: t.turf_name,
+              cover_image_url: null,
+              min_price_per_hour: null,
+            }));
+        }
+
         if (sql.includes('FROM turfs t') && sql.includes('WHERE t.turf_id')) {
           const t = turfs.find((x) => x.turf_id === r.turfId);
           if (!t) return [];
@@ -176,6 +192,46 @@ describe('Owner Venues (feedback backlog A-2)', () => {
     expect(res.status).toBe(201);
     expect(res.body.venue_name).toBe('Redline Sports Complex');
     expect(res.body.venue_id).toBeTruthy();
+  });
+
+  it('creating a venue with pitch_count creates the venue and every auto-named pitch in one step', async () => {
+    const token = await ownerToken();
+    const res = await request(app)
+      .post('/owner/venues')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        venue_name: 'Redline Sports Complex',
+        address_line: 'Ring Road',
+        city: 'Rajkot',
+        latitude: 22.3,
+        longitude: 70.8,
+        pitch_count: 3,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.turfs).toHaveLength(3);
+    const names = res.body.turfs.map((t: { turf_name: string }) => t.turf_name).sort();
+    expect(names).toEqual(['Pitch 1', 'Pitch 2', 'Pitch 3']);
+    for (const t of res.body.turfs) {
+      expect(t.address_line).toBe('Ring Road');
+      expect(t.venue_id).toBe(res.body.venue_id);
+    }
+  });
+
+  it('rejects a pitch_count outside the allowed range', async () => {
+    const token = await ownerToken();
+    const res = await request(app)
+      .post('/owner/venues')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        venue_name: 'Redline Sports Complex',
+        address_line: 'Ring Road',
+        city: 'Rajkot',
+        latitude: 22.3,
+        longitude: 70.8,
+        pitch_count: 0,
+      });
+    expect(res.status).toBe(400);
   });
 
   it('rejects an invalid venue payload', async () => {
@@ -389,5 +445,58 @@ describe('Owner Venues (feedback backlog A-2)', () => {
       .get('/owner/venues/00000000-0000-4000-8000-000000000099')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(404);
+  });
+});
+
+describe('Player-facing venue pitch picker (GET /venues/:venueId)', () => {
+  beforeEach(() => {
+    venues = [];
+    turfs = [];
+  });
+
+  async function playerToken() {
+    const res = await request(app).post('/auth/dev-token').send({ role: 'PLAYER' });
+    return res.body.token as string;
+  }
+
+  it('lists every active pitch at the venue for a player to pick from', async () => {
+    const ownerT = await ownerToken();
+    const venueRes = await request(app)
+      .post('/owner/venues')
+      .set('Authorization', `Bearer ${ownerT}`)
+      .send({
+        venue_name: 'Redline Sports Complex',
+        address_line: 'Ring Road',
+        city: 'Rajkot',
+        latitude: 22.3,
+        longitude: 70.8,
+        pitch_count: 2,
+      });
+
+    const playerT = await playerToken();
+    const res = await request(app)
+      .get(`/venues/${venueRes.body.venue_id}`)
+      .set('Authorization', `Bearer ${playerT}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.venue_name).toBe('Redline Sports Complex');
+    expect(res.body.turfs).toHaveLength(2);
+    expect(res.body.turfs.map((t: { turf_name: string }) => t.turf_name)).toEqual([
+      'Pitch 1',
+      'Pitch 2',
+    ]);
+  });
+
+  it('404s for an unknown venue', async () => {
+    const playerT = await playerToken();
+    const res = await request(app)
+      .get('/venues/00000000-0000-4000-8000-000000000099')
+      .set('Authorization', `Bearer ${playerT}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('requires authentication', async () => {
+    const res = await request(app).get('/venues/00000000-0000-4000-8000-000000000099');
+    expect(res.status).toBe(401);
   });
 });

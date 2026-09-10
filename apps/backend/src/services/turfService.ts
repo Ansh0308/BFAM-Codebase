@@ -1,6 +1,6 @@
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
-import { TurfNotFoundError } from '../domain/errors';
+import { TurfNotFoundError, VenueNotFoundError } from '../domain/errors';
 
 // Fixed slot grid the whole availability/booking flow is built on. Because
 // the DB's no-double-booking guarantee (Phase 1) is a composite unique
@@ -239,6 +239,53 @@ export async function getTurfDetails(turfId: string) {
       turf_id: s.turf_id,
       turf_name: s.turf_name,
       min_price_per_hour: s.min_price_per_hour ?? null,
+    })),
+  };
+}
+
+interface VenueRow {
+  venue_id: string;
+  venue_name: string;
+  address_line: string;
+  city: string;
+}
+
+interface VenuePitchRow {
+  turf_id: string;
+  turf_name: string;
+  cover_image_url: string | null;
+  min_price_per_hour: number | null;
+}
+
+// Player-facing venue pitch-picker (feedback: Discover shows one card per
+// venue rather than one per pitch — a player taps the venue, then picks
+// which pitch to book here). Each pitch keeps its own independent
+// availability/booking flow at /turfs/:turfId, unchanged.
+export async function getVenueForPlayer(venueId: string) {
+  const [venue] = await sequelize.query<VenueRow>(
+    'SELECT venue_id, venue_name, address_line, city FROM venues WHERE venue_id = :venueId AND deleted_at IS NULL',
+    { type: QueryTypes.SELECT, replacements: { venueId } },
+  );
+  if (!venue) throw new VenueNotFoundError(venueId);
+
+  const turfs = await sequelize.query<VenuePitchRow>(
+    `SELECT t.turf_id, t.turf_name,
+       (SELECT image_url FROM turf_images ti WHERE ti.turf_id = t.turf_id ORDER BY ti.display_order ASC LIMIT 1) AS cover_image_url,
+       (SELECT MIN(price_per_hour) FROM turf_pricing tp WHERE tp.turf_id = t.turf_id
+         AND (tp.effective_to IS NULL OR tp.effective_to >= CURDATE())) AS min_price_per_hour
+     FROM turfs t
+     WHERE t.venue_id = :venueId AND t.turf_status = 'ACTIVE' AND t.deleted_at IS NULL
+     ORDER BY t.turf_name ASC`,
+    { type: QueryTypes.SELECT, replacements: { venueId } },
+  );
+
+  return {
+    ...venue,
+    turfs: turfs.map((t) => ({
+      turf_id: t.turf_id,
+      turf_name: t.turf_name,
+      cover_image_url: t.cover_image_url ?? null,
+      min_price_per_hour: t.min_price_per_hour ?? null,
     })),
   };
 }

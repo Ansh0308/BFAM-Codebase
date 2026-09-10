@@ -705,9 +705,29 @@ export interface CreateVenueInput {
   city: string;
   latitude: number;
   longitude: number;
+  // How many pitches to create alongside the venue in this same step
+  // (auto-named "Pitch 1", "Pitch 2", ...). Omit for a bare venue.
+  pitch_count?: number;
 }
 
 export type UpdateVenueInput = Partial<CreateVenueInput>;
+
+// Player-facing venue pitch-picker (Discover shows one card per venue; a
+// player taps it, sees this, then picks a pitch to book).
+export interface PublicVenuePitch {
+  turf_id: string;
+  turf_name: string;
+  cover_image_url: string | null;
+  min_price_per_hour: number | null;
+}
+
+export interface PublicVenueDetails {
+  venue_id: string;
+  venue_name: string;
+  address_line: string;
+  city: string;
+  turfs: PublicVenuePitch[];
+}
 
 export interface CreateTurfInput {
   turf_name: string;

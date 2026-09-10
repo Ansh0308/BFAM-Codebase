@@ -60,6 +60,13 @@ describe('OwnerDashboard (module 2.12, PRD §8.3)', () => {
     expect(mockPush).toHaveBeenCalledWith('/owner-turfs/t1');
   });
 
+  it('the Add Turf action links to the combined venue+pitches create screen (feedback follow-up)', async () => {
+    mockGetMyTurfs.mockResolvedValueOnce({ results: [] });
+    const { findByTestId } = render(<OwnerDashboard />);
+    fireEvent.press(await findByTestId('add-turf-button'));
+    expect(mockPush).toHaveBeenCalledWith('/owner-venues/create');
+  });
+
   it('groups pitches that share a venue under one card (backlog A-2)', async () => {
     mockGetMyTurfs.mockResolvedValueOnce({
       results: [

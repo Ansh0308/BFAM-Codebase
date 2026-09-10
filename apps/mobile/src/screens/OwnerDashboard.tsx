@@ -88,18 +88,9 @@ export function OwnerDashboard() {
           <Text className="font-ui font-bold text-text-secondary text-micro uppercase">
             My Turfs ({turfs.length})
           </Text>
-          <View className="flex-row">
-            <Pressable
-              onPress={() => router.push('/owner-venues/create')}
-              testID="add-venue-button"
-              className="mr-4"
-            >
-              <Text className="font-ui font-bold text-body text-brand-red">+ Add Venue</Text>
-            </Pressable>
-            <Pressable onPress={() => router.push('/owner-turfs/create')} testID="add-turf-button">
-              <Text className="font-ui font-bold text-body text-brand-red">+ Add Turf</Text>
-            </Pressable>
-          </View>
+          <Pressable onPress={() => router.push('/owner-venues/create')} testID="add-turf-button">
+            <Text className="font-ui font-bold text-body text-brand-red">+ Add Turf</Text>
+          </Pressable>
         </View>
 
         {loading ? (

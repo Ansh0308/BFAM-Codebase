@@ -94,12 +94,12 @@ describe('Owner Web Dashboard (module 2.12, PRD §9.2)', () => {
     expect(link).toHaveAttribute('href', '/owner/venues/v1');
   });
 
-  it('the Add Turf action links to the create-turf page', async () => {
+  it('the Add Turf action links to the combined venue+pitches create page', async () => {
     mockGetMyTurfs.mockResolvedValueOnce({ results: [] });
     render(<OwnerDashboardPage />);
     await waitFor(() => expect(mockGetMyTurfs).toHaveBeenCalled());
 
     const addTurfLink = screen.getByText(/add turf/i).closest('a');
-    expect(addTurfLink).toHaveAttribute('href', '/owner/turfs/new');
+    expect(addTurfLink).toHaveAttribute('href', '/owner/venues/new');
   });
 });

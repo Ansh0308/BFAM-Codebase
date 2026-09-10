@@ -711,6 +711,11 @@ export const createVenueSchema = z.object({
   city: z.string().min(2).max(100),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
+  // How many pitches to create under this venue in the same step (e.g. 3 →
+  // "Pitch 1"/"Pitch 2"/"Pitch 3"), so an owner with multiple pitches at one
+  // location doesn't have to create the venue and then each pitch
+  // separately. Optional so a bare venue (no pitches yet) is still allowed.
+  pitch_count: z.number().int().min(1).max(20).optional(),
 });
 
 export const updateVenueSchema = createVenueSchema.partial();

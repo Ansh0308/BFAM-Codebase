@@ -37,14 +37,9 @@ export default function OwnerDashboardPage() {
       <PageHeader
         title="Dashboard"
         action={
-          <div className="flex gap-3">
-            <Link href="/owner/venues/new">
-              <PrimaryButton>+ Add Venue</PrimaryButton>
-            </Link>
-            <Link href="/owner/turfs/new">
-              <PrimaryButton>+ Add Turf</PrimaryButton>
-            </Link>
-          </div>
+          <Link href="/owner/venues/new">
+            <PrimaryButton>+ Add Turf</PrimaryButton>
+          </Link>
         }
       />
 

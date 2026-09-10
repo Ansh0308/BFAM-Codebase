@@ -60,6 +60,39 @@ export async function listMyTurfs(ownerUserId: string) {
   );
 }
 
+// Builds an insertable `turfs` row with sensible defaults, shared by
+// createTurf and createVenue's "create N pitches at once" path so the two
+// stay in sync.
+function buildTurfRow(params: {
+  ownerUserId: string;
+  venueId: string | null;
+  turfName: string;
+  addressLine: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  now: Date;
+}) {
+  return {
+    turf_id: randomUUID(),
+    owner_id: params.ownerUserId,
+    venue_id: params.venueId,
+    turf_name: params.turfName,
+    description: null,
+    address_line: params.addressLine,
+    city: params.city,
+    latitude: params.latitude,
+    longitude: params.longitude,
+    ball_types_supported: JSON.stringify([]),
+    stadium_sound_enabled: true,
+    turf_status: 'ACTIVE',
+    average_rating: null,
+    created_at: params.now,
+    updated_at: params.now,
+    deleted_at: null,
+  };
+}
+
 // Venues (feedback backlog A-2) — a display/grouping layer over one or more
 // `turfs` rows at the same physical location (e.g. "Redline Sports Complex"
 // grouping Pitch 1/Pitch 2). Each turf under a venue is still its own
@@ -70,6 +103,11 @@ export interface CreateVenueInput {
   city: string;
   latitude: number;
   longitude: number;
+  // How many pitches to create alongside the venue, auto-named "Pitch 1",
+  // "Pitch 2", etc. (feedback: creating a venue and then each of its
+  // pitches separately was too many clicks). Omitted/undefined creates a
+  // bare venue with no pitches yet.
+  pitch_count?: number;
 }
 
 export async function createVenue(ownerUserId: string, input: CreateVenueInput) {
@@ -89,7 +127,24 @@ export async function createVenue(ownerUserId: string, input: CreateVenueInput) 
       deleted_at: null,
     },
   ]);
-  return fetchVenueOrThrow(venueId);
+
+  if (input.pitch_count) {
+    const pitchRows = Array.from({ length: input.pitch_count }, (_, i) =>
+      buildTurfRow({
+        ownerUserId,
+        venueId,
+        turfName: `Pitch ${i + 1}`,
+        addressLine: input.address_line,
+        city: input.city,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        now,
+      }),
+    );
+    await sequelize.getQueryInterface().bulkInsert('turfs', pitchRows);
+  }
+
+  return getVenueForOwner(venueId, ownerUserId);
 }
 
 export async function listMyVenues(ownerUserId: string) {
