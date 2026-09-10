@@ -146,6 +146,34 @@ describe('Match Countdown Intro (module 2.7)', () => {
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)/matches/match-1/live');
   });
 
+  // Backlog D-3: the toss now has a reveal moment regardless of how the
+  // winner was decided — this was previously coin-flip only.
+  it('shows an animated winner reveal for manual toss too, and a final result reveal after recording', async () => {
+    const { getByTestId, queryByTestId } = render(<MatchIntroScreen />);
+    await waitFor(() => expect(getByTestId('intro-countdown')).toBeTruthy());
+
+    await act(async () => {
+      jest.advanceTimersByTime(10_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-xi-reveal')).toBeTruthy());
+
+    await act(async () => {
+      jest.advanceTimersByTime(4_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
+
+    expect(queryByTestId('manual-toss-result')).toBeNull();
+
+    fireEvent.press(getByTestId('toss-winner-TEAM_B'));
+    expect(getByTestId('manual-toss-result')).toBeTruthy();
+
+    fireEvent.press(getByTestId('toss-decision-BOWL'));
+    fireEvent.press(getByTestId('record-toss-button'));
+
+    await waitFor(() => expect(mockRecordToss).toHaveBeenCalledWith('match-1', 'mt-b', 'BOWL'));
+    expect(getByTestId('toss-final-result')).toBeTruthy();
+  });
+
   it('records a coin-flip toss result through the same recordToss call as the manual path (backlog A-6)', async () => {
     const originalRandom = Math.random;
     Math.random = () => 0.1; // < 0.5 -> TEAM_A wins the flip

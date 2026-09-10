@@ -9,6 +9,7 @@ import { ArchivoBlack_400Regular } from '@expo-google-fonts/archivo-black';
 import { Inter_500Medium, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import * as Sentry from '@sentry/react-native';
 import { useAuthStore } from '../src/store/authStore';
+import { SCREEN_TRANSITION } from '../src/theme/navigation';
 
 // Font loading + Sentry init, moved here from the retired App.tsx now that
 // expo-router owns the root navigator (app/_layout.tsx is the new entry
@@ -55,7 +56,7 @@ function RootLayout() {
   return (
     <>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false, animation: SCREEN_TRANSITION }} />
     </>
   );
 }
