@@ -45,6 +45,7 @@ import {
   listReservedBfamIds,
   AdminBfamIdError,
 } from './services/adminBfamIdService';
+import { listAllPlayers } from './services/adminUserService';
 import {
   getMyProfile,
   updateMyProfile,
@@ -226,6 +227,18 @@ app.post('/auth/register', async (req: Request, res: Response) => {
         details: parsed.error.flatten(),
       },
     });
+  }
+
+  // The mobile signup UI's role picker only ever offers PLAYER/TURF_OWNER/
+  // TURF_STAFF (SelfServiceUserRole excludes ADMIN in @bfam/shared-types),
+  // but registerUserSchema's `role` field accepts the full USER_ROLES enum
+  // — nothing server-side actually stopped a raw API call from
+  // self-registering as ADMIN. Enforced here instead of loosely trusting
+  // the client.
+  if (parsed.data.role === 'ADMIN') {
+    return res
+      .status(403)
+      .json({ error: { message: 'Admin accounts cannot be self-registered.', status: 403 } });
   }
 
   const { password, signup_token, ...profile } = parsed.data;
@@ -928,6 +941,23 @@ app.get(
       return res
         .status(500)
         .json({ error: { message: 'Failed to list reserved BFAM IDs', status: 500 } });
+    }
+  },
+);
+
+// Admin Web — User management (PRD §9.1): every registered player, for
+// the Admin Web-only player directory (no mobile surface — Admin is a
+// web-only role, unlike Owner/Staff which also get a mobile app).
+app.get(
+  '/admin/players',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (_req: Request, res: Response) => {
+    try {
+      const players = await listAllPlayers();
+      return res.status(200).json({ results: players });
+    } catch {
+      return res.status(500).json({ error: { message: 'Failed to list players', status: 500 } });
     }
   },
 );

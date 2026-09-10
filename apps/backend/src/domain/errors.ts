@@ -133,6 +133,17 @@ export class PlayerProfileNotFoundError extends Error {
   }
 }
 
+// Thrown when inviting by BFAM ID (the human-friendly identifier players
+// actually know each other by, e.g. "BF1001") and no player has that ID —
+// distinct from PlayerProfileNotFoundError, which is about the *caller's*
+// own missing player profile.
+export class PlayerNotFoundByBfamIdError extends Error {
+  constructor(bfamId: string) {
+    super(`No player found with BFAM ID ${bfamId}.`);
+    this.name = 'PlayerNotFoundByBfamIdError';
+  }
+}
+
 export class InvalidTeamStateError extends Error {
   constructor(message: string) {
     super(message);

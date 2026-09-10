@@ -41,15 +41,17 @@ export function TurfCard({ turf, onPress, variant = 'vertical' }: Props) {
               ? `₹${turf.min_price_per_hour}/hr`
               : 'Pricing unavailable'}
           </Text>
-          {turf.average_rating !== null && (
-            <Text className="text-rating-star text-body">★ {turf.average_rating.toFixed(1)}</Text>
+          {turf.average_rating !== null && !Number.isNaN(Number(turf.average_rating)) && (
+            <Text className="text-rating-star text-body">
+              ★ {Number(turf.average_rating).toFixed(1)}
+            </Text>
           )}
         </View>
-        {turf.distance_km !== null && (
+        {turf.distance_km !== null && !Number.isNaN(Number(turf.distance_km)) && (
           <Text className="text-text-tertiary text-micro mt-1">
-            {turf.distance_km < 1
-              ? `${Math.round(turf.distance_km * 1000)} m away`
-              : `${turf.distance_km.toFixed(1)} km away`}
+            {Number(turf.distance_km) < 1
+              ? `${Math.round(Number(turf.distance_km) * 1000)} m away`
+              : `${Number(turf.distance_km).toFixed(1)} km away`}
           </Text>
         )}
       </View>

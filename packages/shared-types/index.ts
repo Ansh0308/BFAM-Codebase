@@ -750,6 +750,24 @@ export interface SupportTicket {
   resolved_at: string | null;
 }
 
+// ---- Admin Web: User management (PRD §9.1) ----
+
+export interface AdminPlayer {
+  user_id: string;
+  bfam_id: string;
+  phone_number: string;
+  email: string | null;
+  city: string | null;
+  account_status: string;
+  playing_role: string | null;
+  batting_style: string | null;
+  experience_level: string;
+  skill_rating: number;
+  reliability_score: number;
+  favorite_cricketer_name: string | null;
+  created_at: string;
+}
+
 export interface LiveMatchSession {
   viewer_session_id: string;
   match_id: string;

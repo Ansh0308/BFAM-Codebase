@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../lib/auth';
 
 // Root route — sends the visitor straight to the right place: their
-// dashboard if already signed in (module 2.12's Owner Web/Staff Web),
+// dashboard if already signed in (Owner Web/Staff Web/Admin Web),
 // otherwise /login.
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -19,6 +19,8 @@ export default function HomePage() {
       router.replace('/owner');
     } else if (user.role === 'TURF_STAFF') {
       router.replace('/staff');
+    } else if (user.role === 'ADMIN') {
+      router.replace('/admin');
     } else {
       router.replace('/login');
     }

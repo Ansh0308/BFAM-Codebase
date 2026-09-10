@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useAuth, BFAMApiError } from '../../lib/auth';
 import { TextInput, PrimaryButton } from '../../components/DashboardShell';
 
-// Owner Web / Staff Web login — same POST /auth/login endpoint the mobile
-// app uses (module 2.12 requirement 6). Routes by role after success:
-// TURF_OWNER -> /owner, TURF_STAFF -> /staff.
+// Owner Web / Staff Web / Admin Web login — same POST /auth/login endpoint
+// the mobile app uses (module 2.12 requirement 6; Admin is web-only, no
+// mobile equivalent). Routes by role after success: TURF_OWNER -> /owner,
+// TURF_STAFF -> /staff, ADMIN -> /admin.
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
@@ -24,7 +25,8 @@ export default function LoginPage() {
       const user = await login(identifier, password);
       if (user.role === 'TURF_OWNER') router.replace('/owner');
       else if (user.role === 'TURF_STAFF') router.replace('/staff');
-      else setError('This portal is for Turf Owner and Turf Staff accounts only.');
+      else if (user.role === 'ADMIN') router.replace('/admin');
+      else setError('This portal is for Turf Owner, Turf Staff, and Admin accounts only.');
     } catch (err) {
       setError(err instanceof BFAMApiError ? err.message : 'Could not sign in.');
     } finally {

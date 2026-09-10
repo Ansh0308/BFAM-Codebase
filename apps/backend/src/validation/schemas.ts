@@ -585,9 +585,17 @@ export const createTeamSchema = z.object({
   is_open_for_players: z.boolean().optional(),
 });
 
-export const inviteToTeamSchema = z.object({
-  player_id: uuid,
-});
+// Accepts either the internal player_id (UUID) or the human-friendly
+// bfam_id (e.g. "BF1001") — a captain only ever knows the latter, which is
+// what the mobile Invite a Player field actually collects.
+export const inviteToTeamSchema = z
+  .object({
+    player_id: uuid.optional(),
+    bfam_id: z.string().min(1).optional(),
+  })
+  .refine((data) => data.player_id || data.bfam_id, {
+    message: 'Either player_id or bfam_id is required',
+  });
 
 export const respondToInvitationSchema = z.object({
   accept: z.boolean(),

@@ -84,7 +84,8 @@ export default function ManageTeamScreen() {
         label="Invite a Player"
         value={invitePlayerId}
         onChangeText={setInvitePlayerId}
-        placeholder="Player ID"
+        placeholder="BFAM ID, e.g. BF1001"
+        autoCapitalize="characters"
         iconLeft={<Feather name="user-plus" size={16} color="#767676" />}
         testID="invite-player-id-input"
       />

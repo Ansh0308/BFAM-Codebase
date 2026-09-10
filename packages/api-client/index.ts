@@ -59,6 +59,7 @@ import {
   OwnerPayment,
   SupportTicket,
   SupportCategory,
+  AdminPlayer,
 } from '@bfam/shared-types';
 
 export interface TurfListFilters {
@@ -451,10 +452,12 @@ export class BFAMApiClient {
     return this.request<TeamDetails>(`/teams/${teamId}`);
   }
 
-  async inviteToTeam(teamId: string, playerId: string): Promise<{ invitation_id: string }> {
+  // `bfamId` is what a captain actually knows another player by (e.g.
+  // "BF1001") — resolved to the internal player_id server-side.
+  async inviteToTeam(teamId: string, bfamId: string): Promise<{ invitation_id: string }> {
     return this.request<{ invitation_id: string }>(`/teams/${teamId}/invitations`, {
       method: 'POST',
-      body: JSON.stringify({ player_id: playerId }),
+      body: JSON.stringify({ bfam_id: bfamId }),
     });
   }
 
@@ -915,6 +918,12 @@ export class BFAMApiClient {
 
   async getTicket(ticketId: string): Promise<SupportTicket> {
     return this.request(`/support/tickets/${ticketId}`);
+  }
+
+  // ---- Admin Web: User management (PRD §9.1) ----
+
+  async getAllPlayers(): Promise<{ results: AdminPlayer[] }> {
+    return this.request('/admin/players');
   }
 
   // React Native's fetch and the browser's fetch both accept a FormData

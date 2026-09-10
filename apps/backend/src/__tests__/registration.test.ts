@@ -116,6 +116,22 @@ describe('POST /auth/register', () => {
     expect(usersTable).toHaveLength(0);
   });
 
+  // A raw API call bypassing the mobile signup UI's role picker (which
+  // only ever offers PLAYER/TURF_OWNER/TURF_STAFF) must not be able to
+  // self-register as ADMIN — that's a privileged role, provisioned
+  // out-of-band, never through open registration.
+  it('rejects self-registration with role ADMIN, even though it passes schema validation', async () => {
+    const response = await request(app).post('/auth/register').send({
+      phone_number: '+919876500000',
+      password: 'SuperSecret123',
+      role: 'ADMIN',
+      waiver_accepted: true,
+    });
+
+    expect(response.status).toBe(403);
+    expect(usersTable).toHaveLength(0);
+  });
+
   it('assigns strictly increasing, unique BFAM IDs to concurrent registrations', async () => {
     const requests = Array.from({ length: 25 }, (_, index) =>
       request(app)

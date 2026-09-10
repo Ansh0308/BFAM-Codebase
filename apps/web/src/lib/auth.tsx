@@ -68,9 +68,17 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
+function dashboardPathFor(role: WebAuthUser['role']): string {
+  if (role === 'TURF_OWNER') return '/owner';
+  if (role === 'TURF_STAFF') return '/staff';
+  if (role === 'ADMIN') return '/admin';
+  return '/login';
+}
+
 // Redirects to /login if not authenticated, or to the correct dashboard if
-// the logged-in role doesn't match this section (Owner Web vs Staff Web).
-export function useRequireRole(role: 'TURF_OWNER' | 'TURF_STAFF') {
+// the logged-in role doesn't match this section (Owner Web vs Staff Web vs
+// Admin Web — Admin is web-only, there's no mobile equivalent).
+export function useRequireRole(role: 'TURF_OWNER' | 'TURF_STAFF' | 'ADMIN') {
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -81,9 +89,7 @@ export function useRequireRole(role: 'TURF_OWNER' | 'TURF_STAFF') {
       return;
     }
     if (user.role !== role) {
-      router.replace(
-        user.role === 'TURF_OWNER' ? '/owner' : user.role === 'TURF_STAFF' ? '/staff' : '/login',
-      );
+      router.replace(dashboardPathFor(user.role));
     }
   }, [loading, user, role, router]);
 

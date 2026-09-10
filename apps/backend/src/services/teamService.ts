@@ -7,6 +7,7 @@ import {
   ForbiddenActionError,
   InvalidTeamStateError,
   JoinRequestNotFoundError,
+  PlayerNotFoundByBfamIdError,
   PlayerProfileNotFoundError,
   TeamNotFoundError,
 } from '../domain/errors';
@@ -42,6 +43,19 @@ async function resolvePlayerId(userId: string): Promise<string> {
     { type: QueryTypes.SELECT, replacements: { userId } },
   );
   if (!player) throw new PlayerProfileNotFoundError();
+  return player.player_id;
+}
+
+// Invite a Player (mobile) collects a BFAM ID (e.g. "BF1001") — the only
+// identifier a captain actually knows another player by — not the internal
+// player_id UUID. Case-insensitive since BFAM IDs are shown uppercase but
+// easy to mistype the case of.
+export async function resolvePlayerIdByBfamId(bfamId: string): Promise<string> {
+  const [player] = await sequelize.query<{ player_id: string }>(
+    'SELECT player_id FROM players WHERE UPPER(bfam_id) = UPPER(:bfamId)',
+    { type: QueryTypes.SELECT, replacements: { bfamId } },
+  );
+  if (!player) throw new PlayerNotFoundByBfamIdError(bfamId);
   return player.player_id;
 }
 

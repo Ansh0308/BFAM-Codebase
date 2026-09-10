@@ -120,16 +120,22 @@ export default function TurfListing() {
           <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-3">
             Near You
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
-            {results.slice(0, 6).map((turf) => (
-              <TurfCard
-                key={turf.turf_id}
-                turf={turf}
-                variant="horizontal"
-                onPress={() => openDetails(turf.turf_id)}
-              />
-            ))}
-          </ScrollView>
+          <View className="mb-6" style={{ height: 236 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ alignItems: 'flex-start' }}
+            >
+              {results.slice(0, 6).map((turf) => (
+                <TurfCard
+                  key={turf.turf_id}
+                  turf={turf}
+                  variant="horizontal"
+                  onPress={() => openDetails(turf.turf_id)}
+                />
+              ))}
+            </ScrollView>
+          </View>
 
           <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-3">
             All Turfs

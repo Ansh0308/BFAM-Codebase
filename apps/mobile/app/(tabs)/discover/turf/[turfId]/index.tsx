@@ -76,9 +76,9 @@ export default function TurfDetailsScreen() {
           {details.address_line}, {details.city}
         </Text>
 
-        {details.average_rating != null && (
+        {details.average_rating != null && !Number.isNaN(Number(details.average_rating)) && (
           <Text className="text-rating-star text-body mt-1">
-            ★ {details.average_rating.toFixed(1)}
+            ★ {Number(details.average_rating).toFixed(1)}
           </Text>
         )}
 

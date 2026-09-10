@@ -19,6 +19,7 @@ import {
   listOpenTeams,
   removeMember,
   requestToJoinTeam,
+  resolvePlayerIdByBfamId,
   respondToInvitation,
   respondToJoinRequest,
 } from '../services/teamService';
@@ -27,6 +28,7 @@ import {
   ForbiddenActionError,
   InvalidTeamStateError,
   JoinRequestNotFoundError,
+  PlayerNotFoundByBfamIdError,
   PlayerProfileNotFoundError,
   TeamNotFoundError,
 } from '../domain/errors';
@@ -42,6 +44,9 @@ function handleTeamError(error: unknown, res: Response) {
   }
   if (error instanceof PlayerProfileNotFoundError) {
     return res.status(422).json({ error: { message: error.message, status: 422 } });
+  }
+  if (error instanceof PlayerNotFoundByBfamIdError) {
+    return res.status(404).json({ error: { message: error.message, status: 404 } });
   }
   if (error instanceof AlreadyTeamMemberError || error instanceof InvalidTeamStateError) {
     return res.status(409).json({ error: { message: error.message, status: 409 } });
@@ -132,11 +137,9 @@ router.post(
         .json({ error: { message: 'Invalid invitation payload', status: 400 } });
     }
     try {
-      const invitation = await inviteToTeam(
-        req.params.teamId,
-        req.auth!.sub,
-        parsed.data.player_id,
-      );
+      const playerId =
+        parsed.data.player_id ?? (await resolvePlayerIdByBfamId(parsed.data.bfam_id!));
+      const invitation = await inviteToTeam(req.params.teamId, req.auth!.sub, playerId);
       return res.status(201).json(invitation);
     } catch (error) {
       const handled = handleTeamError(error, res);
