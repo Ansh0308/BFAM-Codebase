@@ -10,6 +10,7 @@ jest.mock('expo-router', () => ({
 jest.mock('../src/lib/apiClient', () => ({
   apiClient: {
     getTurfs: jest.fn(),
+    getHomeBanners: jest.fn(),
   },
 }));
 
@@ -17,6 +18,7 @@ jest.mock('../src/screens/OwnerDashboard', () => ({ OwnerDashboard: () => null }
 jest.mock('../src/screens/StaffDashboard', () => ({ StaffDashboard: () => null }));
 
 const mockGetTurfs = apiClient.getTurfs as jest.Mock;
+const mockGetHomeBanners = apiClient.getHomeBanners as jest.Mock;
 
 import Home from '../app/(tabs)/index';
 import { useAuthStore } from '../src/store/authStore';
@@ -30,6 +32,7 @@ describe('Home — Book Turf quick action with Discover hidden (backlog A-12)', 
   beforeEach(() => {
     jest.clearAllMocks();
     useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
+    mockGetHomeBanners.mockResolvedValue({ results: [] });
     mockGetTurfs.mockResolvedValue({
       page: 1,
       page_size: 20,

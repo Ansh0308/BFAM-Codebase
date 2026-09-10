@@ -32,6 +32,7 @@ const OPEN_TEAM = {
   is_open_for_players: true,
   team_status: 'ACTIVE',
   active_member_count: 4,
+  fair_play_score: 88,
 };
 
 describe('OpenTeamsScreen (module 2.5)', () => {
@@ -46,6 +47,26 @@ describe('OpenTeamsScreen (module 2.5)', () => {
 
     await findByTestId('open-team-row-team-1');
     expect(mockGetOpenTeams).toHaveBeenCalledWith({});
+  });
+
+  // Backlog B-5: Fair Play score shown per team so players can factor it
+  // into which open team they request to join.
+  it('shows the Fair Play score badge when the team has one', async () => {
+    mockGetOpenTeams.mockResolvedValueOnce({ results: [OPEN_TEAM] });
+    const { findByTestId } = render(<OpenTeamsScreen />);
+
+    const badge = await findByTestId('fair-play-score-team-1');
+    expect(badge).toBeTruthy();
+  });
+
+  it('hides the Fair Play badge for a team with no active members yet', async () => {
+    mockGetOpenTeams.mockResolvedValueOnce({
+      results: [{ ...OPEN_TEAM, fair_play_score: null }],
+    });
+    const { findByTestId, queryByTestId } = render(<OpenTeamsScreen />);
+
+    await findByTestId('open-team-row-team-1');
+    expect(queryByTestId('fair-play-score-team-1')).toBeNull();
   });
 
   it('refetches on every focus, not just first mount, so a newly-open team appears without restarting the app', async () => {

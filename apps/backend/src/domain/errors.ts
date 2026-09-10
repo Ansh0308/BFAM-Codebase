@@ -301,3 +301,51 @@ export class WaiverNotAcceptedError extends Error {
     this.name = 'WaiverNotAcceptedError';
   }
 }
+
+// ---- Backlog B-1: Promo Codes & BFAM Coins ----
+
+export class PromoCodeNotFoundError extends Error {
+  constructor() {
+    super('That promo code was not found.');
+    this.name = 'PromoCodeNotFoundError';
+  }
+}
+
+export class PromoCodeNotApplicableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PromoCodeNotApplicableError';
+  }
+}
+
+export class InsufficientCoinBalanceError extends Error {
+  constructor() {
+    super("You don't have enough BFAM Coins for that.");
+    this.name = 'InsufficientCoinBalanceError';
+  }
+}
+
+// ---- Backlog B-4: Reviews ----
+
+export class ReviewAlreadySubmittedError extends Error {
+  constructor() {
+    super('You have already reviewed this match.');
+    this.name = 'ReviewAlreadySubmittedError';
+  }
+}
+
+export class MatchNotYetCompletedError extends Error {
+  constructor() {
+    super('You can only review a match after it has finished.');
+    this.name = 'MatchNotYetCompletedError';
+  }
+}
+
+// ---- Backlog B-6: Home Page Carousel / Admin CMS ----
+
+export class BannerNotFoundError extends Error {
+  constructor() {
+    super('That banner was not found.');
+    this.name = 'BannerNotFoundError';
+  }
+}

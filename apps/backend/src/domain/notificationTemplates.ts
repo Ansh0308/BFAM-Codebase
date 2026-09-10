@@ -28,8 +28,11 @@ export type PrdNotificationEvent = (typeof PRD_NOTIFICATION_EVENTS)[number];
 
 // A notification_type this codebase used before module 2.11 (kept for
 // backward compatibility, e.g. TEAM_INVITE is used outside the §12.45 list)
-// plus every PRD event above — the full set notificationService can send.
-export type NotificationEventType = PrdNotificationEvent | 'TEAM_INVITE' | 'BOOKING_UPDATE';
+// plus every PRD event above, plus NEW_MESSAGE (backlog B-3 — not in the
+// original PRD §12.45 list, added the same way TEAM_INVITE/BOOKING_UPDATE
+// were) — the full set notificationService can send.
+export type NotificationEventType =
+  PrdNotificationEvent | 'TEAM_INVITE' | 'BOOKING_UPDATE' | 'NEW_MESSAGE';
 
 export type NotificationPreferenceCategory =
   'match_updates' | 'booking_reminders' | 'team_invites' | 'promotions';
@@ -129,5 +132,12 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationEventType, NotificationT
     category: 'booking_reminders',
     title: () => 'Booking update',
     body: (p: { message: string }) => p.message,
+  },
+  // Backlog B-3: a new message (from another player, or a system event
+  // like check-in/payment) in a match's chat room.
+  NEW_MESSAGE: {
+    category: 'match_updates',
+    title: (p: { matchName: string }) => `New message in ${p.matchName}`,
+    body: (p: { preview: string }) => p.preview,
   },
 };

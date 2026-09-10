@@ -11,12 +11,13 @@
       "bundleIdentifier": "com.bfam.mobile",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "BFAM uses your location to show turfs near you in Discover."
+        "NSLocationWhenInUseUsageDescription": "BFAM uses your location to show turfs near you in Discover.",
+        "NSContactsUsageDescription": "BFAM checks your contacts' phone numbers against registered players so you can invite people you know. Only phone numbers are sent, never names or other contact details."
       }
     },
     "android": {
       "package": "com.bfam.mobile",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "READ_CONTACTS"]
     },
     "plugins": [
       [
@@ -33,6 +34,12 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "BFAM uses your location to show turfs near you in Discover."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "BFAM checks your contacts' phone numbers against registered players so you can invite people you know. Only phone numbers are sent, never names or other contact details."
         }
       ]
     ]

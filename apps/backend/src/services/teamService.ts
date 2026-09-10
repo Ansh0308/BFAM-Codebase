@@ -210,14 +210,28 @@ export async function listOpenTeams(filters: OpenTeamFilters) {
     replacements.city = `%${filters.city}%`;
   }
 
-  return sequelize.query<TeamRow & { active_member_count: number }>(
+  const rows = await sequelize.query<
+    TeamRow & { active_member_count: number; fair_play_score: string | null }
+  >(
     `SELECT t.*,
-       (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.team_id AND tm.membership_status = 'ACTIVE') AS active_member_count
+       (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.team_id AND tm.membership_status = 'ACTIVE') AS active_member_count,
+       (SELECT AVG(p.reliability_score) FROM team_members tm
+          JOIN players p ON p.player_id = tm.player_id
+          WHERE tm.team_id = t.team_id AND tm.membership_status = 'ACTIVE') AS fair_play_score
      FROM teams t
      WHERE ${conditions.join(' AND ')}
      ORDER BY t.team_name ASC`,
     { type: QueryTypes.SELECT, replacements },
   );
+
+  // Backlog B-5: MySQL's AVG() over a DECIMAL column returns a string via
+  // raw sequelize.query (same quirk documented elsewhere in this codebase
+  // for other DECIMAL reads) — round to a whole number for display, or
+  // null for a team with no active members yet (average of an empty set).
+  return rows.map((row) => ({
+    ...row,
+    fair_play_score: row.fair_play_score == null ? null : Math.round(Number(row.fair_play_score)),
+  }));
 }
 
 // Invite/add/remove players (PRD §12.3) — captain-only.

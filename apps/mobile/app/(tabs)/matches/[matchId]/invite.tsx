@@ -10,12 +10,11 @@ import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
 import { TextField } from '../../../../src/components/TextField';
 import { Avatar } from '../../../../src/components/Avatar';
+import { ContactsInviteSection } from '../../../../src/components/ContactsInviteSection';
 
 // Invite Players (PRD §12.11): team members, direct player ID, share
-// link, and a dedicated WhatsApp share action. There's no native Contacts
-// picker here — team roster + player ID cover the app-internal invite
-// paths; a true phone-contacts integration is a separate scope decision
-// (needs its own permission flow) left for a follow-up.
+// link, a dedicated WhatsApp share action, and — backlog B-2 — checking
+// the organizer's device contacts against registered players.
 export default function InvitePlayersScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const [teams, setTeams] = useState<MyTeam[]>([]);
@@ -106,6 +105,13 @@ export default function InvitePlayersScreen() {
             testID="share-whatsapp-button"
           />
         </View>
+
+        <ContactsInviteSection
+          invitedIds={invitedIds}
+          busy={busy}
+          onInvite={(match) => invite(match.player_id)}
+          testIDPrefix="match-invite"
+        />
 
         <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
           From Your Team

@@ -7,6 +7,7 @@ import { apiClient } from '../../../../../src/lib/apiClient';
 import { colors } from '../../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../../src/components/ScreenContainer';
 import { Button } from '../../../../../src/components/Button';
+import { TextField } from '../../../../../src/components/TextField';
 
 // Payment method selector (PRD §12.16 / §17): UPI and Payment Gateway both
 // route through the same Razorpay order + Checkout flow (Razorpay's own
@@ -52,6 +53,16 @@ export default function PaymentScreen() {
   // (module 2.6 wires real players to the rest of the shares via the
   // same obligations endpoint).
   const [mySplitShareId, setMySplitShareId] = useState<string | null>(null);
+  // Backlog B-1: promo code / BFAM Coins applied to the payer's own
+  // obligation before choosing a payment method — the discount is applied
+  // server-side (payment_obligations.amount_due is reduced directly), so
+  // every method below just settles whatever amount_due already reflects.
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [coinsToRedeemInput, setCoinsToRedeemInput] = useState('');
+  const [coinBalance, setCoinBalance] = useState<number | null>(null);
+  const [discountBusy, setDiscountBusy] = useState(false);
+  const [discountError, setDiscountError] = useState<string | null>(null);
+  const [discountApplied, setDiscountApplied] = useState(false);
 
   const loadObligations = useCallback(async () => {
     const { results } = await apiClient.getObligations(bookingId);
@@ -63,11 +74,44 @@ export default function PaymentScreen() {
     loadObligations()
       .then((results) => setStage(results.length > 0 ? 'select-method' : 'select-method'))
       .catch(() => setError('Could not load payment details for this booking.'));
+    apiClient
+      .getMyProfile()
+      .then((profile) => setCoinBalance(profile.coin_balance))
+      .catch(() => {
+        // TURF_OWNER/TURF_STAFF booking on behalf of players (or any
+        // profile-load hiccup) — just hide the coins option rather than
+        // blocking payment on it.
+      });
   }, [loadObligations]);
 
   const myUnpaidObligations = (
     mySplitShareId ? obligations.filter((o) => o.obligation_id === mySplitShareId) : obligations
   ).filter((o) => o.due_status !== 'PAID');
+
+  // Backlog B-1: applies to the first (only, in the common non-split case)
+  // unpaid obligation this payer owes — reduces its amount_due server-side,
+  // then reloads so every total shown below already reflects the discount.
+  async function applyDiscount() {
+    const target = myUnpaidObligations[0];
+    if (!target) return;
+    setDiscountBusy(true);
+    setDiscountError(null);
+    try {
+      const result = await apiClient.applyCheckoutDiscount(target.obligation_id, {
+        promo_code: promoCodeInput.trim() || undefined,
+        coins_to_redeem: coinsToRedeemInput ? Number(coinsToRedeemInput) : undefined,
+      });
+      setCoinBalance(result.coin_balance);
+      setDiscountApplied(true);
+      await loadObligations();
+    } catch (err) {
+      setDiscountError(
+        err instanceof BFAMApiError ? err.message : 'Could not apply that discount.',
+      );
+    } finally {
+      setDiscountBusy(false);
+    }
+  }
 
   async function ensureSingleObligation(): Promise<PaymentObligation[]> {
     if (obligations.length > 0) return obligations;
@@ -359,6 +403,61 @@ export default function PaymentScreen() {
         {error && (
           <Text className="text-brand-red text-body mt-3" testID="payment-error-message">
             {error}
+          </Text>
+        )}
+
+        {/* Backlog B-1: promo code / BFAM Coins, applied before picking a
+            payment method — reduces the amount shown above. Hidden once
+            applied so it isn't accidentally re-submitted (a promo code may
+            be one-use-per-player, and re-applying coins would spend more
+            than intended). */}
+        {myUnpaidObligations.length > 0 && !discountApplied && (
+          <View
+            className="mt-5 pt-5 border-t border-border-subtle"
+            testID="checkout-discount-section"
+          >
+            <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
+              Promo Code &amp; BFAM Coins
+            </Text>
+            <TextField
+              label="Promo Code"
+              value={promoCodeInput}
+              onChangeText={setPromoCodeInput}
+              placeholder="e.g. SAVE10"
+              autoCapitalize="characters"
+              testID="promo-code-input"
+            />
+            {coinBalance != null && coinBalance > 0 && (
+              <TextField
+                label={`Use BFAM Coins (you have ${coinBalance})`}
+                value={coinsToRedeemInput}
+                onChangeText={setCoinsToRedeemInput}
+                placeholder="0"
+                keyboardType="number-pad"
+                testID="coins-to-redeem-input"
+              />
+            )}
+            {discountError && (
+              <Text className="text-brand-red text-body mb-2" testID="discount-error-message">
+                {discountError}
+              </Text>
+            )}
+            <Button
+              label="Apply"
+              variant="secondary"
+              onPress={applyDiscount}
+              loading={discountBusy}
+              disabled={!promoCodeInput.trim() && !coinsToRedeemInput}
+              testID="apply-discount-button"
+            />
+          </View>
+        )}
+        {discountApplied && (
+          <Text
+            className="font-ui text-micro text-text-tertiary mt-3"
+            testID="discount-applied-note"
+          >
+            Discount applied.
           </Text>
         )}
 

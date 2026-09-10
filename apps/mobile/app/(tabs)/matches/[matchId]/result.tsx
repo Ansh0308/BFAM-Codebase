@@ -171,6 +171,19 @@ export default function MatchResultScreen() {
               testID="open-statistics"
             />
           </View>
+          {/* Backlog B-4: prompts the player to review the match/turf right
+              where they land after it's finalized — the natural moment,
+              per the feedback's own framing ("after a match, ask the
+              player to review"). */}
+          <View className="mt-3 w-full">
+            <Button
+              label="Rate This Match"
+              variant="secondary"
+              iconLeft={<Feather name="star" size={16} color="#0D0D0D" />}
+              onPress={() => router.push(`/match-review?matchId=${matchId}`)}
+              testID="open-review"
+            />
+          </View>
           {room.organizer_id === user?.user_id && (
             <View className="mt-3 w-full">
               <Button

@@ -824,3 +824,57 @@ export const createInjuryReportSchema = z.object({
 export const updateTicketStatusSchema = z.object({
   status: z.enum(SUPPORT_STATUSES),
 });
+
+// Backlog B-2: contacts-based invites. Capped batch size — a typical phone
+// contacts list is a few hundred to a couple thousand entries; 2000 covers
+// that comfortably while bounding one request's DB/CPU cost.
+export const contactsLookupSchema = z.object({
+  phone_numbers: z.array(z.string().min(1).max(30)).min(1).max(2000),
+});
+
+// ---- Backlog B-1: Promo Codes & BFAM Coins ----
+
+export const applyCheckoutDiscountSchema = z.object({
+  promo_code: z.string().min(1).max(30).optional(),
+  coins_to_redeem: z.number().int().min(0).optional(),
+});
+
+export const createPromoCodeSchema = z.object({
+  code: z.string().min(3).max(30),
+  discount_type: z.enum(['PERCENTAGE', 'FLAT']),
+  discount_value: z.number().positive(),
+  max_discount_amount: z.number().positive().nullable().optional(),
+  min_booking_amount: z.number().min(0).optional(),
+  usage_limit_total: z.number().int().positive().nullable().optional(),
+  usage_limit_per_player: z.number().int().positive().nullable().optional(),
+  valid_from: z.string().datetime().nullable().optional(),
+  valid_until: z.string().datetime().nullable().optional(),
+});
+
+// ---- Backlog B-4: Reviews ----
+
+export const submitReviewSchema = z.object({
+  match_id: uuid,
+  rating: z.number().int().min(1).max(5),
+  review_text: z.string().max(2000).nullable().optional(),
+});
+
+// ---- Backlog B-6: Home Page Carousel / Admin CMS ----
+
+// ---- Backlog B-3: Match Chat ----
+
+export const sendChatMessageSchema = z.object({
+  body: z.string().min(1).max(1000),
+});
+
+export const createBannerSchema = z.object({
+  title: z.string().min(1).max(150),
+  image_url: z.string().url().max(500),
+  link_url: z.string().url().max(500).nullable().optional(),
+  display_order: z.number().int().optional(),
+  is_active: z.boolean().optional(),
+  starts_at: z.string().datetime().nullable().optional(),
+  ends_at: z.string().datetime().nullable().optional(),
+});
+
+export const updateBannerSchema = createBannerSchema.partial();

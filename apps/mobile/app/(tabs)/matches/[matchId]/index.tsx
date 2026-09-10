@@ -211,6 +211,16 @@ export default function GameRoomScreen() {
             testID="open-check-in"
           />
         </View>
+        {/* Backlog B-3: Match Chat — open to the same roster as Check In. */}
+        <View className="mt-3">
+          <Button
+            label="Chat"
+            variant="secondary"
+            iconLeft={<Feather name="message-circle" size={16} color="#D80000" />}
+            onPress={() => router.push(`/(tabs)/matches/${matchId}/chat`)}
+            testID="open-chat"
+          />
+        </View>
         {isManager && (
           <View className="mt-3">
             <Button

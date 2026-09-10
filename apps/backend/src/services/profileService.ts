@@ -34,6 +34,10 @@ export interface MyProfile {
   // listed; null for a player who hasn't set one yet, and always null for
   // non-PLAYER roles (no `players` row to hold it).
   full_name: string | null;
+  // Backlog B-1/B-4 — BFAM Coins balance; null for non-PLAYER roles (no
+  // `players` row to hold it), never null for an actual player (defaults
+  // to 0).
+  coin_balance: number | null;
 }
 
 export async function getMyProfile(userId: string): Promise<MyProfile | null> {
@@ -67,6 +71,7 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       favorite_cricketer_name: null,
       favorite_cricketer_external_id: null,
       full_name: null,
+      coin_balance: null,
     };
   }
 
@@ -82,8 +87,9 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
     favorite_cricketer_name: string | null;
     favorite_cricketer_external_id: string | null;
     full_name: string | null;
+    coin_balance: number | null;
   }>(
-    'SELECT playing_role, batting_style, bowling_style, experience_level, date_of_birth, gender, skill_rating, reliability_score, favorite_cricketer_name, favorite_cricketer_external_id, full_name FROM players WHERE user_id = :userId LIMIT 1',
+    'SELECT playing_role, batting_style, bowling_style, experience_level, date_of_birth, gender, skill_rating, reliability_score, favorite_cricketer_name, favorite_cricketer_external_id, full_name, coin_balance FROM players WHERE user_id = :userId LIMIT 1',
     { type: QueryTypes.SELECT, replacements: { userId } },
   );
 
@@ -101,6 +107,7 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       favorite_cricketer_name: null,
       favorite_cricketer_external_id: null,
       full_name: null,
+      coin_balance: null,
     }),
   };
 }

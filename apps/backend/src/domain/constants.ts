@@ -113,6 +113,7 @@ export const NOTIFICATION_TYPES = [
   'RATING_UPDATE',
   'REWARD_RECEIVED',
   'TOURNAMENT_UPDATE',
+  'NEW_MESSAGE',
 ] as const;
 export const DELIVERY_CHANNELS = ['PUSH', 'EMAIL', 'SMS', 'IN_APP'] as const;
 export const DELIVERY_STATUSES = ['PENDING', 'DELIVERED', 'FAILED', 'READ'] as const;

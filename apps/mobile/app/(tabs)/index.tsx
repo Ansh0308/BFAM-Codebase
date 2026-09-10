@@ -8,6 +8,7 @@ import { OwnerDashboard } from '../../src/screens/OwnerDashboard';
 import { StaffDashboard } from '../../src/screens/StaffDashboard';
 import { apiClient } from '../../src/lib/apiClient';
 import { DISCOVERY_ENABLED } from '../../src/config/featureFlags';
+import { HomeBannerCarousel } from '../../src/components/HomeBannerCarousel';
 
 // Home tab — role router (module 2.12, PRD §8.3/§8.4): the Player
 // experience here is still a placeholder (a later module), but
@@ -58,6 +59,10 @@ export default function Home() {
         <Text className="font-ui text-body text-text-secondary mt-2">
           The full Home screen is built in a later module.
         </Text>
+
+        <View className="mt-6">
+          <HomeBannerCarousel />
+        </View>
 
         {bookTurfError && (
           <Text className="font-ui text-body text-brand-red-dark mt-4">{bookTurfError}</Text>

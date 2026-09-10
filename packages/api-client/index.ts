@@ -1,5 +1,7 @@
 import {
   Booking,
+  CheckoutDiscountResult,
+  ContactMatch,
   CreateBookingInput,
   CreateMatchInput,
   CreateObligationsInput,
@@ -22,7 +24,9 @@ import {
   OpenTeam,
   Payment,
   PaymentObligation,
+  ChatMessage,
   ReplacementSuggestion,
+  ReviewSubmissionResult,
   TeamDetails,
   TurfAvailability,
   TurfDetails,
@@ -66,6 +70,9 @@ import {
   SupportTicket,
   SupportCategory,
   AdminPlayer,
+  HomeBanner,
+  CreateBannerInput,
+  UpdateBannerInput,
 } from '@bfam/shared-types';
 
 export interface TurfListFilters {
@@ -439,6 +446,18 @@ export class BFAMApiClient {
     });
   }
 
+  // Backlog B-1: apply a promo code and/or BFAM Coins to a pending
+  // obligation before paying it.
+  async applyCheckoutDiscount(
+    obligationId: string,
+    input: { promo_code?: string; coins_to_redeem?: number },
+  ): Promise<CheckoutDiscountResult> {
+    return this.request<CheckoutDiscountResult>(`/payments/obligations/${obligationId}/discount`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
   async getMyPaymentHistory(): Promise<{ results: Payment[] }> {
     return this.request<{ results: Payment[] }>('/payments/mine');
   }
@@ -455,6 +474,14 @@ export class BFAMApiClient {
 
   async getMyTeams(): Promise<{ results: MyTeam[] }> {
     return this.request<{ results: MyTeam[] }>('/teams/mine');
+  }
+
+  // Backlog B-2: contacts-based invites — batch phone-number lookup.
+  async matchContacts(phoneNumbers: string[]): Promise<{ results: ContactMatch[] }> {
+    return this.request('/players/contacts-lookup', {
+      method: 'POST',
+      body: JSON.stringify({ phone_numbers: phoneNumbers }),
+    });
   }
 
   async getOpenTeams(
@@ -733,6 +760,30 @@ export class BFAMApiClient {
     return this.request<MatchResult>(`/matches/${matchId}/result`);
   }
 
+  // ---- Backlog B-3: Match Chat ----
+
+  async getMatchMessages(matchId: string): Promise<{ results: ChatMessage[] }> {
+    return this.request(`/matches/${matchId}/messages`);
+  }
+
+  async sendMatchMessage(matchId: string, body: string): Promise<ChatMessage> {
+    return this.request(`/matches/${matchId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    });
+  }
+
+  // Backlog B-4: post-match review, rewarded with BFAM Coins.
+  async submitReview(
+    matchId: string,
+    input: { rating: number; review_text?: string | null },
+  ): Promise<ReviewSubmissionResult> {
+    return this.request<ReviewSubmissionResult>(`/matches/${matchId}/review`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
   // ---- Module 2.9: Live Match Viewer Count ----
 
   async getViewerCount(matchId: string): Promise<{ active: number; total: number }> {
@@ -990,6 +1041,33 @@ export class BFAMApiClient {
 
   async getAllPlayers(): Promise<{ results: AdminPlayer[] }> {
     return this.request('/admin/players');
+  }
+
+  // ---- Backlog B-6: Home Page Carousel ----
+
+  async getHomeBanners(): Promise<{ results: HomeBanner[] }> {
+    return this.request('/banners');
+  }
+
+  // ---- Backlog B-6: Admin CMS ----
+
+  async getAllBanners(): Promise<{ results: HomeBanner[] }> {
+    return this.request('/admin/banners');
+  }
+
+  async createBanner(input: CreateBannerInput): Promise<{ banner_id: string }> {
+    return this.request('/admin/banners', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async updateBanner(bannerId: string, input: UpdateBannerInput): Promise<HomeBanner> {
+    return this.request(`/admin/banners/${bannerId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteBanner(bannerId: string): Promise<void> {
+    await this.request(`/admin/banners/${bannerId}`, { method: 'DELETE' });
   }
 
   // React Native's fetch and the browser's fetch both accept a FormData

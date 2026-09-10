@@ -62,6 +62,8 @@ export interface MyProfile {
   // Backlog A-9 — shown in place of the BFAM ID everywhere a player is
   // listed (roster rows, scoring selectors, invite lists).
   full_name: string | null;
+  // Backlog B-1/B-4 — BFAM Coins balance; null for non-PLAYER roles.
+  coin_balance: number | null;
 }
 
 // `email` is deliberately not part of this payload — it can only be set via
@@ -283,6 +285,17 @@ export interface PaymentObligation {
   updated_at: string;
 }
 
+// Backlog B-1: promo code / BFAM Coins checkout discount.
+export interface CheckoutDiscountResult {
+  obligation_id: string;
+  original_amount_due: number;
+  promo_discount: number;
+  coins_spent: number;
+  coin_discount: number;
+  new_amount_due: number;
+  coin_balance: number;
+}
+
 export type PaymentMethodType = 'UPI' | 'RAZORPAY' | 'CASH' | 'CAPTAIN_PAYS' | 'SPLIT';
 export type PaymentStatusType = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
 
@@ -348,6 +361,16 @@ export interface TeamMember {
   favorite_cricketer_name?: string | null;
 }
 
+// Backlog B-2: one registered player matched from the caller's device
+// contacts — phone_number echoes back exactly the string the caller sent,
+// so the mobile client can map it back to the specific contact entry.
+export interface ContactMatch {
+  phone_number: string;
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+}
+
 export interface TeamDetails extends Team {
   members: TeamMember[];
 }
@@ -358,6 +381,8 @@ export interface MyTeam extends Team {
 
 export interface OpenTeam extends Team {
   active_member_count: number;
+  /** Backlog B-5: average reliability_score across active members, rounded; null if the team has no active members yet. */
+  fair_play_score: number | null;
 }
 
 export interface CreateTeamInput {
@@ -591,6 +616,52 @@ export interface MatchResult {
   player_of_the_match_id: string | null;
   player_of_the_match_bfam_id?: string | null;
   finalized_at: string;
+}
+
+// Backlog B-4: post-match review reward.
+export interface ReviewSubmissionResult {
+  review_id: string;
+  coins_awarded: number;
+  coin_balance: number;
+}
+
+// Backlog B-6: Home page carousel banner / admin CMS.
+export interface HomeBanner {
+  banner_id: string;
+  title: string;
+  image_url: string;
+  link_url: string | null;
+  display_order: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateBannerInput {
+  title: string;
+  image_url: string;
+  link_url?: string | null;
+  display_order?: number;
+  is_active?: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
+}
+
+export type UpdateBannerInput = Partial<CreateBannerInput>;
+
+// Backlog B-3: Match Chat.
+export interface ChatMessage {
+  message_id: string;
+  match_id: string;
+  sender_id: string | null;
+  message_type: 'TEXT' | 'SYSTEM';
+  body: string;
+  created_at: string;
+  sender_bfam_id: string | null;
+  sender_full_name: string | null;
 }
 
 export interface MatchIntro {

@@ -10,7 +10,16 @@ jest.mock('../src/lib/apiClient', () => ({
     changeCaptain: jest.fn(),
     removeTeamMember: jest.fn(),
     respondToJoinRequest: jest.fn(),
+    matchContacts: jest.fn(),
   },
+}));
+
+const mockRequestPermissionsAsync = jest.fn();
+const mockGetContactsAsync = jest.fn();
+jest.mock('expo-contacts', () => ({
+  requestPermissionsAsync: (...args: unknown[]) => mockRequestPermissionsAsync(...args),
+  getContactsAsync: (...args: unknown[]) => mockGetContactsAsync(...args),
+  Fields: { PhoneNumbers: 'phoneNumbers' },
 }));
 
 jest.mock('expo-router', () => ({
@@ -35,6 +44,7 @@ const mockGetTeamDetails = apiClient.getTeamDetails as jest.Mock;
 const mockGetJoinRequests = apiClient.getJoinRequests as jest.Mock;
 const mockInviteToTeam = apiClient.inviteToTeam as jest.Mock;
 const mockChangeCaptain = apiClient.changeCaptain as jest.Mock;
+const mockMatchContacts = apiClient.matchContacts as jest.Mock;
 
 import ManageTeamScreen from '../app/(tabs)/teams/[teamId]/manage';
 
@@ -80,6 +90,9 @@ describe('ManageTeamScreen (module 2.5)', () => {
     mockGetJoinRequests.mockReset().mockResolvedValue({ results: [] });
     mockInviteToTeam.mockReset();
     mockChangeCaptain.mockReset();
+    mockMatchContacts.mockReset();
+    mockRequestPermissionsAsync.mockReset().mockResolvedValue({ status: 'granted' });
+    mockGetContactsAsync.mockReset().mockResolvedValue({ data: [] });
   });
 
   it('sends an invite with the entered player id', async () => {
@@ -108,5 +121,55 @@ describe('ManageTeamScreen (module 2.5)', () => {
     fireEvent.press(await findByTestId('make-captain-member-player'));
 
     await waitFor(() => expect(mockChangeCaptain).toHaveBeenCalledWith('team-1', 'member-player'));
+  });
+
+  // Backlog B-2: contacts-based invites.
+  describe('inviting from contacts', () => {
+    it('checks contacts, shows matched players, and invites by their BFAM ID', async () => {
+      mockGetContactsAsync.mockResolvedValue({
+        data: [{ phoneNumbers: [{ number: '+919876543210' }] }],
+      });
+      mockMatchContacts.mockResolvedValueOnce({
+        results: [
+          {
+            phone_number: '+919876543210',
+            player_id: 'p-contact-1',
+            bfam_id: 'BF2001',
+            full_name: 'Contact One',
+          },
+        ],
+      });
+      mockInviteToTeam.mockResolvedValueOnce({ invitation_id: 'inv-2' });
+
+      const { findByTestId } = render(<ManageTeamScreen />);
+      fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
+
+      expect(await findByTestId('team-invite-contact-row-p-contact-1')).toBeTruthy();
+      fireEvent.press(await findByTestId('team-invite-invite-button-p-contact-1'));
+
+      await waitFor(() => expect(mockInviteToTeam).toHaveBeenCalledWith('team-1', 'BF2001'));
+    });
+
+    it('shows a message when contacts permission is denied', async () => {
+      mockRequestPermissionsAsync.mockResolvedValue({ status: 'denied' });
+
+      const { findByTestId } = render(<ManageTeamScreen />);
+      fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
+
+      expect(await findByTestId('team-invite-contacts-denied')).toBeTruthy();
+      expect(mockMatchContacts).not.toHaveBeenCalled();
+    });
+
+    it('shows a message when none of the contacts are registered', async () => {
+      mockGetContactsAsync.mockResolvedValue({
+        data: [{ phoneNumbers: [{ number: '+911111111111' }] }],
+      });
+      mockMatchContacts.mockResolvedValueOnce({ results: [] });
+
+      const { findByTestId, findByText } = render(<ManageTeamScreen />);
+      fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
+
+      await findByText(/none of your contacts are on bfam yet/i);
+    });
   });
 });
