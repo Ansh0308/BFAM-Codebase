@@ -146,6 +146,62 @@ describe('Match Countdown Intro (module 2.7)', () => {
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)/matches/match-1/live');
   });
 
+  it('records a coin-flip toss result through the same recordToss call as the manual path (backlog A-6)', async () => {
+    const originalRandom = Math.random;
+    Math.random = () => 0.1; // < 0.5 -> TEAM_A wins the flip
+
+    const { getByTestId } = render(<MatchIntroScreen />);
+    await waitFor(() => expect(getByTestId('intro-countdown')).toBeTruthy());
+
+    await act(async () => {
+      jest.advanceTimersByTime(10_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-xi-reveal')).toBeTruthy());
+
+    await act(async () => {
+      jest.advanceTimersByTime(4_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
+
+    fireEvent.press(getByTestId('toss-mode-COIN'));
+    fireEvent.press(getByTestId('flip-coin-button'));
+
+    await act(async () => {
+      jest.advanceTimersByTime(1_400);
+    });
+    await waitFor(() => expect(getByTestId('coin-flip-result')).toBeTruthy());
+
+    fireEvent.press(getByTestId('toss-decision-BOWL'));
+    fireEvent.press(getByTestId('record-toss-button'));
+
+    await waitFor(() => expect(mockRecordToss).toHaveBeenCalledWith('match-1', 'mt-a', 'BOWL'));
+
+    Math.random = originalRandom;
+  });
+
+  it('switching back to Manual Toss after picking Coin Toss shows the manual chips again', async () => {
+    const { getByTestId, queryByTestId } = render(<MatchIntroScreen />);
+    await waitFor(() => expect(getByTestId('intro-countdown')).toBeTruthy());
+
+    await act(async () => {
+      jest.advanceTimersByTime(10_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-xi-reveal')).toBeTruthy());
+
+    await act(async () => {
+      jest.advanceTimersByTime(4_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
+
+    fireEvent.press(getByTestId('toss-mode-COIN'));
+    expect(getByTestId('coin-flip')).toBeTruthy();
+    expect(queryByTestId('toss-winner-TEAM_A')).toBeNull();
+
+    fireEvent.press(getByTestId('toss-mode-MANUAL'));
+    expect(getByTestId('toss-winner-TEAM_A')).toBeTruthy();
+    expect(queryByTestId('coin-flip')).toBeNull();
+  });
+
   it('a passive (non-manager) viewer never calls the manager-only start endpoint and only mirrors broadcast stages', async () => {
     mockGetGameRoom.mockResolvedValue({ organizer_id: 'someone-else', assigned_scorer_id: null });
     const { getByTestId } = render(<MatchIntroScreen />);
