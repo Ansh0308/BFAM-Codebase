@@ -134,12 +134,14 @@ export function TextInput({
   onChange,
   placeholder,
   type = 'text',
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   type?: string;
+  disabled?: boolean;
 }) {
   return (
     <label className="block mb-4">
@@ -151,7 +153,8 @@ export function TextInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 font-ui text-body text-text-primary focus:border-brand-red focus:outline-none"
+        disabled={disabled}
+        className="mt-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 font-ui text-body text-text-primary focus:border-brand-red focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
       />
     </label>
   );

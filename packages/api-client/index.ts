@@ -47,6 +47,12 @@ import {
   Turf,
   CreateTurfInput,
   UpdateTurfInput,
+  Venue,
+  VenueListItem,
+  VenueDetails,
+  CreateVenueInput,
+  UpdateVenueInput,
+  PublicVenueDetails,
   SetOperatingHoursRow,
   SetPricingRow,
   TurfOperatingHours,
@@ -216,6 +222,12 @@ export class BFAMApiClient {
     return this.request<TurfAvailability>(
       `/turfs/${turfId}/availability${toQueryString({ date })}`,
     );
+  }
+
+  // Player-facing venue pitch-picker: Discover shows one card per venue;
+  // this lists its pitches so the player can pick one to book.
+  async getVenueDetails(venueId: string): Promise<PublicVenueDetails> {
+    return this.request<PublicVenueDetails>(`/venues/${venueId}`);
   }
 
   async createBooking(input: CreateBookingInput): Promise<Booking> {
@@ -778,6 +790,35 @@ export class BFAMApiClient {
     return this.request<Turf>(`/owner/turfs/${turfId}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
+    });
+  }
+
+  // Venues (backlog A-2) — grouping for owners with more than one pitch at
+  // the same physical location. Each turf under a venue is still its own
+  // independently bookable listing (same endpoints as above).
+  async getMyVenues(): Promise<{ results: VenueListItem[] }> {
+    return this.request<{ results: VenueListItem[] }>('/owner/venues');
+  }
+
+  async createVenue(input: CreateVenueInput): Promise<Venue> {
+    return this.request<Venue>('/owner/venues', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async getVenue(venueId: string): Promise<VenueDetails> {
+    return this.request<VenueDetails>(`/owner/venues/${venueId}`);
+  }
+
+  async updateVenue(venueId: string, updates: UpdateVenueInput): Promise<Venue> {
+    return this.request<Venue>(`/owner/venues/${venueId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async assignTurfToVenue(turfId: string, venueId: string): Promise<Turf> {
+    return this.request<Turf>(`/owner/turfs/${turfId}/venue`, {
+      method: 'POST',
+      body: JSON.stringify({ venue_id: venueId }),
     });
   }
 

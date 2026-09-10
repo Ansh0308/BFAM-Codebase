@@ -42,6 +42,16 @@ export default function MatchIntroScreen() {
   const [tossDecision, setTossDecision] = useState<'BAT' | 'BOWL' | null>(null);
   const [tossRecorded, setTossRecorded] = useState(false);
 
+  // Backlog A-6 — a playful coin-flip presentation alongside the manual
+  // toss that was already here. Either mode ends up calling the exact same
+  // submitToss()/recordToss, just deciding tossWinnerSide differently.
+  const [tossMode, setTossMode] = useState<'MANUAL' | 'COIN'>('MANUAL');
+  const [flipping, setFlipping] = useState(false);
+  const coinRotation = useSharedValue(0);
+  const coinAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotateY: `${coinRotation.value}deg` }],
+  }));
+
   const emittedStages = useRef(new Set<Stage>());
 
   const emitStage = useCallback(
@@ -133,6 +143,23 @@ export default function MatchIntroScreen() {
     return () => clearTimeout(timer);
   }, [isOrganizer, stage, emitStage, musicEnabled]);
 
+  // Decorative spin timed on the JS thread (same split as CountdownNumber
+  // below — Reanimated only drives the visual, plain state/timeout drives
+  // the logic), landing on a random side that then feeds tossWinnerSide
+  // exactly as if the organizer had tapped it manually.
+  function flipCoin() {
+    if (flipping) return;
+    setFlipping(true);
+    setTossWinnerSide(null);
+    const result: 'TEAM_A' | 'TEAM_B' = Math.random() < 0.5 ? 'TEAM_A' : 'TEAM_B';
+    coinRotation.value = 0;
+    coinRotation.value = withTiming(1800, { duration: 1400, easing: Easing.out(Easing.cubic) });
+    setTimeout(() => {
+      setFlipping(false);
+      setTossWinnerSide(result);
+    }, 1400);
+  }
+
   async function submitToss() {
     if (!tossWinnerSide || !tossDecision) return;
     const winnerMatchTeamId = matchTeams.find(
@@ -204,42 +231,95 @@ export default function MatchIntroScreen() {
               isOrganizer ? (
                 <View style={{ width: '100%' }}>
                   <View style={styles.chipRow}>
-                    {(['TEAM_A', 'TEAM_B'] as const).map((side) => (
+                    {(['MANUAL', 'COIN'] as const).map((mode) => (
                       <Pressable
-                        key={side}
-                        onPress={() => setTossWinnerSide(side)}
-                        style={[styles.chip, tossWinnerSide === side && styles.chipSelected]}
-                        testID={`toss-winner-${side}`}
+                        key={mode}
+                        onPress={() => {
+                          setTossMode(mode);
+                          setTossWinnerSide(null);
+                        }}
+                        style={[styles.chip, tossMode === mode && styles.chipSelected]}
+                        testID={`toss-mode-${mode}`}
                       >
                         <Text style={styles.chipText}>
-                          {side === 'TEAM_A' ? 'Team A' : 'Team B'}
+                          {mode === 'MANUAL' ? 'Manual Toss' : 'Flip a Coin'}
                         </Text>
                       </Pressable>
                     ))}
                   </View>
-                  <View style={styles.chipRow}>
-                    {(['BAT', 'BOWL'] as const).map((decision) => (
+
+                  {tossMode === 'MANUAL' ? (
+                    <View style={styles.chipRow}>
+                      {(['TEAM_A', 'TEAM_B'] as const).map((side) => (
+                        <Pressable
+                          key={side}
+                          onPress={() => setTossWinnerSide(side)}
+                          style={[styles.chip, tossWinnerSide === side && styles.chipSelected]}
+                          testID={`toss-winner-${side}`}
+                        >
+                          <Text style={styles.chipText}>
+                            {side === 'TEAM_A' ? 'Team A' : 'Team B'}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.coinContainer} testID="coin-flip">
+                      <Animated.View style={[styles.coin, coinAnimatedStyle]}>
+                        <Text style={styles.coinText}>
+                          {tossWinnerSide === 'TEAM_A'
+                            ? 'A'
+                            : tossWinnerSide === 'TEAM_B'
+                              ? 'B'
+                              : '?'}
+                        </Text>
+                      </Animated.View>
+                      {tossWinnerSide ? (
+                        <Text style={styles.tossResult} testID="coin-flip-result">
+                          {tossWinnerSide === 'TEAM_A' ? 'Team A' : 'Team B'} won the toss!
+                        </Text>
+                      ) : (
+                        <Pressable
+                          onPress={flipCoin}
+                          disabled={flipping}
+                          style={[styles.primaryButton, flipping && { opacity: 0.4 }]}
+                          testID="flip-coin-button"
+                        >
+                          <Text style={styles.primaryButtonText}>
+                            {flipping ? 'FLIPPING…' : 'FLIP COIN'}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  )}
+
+                  {(tossMode === 'MANUAL' || tossWinnerSide) && (
+                    <>
+                      <View style={styles.chipRow}>
+                        {(['BAT', 'BOWL'] as const).map((decision) => (
+                          <Pressable
+                            key={decision}
+                            onPress={() => setTossDecision(decision)}
+                            style={[styles.chip, tossDecision === decision && styles.chipSelected]}
+                            testID={`toss-decision-${decision}`}
+                          >
+                            <Text style={styles.chipText}>{decision}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
                       <Pressable
-                        key={decision}
-                        onPress={() => setTossDecision(decision)}
-                        style={[styles.chip, tossDecision === decision && styles.chipSelected]}
-                        testID={`toss-decision-${decision}`}
+                        onPress={submitToss}
+                        disabled={!tossWinnerSide || !tossDecision}
+                        style={[
+                          styles.primaryButton,
+                          (!tossWinnerSide || !tossDecision) && { opacity: 0.4 },
+                        ]}
+                        testID="record-toss-button"
                       >
-                        <Text style={styles.chipText}>{decision}</Text>
+                        <Text style={styles.primaryButtonText}>RECORD TOSS</Text>
                       </Pressable>
-                    ))}
-                  </View>
-                  <Pressable
-                    onPress={submitToss}
-                    disabled={!tossWinnerSide || !tossDecision}
-                    style={[
-                      styles.primaryButton,
-                      (!tossWinnerSide || !tossDecision) && { opacity: 0.4 },
-                    ]}
-                    testID="record-toss-button"
-                  >
-                    <Text style={styles.primaryButtonText}>RECORD TOSS</Text>
-                  </Pressable>
+                    </>
+                  )}
                 </View>
               ) : (
                 <Text style={styles.waitingText}>Waiting for the toss…</Text>
@@ -346,6 +426,20 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   tossContainer: { width: '100%', alignItems: 'center' },
+  coinContainer: { width: '100%', alignItems: 'center', marginBottom: 8 },
+  coin: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#D80000',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    backfaceVisibility: 'hidden',
+  },
+  coinText: { fontFamily: 'Anton', fontSize: 36, color: '#FFFFFF' },
   chipRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 16 },
   chip: {
     borderWidth: 1,

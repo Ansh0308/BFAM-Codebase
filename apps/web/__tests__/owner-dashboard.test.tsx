@@ -54,12 +54,52 @@ describe('Owner Web Dashboard (module 2.12, PRD §9.2)', () => {
     expect(link).toHaveAttribute('href', '/owner/turfs/t1');
   });
 
-  it('the Add Turf action links to the create-turf page', async () => {
+  it('groups pitches that share a venue under one card, linking to the venue page (backlog A-2)', async () => {
+    mockGetMyTurfs.mockResolvedValueOnce({
+      results: [
+        {
+          turf_id: 't1',
+          turf_name: 'Pitch 1',
+          city: 'Rajkot',
+          turf_status: 'ACTIVE',
+          venue_id: 'v1',
+          venue_name: 'Redline Sports Complex',
+        },
+        {
+          turf_id: 't2',
+          turf_name: 'Pitch 2',
+          city: 'Rajkot',
+          turf_status: 'ACTIVE',
+          venue_id: 'v1',
+          venue_name: 'Redline Sports Complex',
+        },
+        {
+          turf_id: 't3',
+          turf_name: 'Solo Turf',
+          city: 'Rajkot',
+          turf_status: 'ACTIVE',
+          venue_id: null,
+        },
+      ],
+    });
+
+    render(<OwnerDashboardPage />);
+
+    expect(await screen.findByText('Redline Sports Complex')).toBeInTheDocument();
+    expect(await screen.findByText('2 pitches')).toBeInTheDocument();
+    expect(await screen.findByTestId('turf-card-t3')).toBeInTheDocument();
+    expect(screen.queryByTestId('turf-card-t1')).not.toBeInTheDocument();
+
+    const link = (await screen.findByTestId('venue-card-v1')).closest('a');
+    expect(link).toHaveAttribute('href', '/owner/venues/v1');
+  });
+
+  it('the Add Turf action links to the combined venue+pitches create page', async () => {
     mockGetMyTurfs.mockResolvedValueOnce({ results: [] });
     render(<OwnerDashboardPage />);
     await waitFor(() => expect(mockGetMyTurfs).toHaveBeenCalled());
 
     const addTurfLink = screen.getByText(/add turf/i).closest('a');
-    expect(addTurfLink).toHaveAttribute('href', '/owner/turfs/new');
+    expect(addTurfLink).toHaveAttribute('href', '/owner/venues/new');
   });
 });

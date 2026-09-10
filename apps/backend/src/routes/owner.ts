@@ -3,22 +3,29 @@ import { authenticateJwt, requireRoles } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import {
   assignStaffSchema,
+  assignTurfToVenueSchema,
   createAvailabilityBlockSchema,
   createTurfSchema,
+  createVenueSchema,
   reviewVerificationSchema,
   setOperatingHoursSchema,
   setPricingSchema,
   setSoundSettingSchema,
   updateTurfSchema,
+  updateVenueSchema,
 } from '../validation/schemas';
 import {
+  assignTurfToVenue,
   createAvailabilityBlock,
   createTurf,
+  createVenue,
   getTodaysBookings,
   getTurfForOwner,
+  getVenueForOwner,
   listAvailabilityBlocks,
   listMatchesForOwner,
   listMyTurfs,
+  listMyVenues,
   listOperatingHours,
   listPaymentsForOwner,
   listPricing,
@@ -27,6 +34,7 @@ import {
   setPricing,
   setStadiumSoundEnabled,
   updateTurf,
+  updateVenue,
 } from '../services/ownerService';
 import {
   assignStaff,
@@ -38,12 +46,17 @@ import {
   ForbiddenActionError,
   StaffAssignmentNotFoundError,
   TurfNotFoundError,
+  VenueNotFoundError,
 } from '../domain/errors';
 
 const router = Router();
 
 function handleOwnerError(error: unknown, res: Response) {
-  if (error instanceof TurfNotFoundError || error instanceof StaffAssignmentNotFoundError) {
+  if (
+    error instanceof TurfNotFoundError ||
+    error instanceof StaffAssignmentNotFoundError ||
+    error instanceof VenueNotFoundError
+  ) {
     return res.status(404).json({ error: { message: error.message, status: 404 } });
   }
   if (error instanceof ForbiddenActionError) {
@@ -61,6 +74,81 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const turfs = await listMyTurfs(req.auth!.sub);
     return res.status(200).json({ results: turfs });
+  }),
+);
+
+// Venues (backlog A-2) — an owner with more than one pitch at the same
+// physical location groups them under one venue for display; each pitch
+// underneath is still its own independently bookable turf.
+router.get(
+  '/venues',
+  asyncHandler(async (req: Request, res: Response) => {
+    const venues = await listMyVenues(req.auth!.sub);
+    return res.status(200).json({ results: venues });
+  }),
+);
+
+router.post(
+  '/venues',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = createVenueSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid venue payload', status: 400 } });
+    }
+    const venue = await createVenue(req.auth!.sub, parsed.data);
+    return res.status(201).json(venue);
+  }),
+);
+
+router.get(
+  '/venues/:venueId',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const venue = await getVenueForOwner(req.params.venueId, req.auth!.sub);
+      return res.status(200).json(venue);
+    } catch (error) {
+      const handled = handleOwnerError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+router.patch(
+  '/venues/:venueId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = updateVenueSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid venue payload', status: 400 } });
+    }
+    try {
+      const venue = await updateVenue(req.params.venueId, req.auth!.sub, parsed.data);
+      return res.status(200).json(venue);
+    } catch (error) {
+      const handled = handleOwnerError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /owner/turfs/:turfId/venue — retroactively group an existing
+// standalone turf into a venue (locks its address to the venue's).
+router.post(
+  '/turfs/:turfId/venue',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = assignTurfToVenueSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid payload', status: 400 } });
+    }
+    try {
+      const turf = await assignTurfToVenue(req.params.turfId, req.auth!.sub, parsed.data.venue_id);
+      return res.status(200).json(turf);
+    } catch (error) {
+      const handled = handleOwnerError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
   }),
 );
 

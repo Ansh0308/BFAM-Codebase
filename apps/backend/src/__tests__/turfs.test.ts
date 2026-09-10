@@ -65,6 +65,12 @@ jest.mock('../config/sequelize', () => {
       query: async (sql: string, options: { replacements?: Record<string, unknown> } = {}) => {
         const r = options.replacements ?? {};
 
+        if (sql.includes('WHERE t.turf_id = :turfId')) {
+          // Turf Details query (venue-joined) — single turf by id.
+          const t = turfs.find((x) => x.turf_id === r.turfId && x.turf_status === 'ACTIVE');
+          return t ? [{ ...t, venue_id: null, venue_name: null }] : [];
+        }
+
         if (sql.includes('FROM turfs t')) {
           // Listing query — apply filters directly against in-memory state.
           let rows = turfs.filter((t) => t.turf_status === 'ACTIVE');
