@@ -44,6 +44,13 @@ export default function TurfAvailabilityScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingSlot, setPendingSlot] = useState<AvailabilitySlot | null>(null);
+  // Index of pendingSlot within availability.slots — needed to look up the
+  // following slots when the player extends the booking past one hour
+  // (Feedback A-1: "let them book multiple slots, e.g. a 3-hour block, at
+  // once" — the backend already accepts any duration_minutes from 30 to
+  // 480, this was purely a missing mobile UI).
+  const [pendingIndex, setPendingIndex] = useState<number>(-1);
+  const [durationHours, setDurationHours] = useState(1);
   const [paymentMode, setPaymentMode] = useState<(typeof PAYMENT_MODES)[number]>('UPI');
   const [booking, setBooking] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -69,17 +76,47 @@ export default function TurfAvailabilityScreen() {
     load();
   }, [load]);
 
+  // How many consecutive hours starting at `startIndex` are bookable in one
+  // go — stops at the first non-AVAILABLE slot (booked/blocked) or any gap
+  // in the hour-to-hour chain, so a player can never select across a hole.
+  const maxAvailableRunFrom = (slots: AvailabilitySlot[], startIndex: number): number => {
+    let count = 0;
+    for (let i = startIndex; i < slots.length; i += 1) {
+      if (slots[i].status !== 'AVAILABLE') break;
+      if (i > startIndex && slots[i].start_time !== slots[i - 1].end_time) break;
+      count += 1;
+    }
+    return count;
+  };
+
   const openSlot = (slot: AvailabilitySlot) => {
+    const index = availability?.slots.findIndex((s) => s.start_time === slot.start_time) ?? -1;
     setBookingError(null);
     setPaymentMode('UPI');
     setPendingSlot(slot);
+    setPendingIndex(index);
+    setDurationHours(1);
   };
 
-  const durationMinutes = (start: string, end: string) => {
-    const [sh, sm] = start.split(':').map(Number);
-    const [eh, em] = end.split(':').map(Number);
-    return eh * 60 + em - (sh * 60 + sm);
-  };
+  const maxDurationHours =
+    availability && pendingIndex >= 0
+      ? Math.min(8, maxAvailableRunFrom(availability.slots, pendingIndex))
+      : 1;
+  // Clamped rather than trusted directly — a reload after a 409 conflict
+  // (someone else took a later hour in the range) can shrink
+  // maxDurationHours out from under a duration the player already chose.
+  const effectiveDurationHours = Math.min(durationHours, Math.max(1, maxDurationHours));
+
+  // The slots this booking actually spans, given the chosen duration —
+  // used for both the total price (summed per-hour, so a rate change
+  // mid-range is still priced correctly) and the displayed end time.
+  const selectedSlots =
+    availability && pendingIndex >= 0
+      ? availability.slots.slice(pendingIndex, pendingIndex + effectiveDurationHours)
+      : [];
+  const totalPrice = selectedSlots.reduce((sum, s) => sum + (s.price_per_hour ?? 0), 0);
+  const rangeEndTime =
+    selectedSlots.length > 0 ? selectedSlots[selectedSlots.length - 1].end_time : null;
 
   const confirmBooking = async () => {
     if (!pendingSlot) return;
@@ -90,10 +127,11 @@ export default function TurfAvailabilityScreen() {
         turf_id: turfId,
         booking_date: selectedDate,
         start_time: pendingSlot.start_time,
-        duration_minutes: durationMinutes(pendingSlot.start_time, pendingSlot.end_time),
+        duration_minutes: effectiveDurationHours * 60,
         payment_mode: paymentMode,
       });
       setPendingSlot(null);
+      setPendingIndex(-1);
       router.replace(`/(tabs)/discover/booking/${created.booking_id}/confirmation`);
     } catch (err) {
       if (err instanceof BFAMApiError && err.status === 409) {
@@ -171,15 +209,52 @@ export default function TurfAvailabilityScreen() {
             {pendingSlot && (
               <>
                 <Text className="font-ui font-bold text-section-header text-ink-black uppercase tracking-wide">
-                  Confirm Slot
+                  Confirm Booking
                 </Text>
-                <Text className="text-text-secondary text-body mt-1">
+                <Text className="text-text-secondary text-body mt-1" testID="booking-time-range">
                   {selectedDate} · {pendingSlot.start_time.slice(0, 5)}–
-                  {pendingSlot.end_time.slice(0, 5)}
+                  {(rangeEndTime ?? pendingSlot.end_time).slice(0, 5)}
                 </Text>
-                {pendingSlot.price_per_hour !== null && (
-                  <Text className="text-text-primary text-button mt-2">
-                    ₹{pendingSlot.price_per_hour}/hr
+
+                <View className="flex-row items-center justify-between mt-4">
+                  <Text className="font-ui font-bold text-text-secondary text-micro uppercase">
+                    Duration
+                  </Text>
+                  <View className="flex-row items-center">
+                    <Pressable
+                      onPress={() => setDurationHours((h) => Math.max(1, h - 1))}
+                      disabled={effectiveDurationHours <= 1}
+                      className="w-9 h-9 rounded-full bg-surface-alt items-center justify-center"
+                      testID="duration-decrease"
+                    >
+                      <Text className="font-ui font-bold text-title-xl text-text-primary">−</Text>
+                    </Pressable>
+                    <Text
+                      className="font-ui font-bold text-body text-ink-black mx-4"
+                      testID="duration-hours-value"
+                    >
+                      {effectiveDurationHours} hr{effectiveDurationHours === 1 ? '' : 's'}
+                    </Text>
+                    <Pressable
+                      onPress={() => setDurationHours((h) => Math.min(maxDurationHours, h + 1))}
+                      disabled={effectiveDurationHours >= maxDurationHours}
+                      className="w-9 h-9 rounded-full bg-surface-alt items-center justify-center"
+                      testID="duration-increase"
+                    >
+                      <Text className="font-ui font-bold text-title-xl text-text-primary">+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+                {maxDurationHours < 8 && (
+                  <Text className="text-micro text-text-tertiary mt-1">
+                    Up to {maxDurationHours} contiguous hour{maxDurationHours === 1 ? '' : 's'}{' '}
+                    available from this slot.
+                  </Text>
+                )}
+
+                {totalPrice > 0 && (
+                  <Text className="text-text-primary text-button mt-3" testID="booking-total-price">
+                    ₹{totalPrice} total
                   </Text>
                 )}
 
@@ -230,7 +305,14 @@ export default function TurfAvailabilityScreen() {
                     </Text>
                   )}
                 </Pressable>
-                <Pressable onPress={() => setPendingSlot(null)} className="items-center mt-3">
+                <Pressable
+                  onPress={() => {
+                    setPendingSlot(null);
+                    setPendingIndex(-1);
+                  }}
+                  className="items-center mt-3"
+                  testID="cancel-booking-button"
+                >
                   <Text className="text-text-secondary text-body">Cancel</Text>
                 </Pressable>
               </>
