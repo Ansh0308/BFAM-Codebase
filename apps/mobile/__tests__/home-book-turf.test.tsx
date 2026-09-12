@@ -5,12 +5,22 @@ import { apiClient } from '../src/lib/apiClient';
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
+  useFocusEffect: (callback: () => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ReactForMock = require('react');
+    ReactForMock.useEffect(callback, []);
+  },
 }));
 
 jest.mock('../src/lib/apiClient', () => ({
   apiClient: {
     getTurfs: jest.fn(),
     getHomeBanners: jest.fn(),
+    getMyProfile: jest.fn(),
+    getPlayerStatistics: jest.fn(),
+    getMyMatches: jest.fn(),
+    getNotifications: jest.fn(),
+    getLiveScore: jest.fn(),
   },
 }));
 
@@ -19,6 +29,10 @@ jest.mock('../src/screens/StaffDashboard', () => ({ StaffDashboard: () => null }
 
 const mockGetTurfs = apiClient.getTurfs as jest.Mock;
 const mockGetHomeBanners = apiClient.getHomeBanners as jest.Mock;
+const mockGetMyProfile = apiClient.getMyProfile as jest.Mock;
+const mockGetPlayerStatistics = apiClient.getPlayerStatistics as jest.Mock;
+const mockGetMyMatches = apiClient.getMyMatches as jest.Mock;
+const mockGetNotifications = apiClient.getNotifications as jest.Mock;
 
 import Home from '../app/(tabs)/index';
 import { useAuthStore } from '../src/store/authStore';
@@ -38,6 +52,10 @@ describe('Home — Book Turf quick action with Discover hidden (backlog A-12)', 
       page_size: 20,
       results: [{ turf_id: 'turf-1', turf_name: 'BFAM Ground' }],
     });
+    mockGetMyProfile.mockResolvedValue({ bfam_id: 'BF1000', full_name: null, coin_balance: null });
+    mockGetPlayerStatistics.mockResolvedValue(null);
+    mockGetMyMatches.mockResolvedValue({ results: [] });
+    mockGetNotifications.mockResolvedValue({ results: [] });
   });
 
   it('routes straight to the owned turf availability screen instead of Discover', async () => {
