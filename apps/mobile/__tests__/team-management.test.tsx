@@ -23,15 +23,13 @@ jest.mock('expo-contacts', () => ({
 }));
 
 const mockPush = jest.fn();
+// useFocusEffect (from expo-router, which implements it natively rather than
+// via react-navigation as of SDK 57) normally needs the real router context
+// this standalone test doesn't set up, so swap it for a plain mount-time
+// effect.
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ teamId: 'team-1' }),
   useRouter: () => ({ push: mockPush }),
-}));
-
-// useFocusEffect normally needs a real NavigationContainer (which expo-router
-// provides at runtime); this test renders the screen standalone, so swap it
-// for a plain mount-time effect.
-jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void) => {
     // A plain top-level `import React` can't be referenced here — Jest's
     // hoisting only allows `mock`-prefixed out-of-scope variables inside a

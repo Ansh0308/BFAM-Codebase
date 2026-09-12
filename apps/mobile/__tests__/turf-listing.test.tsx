@@ -7,8 +7,20 @@ jest.mock('../src/lib/apiClient', () => ({
 }));
 
 const mockPush = jest.fn();
+// useFocusEffect (from expo-router, which implements it natively rather than
+// via react-navigation as of SDK 57) normally needs the real router context
+// this standalone test doesn't set up, so swap it for a plain effect that
+// reruns whenever the memoized callback identity changes — matching real
+// useFocusEffect's behavior while a screen stays focused (this screen's
+// callback is memoized on [fetchTurfs, query, coords], so this also
+// re-fetches once location resolves asynchronously).
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
+  useFocusEffect: (callback: () => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ReactForMock = require('react');
+    ReactForMock.useEffect(callback, [callback]);
+  },
 }));
 
 const mockRequestForegroundPermissionsAsync = jest.fn();
@@ -18,20 +30,6 @@ jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: (...args: unknown[]) =>
     mockRequestForegroundPermissionsAsync(...args),
   getCurrentPositionAsync: (...args: unknown[]) => mockGetCurrentPositionAsync(...args),
-}));
-
-// useFocusEffect normally needs a real NavigationContainer (which expo-router
-// provides at runtime); this test renders the screen standalone, so swap it
-// for a plain effect that reruns whenever the memoized callback identity
-// changes — matching real useFocusEffect's behavior while a screen stays
-// focused (this screen's callback is memoized on [fetchTurfs, query,
-// coords], so this also re-fetches once location resolves asynchronously).
-jest.mock('@react-navigation/native', () => ({
-  useFocusEffect: (callback: () => void) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ReactForMock = require('react');
-    ReactForMock.useEffect(callback, [callback]);
-  },
 }));
 
 const mockGetTurfs = apiClient.getTurfs as jest.Mock;

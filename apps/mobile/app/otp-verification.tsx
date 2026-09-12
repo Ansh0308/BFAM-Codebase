@@ -10,6 +10,7 @@ import { apiClient } from '../src/lib/apiClient';
 import { useAuthStore } from '../src/store/authStore';
 import { useSignupStore } from '../src/store/signupStore';
 import { AuthSuccessResponse } from '@bfam/shared-types';
+import { BFAMApiError } from '@bfam/api-client';
 
 type Purpose = 'SIGNUP' | 'LOGIN' | 'RESET_PASSWORD';
 
@@ -55,8 +56,11 @@ export default function OtpVerification() {
       setOtpSent(true);
       setDevOtp(response.dev_otp ?? null);
       setCooldown(RESEND_COOLDOWN_SECONDS);
-    } catch {
-      setError('Could not send OTP. Please try again.');
+    } catch (err) {
+      // Surface the server's actual reason (e.g. SIGNUP with an identifier
+      // that already has an account) instead of a generic message that
+      // reads like a delivery failure when it's really a validation error.
+      setError(err instanceof BFAMApiError ? err.message : 'Could not send OTP. Please try again.');
     } finally {
       setLoading(false);
     }

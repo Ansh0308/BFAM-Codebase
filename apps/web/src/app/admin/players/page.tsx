@@ -10,13 +10,14 @@ import { PageHeader, DataTable, TextInput } from '../../../components/DashboardS
 export default function AdminPlayersPage() {
   const [players, setPlayers] = useState<AdminPlayer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
     apiClient
       .getAllPlayers()
       .then((res) => setPlayers(res.results))
-      .catch(() => setPlayers([]))
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -47,6 +48,10 @@ export default function AdminPlayersPage() {
 
       {loading ? (
         <p className="font-ui text-body text-text-secondary">Loading…</p>
+      ) : loadError ? (
+        <p className="font-ui text-body text-brand-red">
+          Could not load players. Your session may have expired — try logging in again.
+        </p>
       ) : (
         <DataTable
           rows={filtered}

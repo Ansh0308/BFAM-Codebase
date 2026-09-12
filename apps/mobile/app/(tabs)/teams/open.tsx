@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { OpenTeam } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';

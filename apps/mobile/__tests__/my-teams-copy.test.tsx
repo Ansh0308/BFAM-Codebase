@@ -5,8 +5,6 @@ import { apiClient } from '../src/lib/apiClient';
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
-}));
-jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (cb: () => void) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const ReactForMock = require('react');
