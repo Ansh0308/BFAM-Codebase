@@ -28,6 +28,12 @@ import {
   ReplacementSuggestion,
   ReviewSubmissionResult,
   TeamDetails,
+  OpenRoom,
+  RoomDetails,
+  CreateRoomInput,
+  ConvertRoomInput,
+  ConvertRoomResult,
+  RoomPlayerSide,
   TurfAvailability,
   TurfDetails,
   TurfListResponse,
@@ -551,6 +557,49 @@ export class BFAMApiClient {
 
   async getJoinRequests(teamId: string): Promise<{ results: JoinRequest[] }> {
     return this.request<{ results: JoinRequest[] }>(`/teams/${teamId}/join-requests`);
+  }
+
+  // ---- Backlog B-11: Pre-Match Room (lobby) ----
+
+  async createRoom(input: CreateRoomInput): Promise<RoomDetails> {
+    return this.request<RoomDetails>('/rooms', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async getOpenRooms(): Promise<{ results: OpenRoom[] }> {
+    return this.request<{ results: OpenRoom[] }>('/rooms/open');
+  }
+
+  async getRoomDetails(roomId: string): Promise<RoomDetails> {
+    return this.request<RoomDetails>(`/rooms/${roomId}`);
+  }
+
+  async joinRoom(roomId: string): Promise<RoomDetails> {
+    return this.request<RoomDetails>(`/rooms/${roomId}/join`, { method: 'POST' });
+  }
+
+  async leaveRoom(roomId: string): Promise<void> {
+    await this.request<void>(`/rooms/${roomId}/leave`, { method: 'POST' });
+  }
+
+  async assignRoomSides(
+    roomId: string,
+    assignments: Array<{ player_id: string; side: RoomPlayerSide }>,
+  ): Promise<RoomDetails> {
+    return this.request<RoomDetails>(`/rooms/${roomId}/sides`, {
+      method: 'POST',
+      body: JSON.stringify({ assignments }),
+    });
+  }
+
+  async randomSplitRoom(roomId: string): Promise<RoomDetails> {
+    return this.request<RoomDetails>(`/rooms/${roomId}/sides/random`, { method: 'POST' });
+  }
+
+  async convertRoomToMatch(roomId: string, input: ConvertRoomInput): Promise<ConvertRoomResult> {
+    return this.request<ConvertRoomResult>(`/rooms/${roomId}/convert`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
   async respondToJoinRequest(requestId: string, accept: boolean): Promise<{ status: string }> {

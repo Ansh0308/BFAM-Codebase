@@ -378,3 +378,33 @@ export class BannerNotFoundError extends Error {
     this.name = 'BannerNotFoundError';
   }
 }
+
+// ---- Backlog B-11: Pre-Match Room (lobby) ----
+
+export class RoomNotFoundError extends Error {
+  constructor(roomId: string) {
+    super(`Room ${roomId} not found`);
+    this.name = 'RoomNotFoundError';
+  }
+}
+
+export class InvalidRoomStateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidRoomStateError';
+  }
+}
+
+export class AlreadyInRoomError extends Error {
+  constructor() {
+    super('This player is already in this room.');
+    this.name = 'AlreadyInRoomError';
+  }
+}
+
+export class RoomFullError extends Error {
+  constructor() {
+    super('This room is already full.');
+    this.name = 'RoomFullError';
+  }
+}

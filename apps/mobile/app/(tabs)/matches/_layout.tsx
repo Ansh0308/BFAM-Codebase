@@ -16,6 +16,9 @@ export default function MatchesLayout() {
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="create" options={{ title: 'Create Match' }} />
+      <Stack.Screen name="rooms/index" options={{ title: 'Find a Room' }} />
+      <Stack.Screen name="rooms/create" options={{ title: 'Create a Room' }} />
+      <Stack.Screen name="rooms/[roomId]/index" options={{ title: 'Room' }} />
       <Stack.Screen name="[matchId]/index" options={{ title: 'Game Room' }} />
       <Stack.Screen name="[matchId]/invite" options={{ title: 'Invite Players' }} />
       <Stack.Screen name="[matchId]/check-in" options={{ title: 'Check In' }} />

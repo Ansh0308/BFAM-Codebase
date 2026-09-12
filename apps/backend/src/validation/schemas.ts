@@ -880,3 +880,31 @@ export const createBannerSchema = z.object({
 });
 
 export const updateBannerSchema = createBannerSchema.partial();
+
+// ---- Backlog B-11: Pre-Match Room (lobby) ----
+
+export const createRoomSchema = z.object({
+  room_name: z.string().min(2).max(120),
+  ball_type: z.enum(BALL_TYPES),
+  overs_per_innings: z.number().int().min(1).max(50),
+  max_players: z.number().int().min(2).max(30),
+});
+
+export const assignRoomSidesSchema = z.object({
+  assignments: z
+    .array(
+      z.object({
+        player_id: uuid,
+        side: z.enum(['UNASSIGNED', 'TEAM_A', 'TEAM_B']),
+      }),
+    )
+    .min(1),
+});
+
+export const convertRoomSchema = z.object({
+  turf_id: uuid,
+  booking_date: dateOnly,
+  start_time: timeOnly,
+  duration_minutes: z.number().int().min(30).max(480),
+  payment_mode: z.enum(PAYMENT_MODES),
+});

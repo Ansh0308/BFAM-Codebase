@@ -955,3 +955,63 @@ export interface LiveMatchSession {
   connected_at: string;
   disconnected_at?: string;
 }
+
+// Backlog B-11: a pre-match "room" (lobby) — a new flow that runs
+// alongside today's book-first match creation, not a replacement for it.
+// Never linked to the persistent Team entity: a room is always disposable
+// once its match starts.
+export type RoomStatus = 'FILLING' | 'READY' | 'CONVERTED' | 'CANCELLED';
+export type RoomPlayerSide = 'UNASSIGNED' | 'TEAM_A' | 'TEAM_B';
+
+export interface Room {
+  room_id: string;
+  room_name: string;
+  captain_user_id: string;
+  ball_type: MatchBallType;
+  overs_per_innings: number;
+  max_players: number;
+  room_status: RoomStatus;
+  match_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OpenRoom extends Room {
+  player_count: number;
+}
+
+export interface RoomPlayer {
+  room_player_id: string;
+  room_id: string;
+  player_id: string;
+  side: RoomPlayerSide;
+  is_captain: boolean;
+  joined_at: string;
+  bfam_id?: string;
+  full_name?: string | null;
+}
+
+export interface RoomDetails extends Room {
+  players: RoomPlayer[];
+}
+
+export interface CreateRoomInput {
+  room_name: string;
+  ball_type: MatchBallType;
+  overs_per_innings: number;
+  max_players: number;
+}
+
+export interface ConvertRoomInput {
+  turf_id: string;
+  booking_date: string;
+  start_time: string;
+  duration_minutes: number;
+  payment_mode: 'UPI' | 'GATEWAY' | 'CASH' | 'CAPTAIN_PAYS' | 'SPLIT_PAYMENT';
+}
+
+export interface ConvertRoomResult {
+  room_id: string;
+  match_id: string;
+  booking_id: string;
+}

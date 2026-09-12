@@ -82,6 +82,7 @@ import venuesRouter from './routes/venues';
 import bookingsRouter from './routes/bookings';
 import paymentsRouter from './routes/payments';
 import teamsRouter from './routes/teams';
+import roomsRouter from './routes/rooms';
 import matchesRouter from './routes/matches';
 import playersRouter from './routes/players';
 import scoringRouter from './routes/scoring';
@@ -1159,6 +1160,7 @@ app.use('/bookings', bookingsRouter);
 app.use('/payments', paymentsRouter);
 // Module 2.5 — Teams (PRD §12.3, §12.4).
 app.use('/teams', teamsRouter);
+app.use('/rooms', roomsRouter);
 app.use('/matches', matchesRouter);
 // Backlog B-2 — Contacts-Based Invites.
 app.use('/players', playersRouter);
