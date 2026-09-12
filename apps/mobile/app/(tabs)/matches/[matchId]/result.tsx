@@ -195,15 +195,6 @@ export default function MatchResultScreen() {
               />
             </View>
           )}
-          <View className="mt-3 w-full">
-            <Button
-              label="Dispute Result"
-              variant="ghost"
-              iconLeft={<Feather name="flag" size={16} color="#767676" />}
-              onPress={() => router.push(`/match-dispute?matchId=${matchId}`)}
-              testID="open-dispute"
-            />
-          </View>
         </View>
       </ScreenContainer>
     );
