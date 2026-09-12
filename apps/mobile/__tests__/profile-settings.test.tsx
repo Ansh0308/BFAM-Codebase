@@ -42,29 +42,29 @@ describe('ProfileSettings screen', () => {
   });
 
   it('navigates to each sub-screen when its row is pressed', async () => {
-    const { getByTestId } = render(<ProfileSettings />);
+    const { getByTestId } = await render(<ProfileSettings />);
 
-    fireEvent.press(getByTestId('settings-row-edit-profile'));
+    await fireEvent.press(getByTestId('settings-row-edit-profile'));
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/profile-setup'));
 
-    fireEvent.press(getByTestId('settings-row-notifications'));
+    await fireEvent.press(getByTestId('settings-row-notifications'));
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/notification-settings'));
 
-    fireEvent.press(getByTestId('settings-row-privacy'));
+    await fireEvent.press(getByTestId('settings-row-privacy'));
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/privacy-settings'));
 
-    fireEvent.press(getByTestId('settings-row-payment'));
+    await fireEvent.press(getByTestId('settings-row-payment'));
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/payment-methods'));
 
-    fireEvent.press(getByTestId('settings-row-language'));
+    await fireEvent.press(getByTestId('settings-row-language'));
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/language'));
 
-    fireEvent.press(getByTestId('settings-row-email'));
+    await fireEvent.press(getByTestId('settings-row-email'));
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/email-settings'));
   });
 
   it('shows "Not verified" when no email is verified', async () => {
-    const { findByTestId } = render(<ProfileSettings />);
+    const { findByTestId } = await render(<ProfileSettings />);
     const status = await findByTestId('settings-row-email-status');
     expect(status.props.children).toBe('Not verified');
   });
@@ -76,7 +76,7 @@ describe('ProfileSettings screen', () => {
       email_verified_at: '2026-08-30T00:00:00Z',
     });
 
-    const { findByTestId } = render(<ProfileSettings />);
+    const { findByTestId } = await render(<ProfileSettings />);
     const status = await findByTestId('settings-row-email-status');
     expect(status.props.children).toBe('player@bfam.local');
   });

@@ -55,11 +55,11 @@ describe('Invite Players screen — inviting from contacts (backlog B-2)', () =>
     });
     mockInviteToMatch.mockResolvedValueOnce({ invitation_id: 'inv-1' });
 
-    const { findByTestId } = render(<InvitePlayersScreen />);
-    fireEvent.press(await findByTestId('match-invite-check-contacts-button'));
+    const { findByTestId } = await render(<InvitePlayersScreen />);
+    await fireEvent.press(await findByTestId('match-invite-check-contacts-button'));
 
     expect(await findByTestId('match-invite-contact-row-p-contact-1')).toBeTruthy();
-    fireEvent.press(await findByTestId('match-invite-invite-button-p-contact-1'));
+    await fireEvent.press(await findByTestId('match-invite-invite-button-p-contact-1'));
 
     await waitFor(() => expect(mockInviteToMatch).toHaveBeenCalledWith('match-1', 'p-contact-1'));
   });
@@ -73,8 +73,8 @@ describe('Invite Players screen — inviting from contacts (backlog B-2)', () =>
     });
     mockMatchContacts.mockResolvedValueOnce({ results: [] });
 
-    const { findByTestId } = render(<InvitePlayersScreen />);
-    fireEvent.press(await findByTestId('match-invite-check-contacts-button'));
+    const { findByTestId } = await render(<InvitePlayersScreen />);
+    await fireEvent.press(await findByTestId('match-invite-check-contacts-button'));
 
     await waitFor(() => expect(mockMatchContacts).toHaveBeenCalledWith(['+919876543210']));
   });

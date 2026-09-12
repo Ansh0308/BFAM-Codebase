@@ -23,7 +23,7 @@ describe('Onboarding (backlog D-2)', () => {
   });
 
   it('shows the first slide and a "Next" button initially', async () => {
-    const { findByText, findByTestId } = render(<Onboarding />);
+    const { findByText, findByTestId } = await render(<Onboarding />);
 
     await findByText('BOOK TURFS INSTANTLY');
     const button = await findByTestId('onboarding-next-button');
@@ -31,31 +31,31 @@ describe('Onboarding (backlog D-2)', () => {
   });
 
   it('advances through all 3 slides via Next, then finishes onboarding', async () => {
-    const { findByText, findByTestId } = render(<Onboarding />);
+    const { findByText, findByTestId } = await render(<Onboarding />);
 
     await findByText('BOOK TURFS INSTANTLY');
-    fireEvent.press(await findByTestId('onboarding-next-button'));
+    await fireEvent.press(await findByTestId('onboarding-next-button'));
     // slideIndex advances on press (state update), independent of the
     // ScrollView's own native scrollTo, which jsdom/RN test renderer
     // doesn't actually animate.
     await findByText('LIVE SCORING');
 
-    fireEvent.press(await findByTestId('onboarding-next-button'));
+    await fireEvent.press(await findByTestId('onboarding-next-button'));
     await findByText('YOUR BFAM ID');
 
-    fireEvent.press(await findByTestId('onboarding-next-button'));
+    await fireEvent.press(await findByTestId('onboarding-next-button'));
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
   });
 
   it('finishing onboarding persists the has-onboarded flag', async () => {
-    const { findByText, findByTestId } = render(<Onboarding />);
+    const { findByText, findByTestId } = await render(<Onboarding />);
     await findByText('BOOK TURFS INSTANTLY');
 
-    fireEvent.press(await findByTestId('onboarding-next-button'));
+    await fireEvent.press(await findByTestId('onboarding-next-button'));
     await findByText('LIVE SCORING');
-    fireEvent.press(await findByTestId('onboarding-next-button'));
+    await fireEvent.press(await findByTestId('onboarding-next-button'));
     await findByText('YOUR BFAM ID');
-    fireEvent.press(await findByTestId('onboarding-next-button'));
+    await fireEvent.press(await findByTestId('onboarding-next-button'));
 
     await waitFor(() =>
       expect(mockSetItemAsync).toHaveBeenCalledWith('bfam_has_onboarded', 'true'),
@@ -63,10 +63,10 @@ describe('Onboarding (backlog D-2)', () => {
   });
 
   it('Skip finishes onboarding immediately from the first slide', async () => {
-    const { findByText } = render(<Onboarding />);
+    const { findByText } = await render(<Onboarding />);
     await findByText('BOOK TURFS INSTANTLY');
 
-    fireEvent.press(await findByText('Skip'));
+    await fireEvent.press(await findByText('Skip'));
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
   });

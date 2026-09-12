@@ -34,7 +34,7 @@ describe('HomeBannerCarousel (backlog B-6)', () => {
 
   it('renders nothing when there are no active banners', async () => {
     mockGetHomeBanners.mockResolvedValueOnce({ results: [] });
-    const { queryByTestId } = render(<HomeBannerCarousel />);
+    const { queryByTestId } = await render(<HomeBannerCarousel />);
 
     await waitFor(() => expect(mockGetHomeBanners).toHaveBeenCalled());
     expect(queryByTestId('home-banner-carousel')).toBeNull();
@@ -42,17 +42,17 @@ describe('HomeBannerCarousel (backlog B-6)', () => {
 
   it('renders a banner and opens its link when tapped', async () => {
     mockGetHomeBanners.mockResolvedValueOnce({ results: [BANNER] });
-    const { findByTestId } = render(<HomeBannerCarousel />);
+    const { findByTestId } = await render(<HomeBannerCarousel />);
 
     const banner = await findByTestId('home-banner-b1');
-    fireEvent.press(banner);
+    await fireEvent.press(banner);
 
     expect(Linking.openURL).toHaveBeenCalledWith('https://example.com/offer');
   });
 
   it('renders a link-less banner as non-interactive', async () => {
     mockGetHomeBanners.mockResolvedValueOnce({ results: [{ ...BANNER, link_url: null }] });
-    const { findByTestId } = render(<HomeBannerCarousel />);
+    const { findByTestId } = await render(<HomeBannerCarousel />);
 
     const banner = await findByTestId('home-banner-b1');
     expect(banner.props.accessibilityState?.disabled ?? banner.props.disabled).toBeTruthy();

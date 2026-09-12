@@ -22,7 +22,7 @@ import EmailSettings from '../app/email-settings';
 async function enterOtp(findByTestId: (id: string) => Promise<any>, code: string) {
   for (let i = 0; i < code.length; i++) {
     const box = await findByTestId(`email-otp-input-${i}`);
-    fireEvent.changeText(box, code[i]);
+    await fireEvent.changeText(box, code[i]);
   }
 }
 
@@ -33,7 +33,7 @@ describe('EmailSettings screen', () => {
   });
 
   it('shows "no verified email" when nothing is on file', async () => {
-    const { findByTestId } = render(<EmailSettings />);
+    const { findByTestId } = await render(<EmailSettings />);
     const row = await findByTestId('email-status-row');
     expect(row).toBeTruthy();
     await findByTestId('email-input');
@@ -45,7 +45,7 @@ describe('EmailSettings screen', () => {
       email_verified_at: '2026-08-30T00:00:00Z',
     });
 
-    const { findByTestId } = render(<EmailSettings />);
+    const { findByTestId } = await render(<EmailSettings />);
     const status = await findByTestId('email-status-row');
     expect(status).toBeTruthy();
   });
@@ -57,11 +57,11 @@ describe('EmailSettings screen', () => {
       email_verified_at: '2026-08-30T00:00:00Z',
     });
 
-    const { findByTestId } = render(<EmailSettings />);
+    const { findByTestId } = await render(<EmailSettings />);
     const input = await findByTestId('email-input');
-    fireEvent.changeText(input, 'newplayer@bfam.local');
+    await fireEvent.changeText(input, 'newplayer@bfam.local');
 
-    fireEvent.press(await findByTestId('email-send-otp'));
+    await fireEvent.press(await findByTestId('email-send-otp'));
 
     await waitFor(() => {
       expect(mockSendEmailOtp).toHaveBeenCalledWith('newplayer@bfam.local');
@@ -69,7 +69,7 @@ describe('EmailSettings screen', () => {
     await findByTestId('email-otp-input-0');
 
     await enterOtp(findByTestId, '123456');
-    fireEvent.press(await findByTestId('email-verify-otp'));
+    await fireEvent.press(await findByTestId('email-verify-otp'));
 
     await waitFor(() => {
       expect(mockVerifyEmailOtp).toHaveBeenCalledWith('newplayer@bfam.local', '123456');
@@ -82,13 +82,13 @@ describe('EmailSettings screen', () => {
     conflictError.status = 409;
     mockVerifyEmailOtp.mockRejectedValueOnce(conflictError);
 
-    const { findByTestId } = render(<EmailSettings />);
-    fireEvent.changeText(await findByTestId('email-input'), 'taken@bfam.local');
-    fireEvent.press(await findByTestId('email-send-otp'));
+    const { findByTestId } = await render(<EmailSettings />);
+    await fireEvent.changeText(await findByTestId('email-input'), 'taken@bfam.local');
+    await fireEvent.press(await findByTestId('email-send-otp'));
 
     await findByTestId('email-otp-input-0');
     await enterOtp(findByTestId, '123456');
-    fireEvent.press(await findByTestId('email-verify-otp'));
+    await fireEvent.press(await findByTestId('email-verify-otp'));
 
     const error = await findByTestId('email-settings-error');
     expect(error.props.children).toMatch(/already registered/i);
@@ -98,13 +98,13 @@ describe('EmailSettings screen', () => {
     mockSendEmailOtp.mockResolvedValue({ message: 'sent', dev_otp: '123456' });
     mockVerifyEmailOtp.mockRejectedValueOnce(new Error('invalid'));
 
-    const { findByTestId } = render(<EmailSettings />);
-    fireEvent.changeText(await findByTestId('email-input'), 'player@bfam.local');
-    fireEvent.press(await findByTestId('email-send-otp'));
+    const { findByTestId } = await render(<EmailSettings />);
+    await fireEvent.changeText(await findByTestId('email-input'), 'player@bfam.local');
+    await fireEvent.press(await findByTestId('email-send-otp'));
 
     await findByTestId('email-otp-input-0');
     await enterOtp(findByTestId, '000000');
-    fireEvent.press(await findByTestId('email-verify-otp'));
+    await fireEvent.press(await findByTestId('email-verify-otp'));
 
     const error = await findByTestId('email-settings-error');
     expect(error.props.children).toMatch(/incorrect|expired/i);

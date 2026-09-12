@@ -32,10 +32,10 @@ describe('BookingConfirmation screen (module 2.3)', () => {
       booking_status: 'PENDING',
     });
 
-    const { getByTestId } = render(<BookingConfirmation />);
+    const { getByTestId } = await render(<BookingConfirmation />);
 
     await waitFor(() => expect(getByTestId('proceed-to-payment-button')).toBeTruthy());
-    fireEvent.press(getByTestId('proceed-to-payment-button'));
+    await fireEvent.press(getByTestId('proceed-to-payment-button'));
 
     expect(mockPush).toHaveBeenCalledWith('/(tabs)/discover/booking/b1/payment');
   });

@@ -63,7 +63,7 @@ describe('Match Chat screen (backlog B-3)', () => {
   });
 
   it('loads and shows the chat history, joining the match room', async () => {
-    const { findByTestId } = render(<MatchChatScreen />);
+    const { findByTestId } = await render(<MatchChatScreen />);
 
     await findByTestId('chat-message-m1');
     await findByTestId('chat-message-m2');
@@ -72,16 +72,16 @@ describe('Match Chat screen (backlog B-3)', () => {
 
   it('sends a typed message', async () => {
     mockSendMatchMessage.mockResolvedValueOnce({});
-    const { findByTestId } = render(<MatchChatScreen />);
+    const { findByTestId } = await render(<MatchChatScreen />);
 
-    fireEvent.changeText(await findByTestId('chat-input'), 'On my way!');
-    fireEvent.press(await findByTestId('chat-send-button'));
+    await fireEvent.changeText(await findByTestId('chat-input'), 'On my way!');
+    await fireEvent.press(await findByTestId('chat-send-button'));
 
     await waitFor(() => expect(mockSendMatchMessage).toHaveBeenCalledWith('match-1', 'On my way!'));
   });
 
   it('appends a message pushed over the socket in real time', async () => {
-    const { findByTestId, queryByTestId } = render(<MatchChatScreen />);
+    const { findByTestId, queryByTestId } = await render(<MatchChatScreen />);
     await findByTestId('chat-message-m1');
 
     expect(queryByTestId('chat-message-m3')).toBeNull();
@@ -89,7 +89,7 @@ describe('Match Chat screen (backlog B-3)', () => {
     const onMessageHandler = mockSocketOn.mock.calls.find(
       ([event]) => event === 'match:chat_message',
     )?.[1];
-    act(() => {
+    await act(async () => {
       onMessageHandler?.({
         matchId: 'match-1',
         message: {
@@ -109,17 +109,17 @@ describe('Match Chat screen (backlog B-3)', () => {
   });
 
   it('leaves the match room on unmount', async () => {
-    const { findByTestId, unmount } = render(<MatchChatScreen />);
+    const { findByTestId, unmount } = await render(<MatchChatScreen />);
     await findByTestId('chat-message-m1');
 
-    unmount();
+    await unmount();
 
     expect(mockLeaveMatchRoom).toHaveBeenCalledWith('match-1');
   });
 
   it('shows an empty state with no messages', async () => {
     mockGetMatchMessages.mockResolvedValueOnce({ results: [] });
-    const { findByTestId } = render(<MatchChatScreen />);
+    const { findByTestId } = await render(<MatchChatScreen />);
 
     expect(await findByTestId('chat-empty')).toBeTruthy();
   });

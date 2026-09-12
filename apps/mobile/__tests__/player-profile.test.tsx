@@ -50,7 +50,7 @@ describe('Player Profile screen (backlog B-10)', () => {
 
   it('loads and shows the player for the id in route params', async () => {
     mockGetPlayerProfile.mockResolvedValueOnce(PROFILE);
-    const { findByText } = render(<PlayerProfileScreen />);
+    const { findByText } = await render(<PlayerProfileScreen />);
 
     expect(await findByText('Asha Patel')).toBeTruthy();
     expect(await findByText('BF1001')).toBeTruthy();
@@ -60,7 +60,7 @@ describe('Player Profile screen (backlog B-10)', () => {
 
   it('falls back to bfam_id when the player has no full_name', async () => {
     mockGetPlayerProfile.mockResolvedValueOnce({ ...PROFILE, full_name: null });
-    const { findAllByText } = render(<PlayerProfileScreen />);
+    const { findAllByText } = await render(<PlayerProfileScreen />);
 
     // With no full_name, the display name AND the BFAM ID subtitle both
     // read "BF1001" — two matching nodes is the expected fallback here.
@@ -69,7 +69,7 @@ describe('Player Profile screen (backlog B-10)', () => {
 
   it('omits a field that is null rather than showing a blank row', async () => {
     mockGetPlayerProfile.mockResolvedValueOnce({ ...PROFILE, favorite_cricketer_name: null });
-    const { findByText, queryByText } = render(<PlayerProfileScreen />);
+    const { findByText, queryByText } = await render(<PlayerProfileScreen />);
 
     await findByText('Asha Patel');
     expect(queryByText('Favorite Cricketer')).toBeNull();
@@ -77,7 +77,7 @@ describe('Player Profile screen (backlog B-10)', () => {
 
   it('shows an error state if the profile fails to load', async () => {
     mockGetPlayerProfile.mockRejectedValueOnce(new Error('not found'));
-    const { findByTestId } = render(<PlayerProfileScreen />);
+    const { findByTestId } = await render(<PlayerProfileScreen />);
 
     expect(await findByTestId('player-profile-error')).toBeTruthy();
   });
@@ -86,7 +86,7 @@ describe('Player Profile screen (backlog B-10)', () => {
   describe('follow/unfollow', () => {
     it('shows follower and following counts', async () => {
       mockGetPlayerProfile.mockResolvedValueOnce(PROFILE);
-      const { findByText } = render(<PlayerProfileScreen />);
+      const { findByText } = await render(<PlayerProfileScreen />);
 
       expect(await findByText('3')).toBeTruthy();
       expect(await findByText('1')).toBeTruthy();
@@ -96,8 +96,8 @@ describe('Player Profile screen (backlog B-10)', () => {
       mockGetPlayerProfile.mockResolvedValueOnce(PROFILE);
       mockFollowPlayer.mockResolvedValueOnce({ following: true });
 
-      const { findByTestId, findByText } = render(<PlayerProfileScreen />);
-      fireEvent.press(await findByTestId('follow-toggle-button'));
+      const { findByTestId, findByText } = await render(<PlayerProfileScreen />);
+      await fireEvent.press(await findByTestId('follow-toggle-button'));
 
       await waitFor(() => expect(mockFollowPlayer).toHaveBeenCalledWith('p1'));
       await findByText('4'); // followers_count incremented from 3 to 4
@@ -110,15 +110,15 @@ describe('Player Profile screen (backlog B-10)', () => {
       });
       mockUnfollowPlayer.mockResolvedValueOnce({ following: false });
 
-      const { findByTestId } = render(<PlayerProfileScreen />);
-      fireEvent.press(await findByTestId('follow-toggle-button'));
+      const { findByTestId } = await render(<PlayerProfileScreen />);
+      await fireEvent.press(await findByTestId('follow-toggle-button'));
 
       await waitFor(() => expect(mockUnfollowPlayer).toHaveBeenCalledWith('p1'));
     });
 
     it("hides the follow button on the viewer's own profile", async () => {
       mockGetPlayerProfile.mockResolvedValueOnce({ ...PROFILE, bfam_id: 'BF9999' });
-      const { findByText, queryByTestId } = render(<PlayerProfileScreen />);
+      const { findByText, queryByTestId } = await render(<PlayerProfileScreen />);
 
       await findByText('Asha Patel');
       expect(queryByTestId('follow-toggle-button')).toBeNull();
@@ -128,8 +128,8 @@ describe('Player Profile screen (backlog B-10)', () => {
       mockGetPlayerProfile.mockResolvedValueOnce(PROFILE);
       mockFollowPlayer.mockRejectedValueOnce(new Error('network error'));
 
-      const { findByTestId, findByText } = render(<PlayerProfileScreen />);
-      fireEvent.press(await findByTestId('follow-toggle-button'));
+      const { findByTestId, findByText } = await render(<PlayerProfileScreen />);
+      await fireEvent.press(await findByTestId('follow-toggle-button'));
 
       await findByTestId('follow-error');
       expect(await findByText('Asha Patel')).toBeTruthy();

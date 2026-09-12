@@ -24,10 +24,13 @@ describe('Contact Support / Submit Complaint form (module 2.13, PRD §12.57)', (
 
   it('defaults to the OTHER category and submits the typed description', async () => {
     mockCreateComplaint.mockResolvedValueOnce({ ticket_id: 't1' });
-    const { getByTestId } = render(<ContactSupportScreen />);
+    const { getByTestId } = await render(<ContactSupportScreen />);
 
-    fireEvent.changeText(getByTestId('complaint-description'), 'My payment was charged twice.');
-    fireEvent.press(getByTestId('submit-complaint'));
+    await fireEvent.changeText(
+      getByTestId('complaint-description'),
+      'My payment was charged twice.',
+    );
+    await fireEvent.press(getByTestId('submit-complaint'));
 
     await waitFor(() =>
       expect(mockCreateComplaint).toHaveBeenCalledWith({
@@ -39,11 +42,14 @@ describe('Contact Support / Submit Complaint form (module 2.13, PRD §12.57)', (
 
   it('submits the selected category when a chip is chosen', async () => {
     mockCreateComplaint.mockResolvedValueOnce({ ticket_id: 't1' });
-    const { getByTestId } = render(<ContactSupportScreen />);
+    const { getByTestId } = await render(<ContactSupportScreen />);
 
-    fireEvent.press(getByTestId('complaint-category-PAYMENT_ISSUE'));
-    fireEvent.changeText(getByTestId('complaint-description'), 'My payment was charged twice.');
-    fireEvent.press(getByTestId('submit-complaint'));
+    await fireEvent.press(getByTestId('complaint-category-PAYMENT_ISSUE'));
+    await fireEvent.changeText(
+      getByTestId('complaint-description'),
+      'My payment was charged twice.',
+    );
+    await fireEvent.press(getByTestId('submit-complaint'));
 
     await waitFor(() =>
       expect(mockCreateComplaint).toHaveBeenCalledWith({
@@ -53,11 +59,11 @@ describe('Contact Support / Submit Complaint form (module 2.13, PRD §12.57)', (
     );
   });
 
-  it('rejects a too-short description without calling the API', () => {
-    const { getByTestId, getByText } = render(<ContactSupportScreen />);
+  it('rejects a too-short description without calling the API', async () => {
+    const { getByTestId, getByText } = await render(<ContactSupportScreen />);
 
-    fireEvent.changeText(getByTestId('complaint-description'), 'hi');
-    fireEvent.press(getByTestId('submit-complaint'));
+    await fireEvent.changeText(getByTestId('complaint-description'), 'hi');
+    await fireEvent.press(getByTestId('submit-complaint'));
 
     expect(getByText(/more detail/i)).toBeTruthy();
     expect(mockCreateComplaint).not.toHaveBeenCalled();
@@ -65,20 +71,26 @@ describe('Contact Support / Submit Complaint form (module 2.13, PRD §12.57)', (
 
   it('navigates to Complaint Status on success', async () => {
     mockCreateComplaint.mockResolvedValueOnce({ ticket_id: 't1' });
-    const { getByTestId } = render(<ContactSupportScreen />);
+    const { getByTestId } = await render(<ContactSupportScreen />);
 
-    fireEvent.changeText(getByTestId('complaint-description'), 'My payment was charged twice.');
-    fireEvent.press(getByTestId('submit-complaint'));
+    await fireEvent.changeText(
+      getByTestId('complaint-description'),
+      'My payment was charged twice.',
+    );
+    await fireEvent.press(getByTestId('submit-complaint'));
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/complaint-status'));
   });
 
   it('surfaces a backend error instead of navigating away', async () => {
     mockCreateComplaint.mockRejectedValueOnce(new BFAMApiError('Invalid complaint payload', 400));
-    const { getByTestId, findByTestId } = render(<ContactSupportScreen />);
+    const { getByTestId, findByTestId } = await render(<ContactSupportScreen />);
 
-    fireEvent.changeText(getByTestId('complaint-description'), 'My payment was charged twice.');
-    fireEvent.press(getByTestId('submit-complaint'));
+    await fireEvent.changeText(
+      getByTestId('complaint-description'),
+      'My payment was charged twice.',
+    );
+    await fireEvent.press(getByTestId('submit-complaint'));
 
     expect(await findByTestId('complaint-error')).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();

@@ -52,7 +52,7 @@ describe('Payment screen (module 2.4)', () => {
 
   it('offers all 5 payment method options (PRD §12.16)', async () => {
     mockGetObligations.mockResolvedValueOnce({ results: [] });
-    const { findByTestId } = render(<PaymentScreen />);
+    const { findByTestId } = await render(<PaymentScreen />);
 
     expect(await findByTestId('payment-method-UPI')).toBeTruthy();
     expect(await findByTestId('payment-method-RAZORPAY')).toBeTruthy();
@@ -65,10 +65,10 @@ describe('Payment screen (module 2.4)', () => {
     mockGetObligations.mockResolvedValue({ results: [OBLIGATION] });
     mockRecordCashPayment.mockResolvedValueOnce({ payment_id: 'pay-1' });
 
-    const { findByTestId } = render(<PaymentScreen />);
+    const { findByTestId } = await render(<PaymentScreen />);
 
-    fireEvent.press(await findByTestId('payment-method-CASH'));
-    fireEvent.press(await findByTestId('confirm-cash-payment'));
+    await fireEvent.press(await findByTestId('payment-method-CASH'));
+    await fireEvent.press(await findByTestId('confirm-cash-payment'));
 
     await waitFor(() => expect(mockRecordCashPayment).toHaveBeenCalledWith(['ob-1'], undefined));
     expect(await findByTestId('payment-done')).toBeTruthy();
@@ -78,9 +78,9 @@ describe('Payment screen (module 2.4)', () => {
     mockGetObligations.mockResolvedValue({ results: [OBLIGATION] });
     mockRecordCashPayment.mockRejectedValueOnce(new Error('boom'));
 
-    const { findByTestId } = render(<PaymentScreen />);
-    fireEvent.press(await findByTestId('payment-method-CASH'));
-    fireEvent.press(await findByTestId('confirm-cash-payment'));
+    const { findByTestId } = await render(<PaymentScreen />);
+    await fireEvent.press(await findByTestId('payment-method-CASH'));
+    await fireEvent.press(await findByTestId('confirm-cash-payment'));
 
     expect(await findByTestId('cash-entry-screen')).toBeTruthy();
   });
@@ -95,11 +95,11 @@ describe('Payment screen (module 2.4)', () => {
     }));
     mockCreateObligations.mockResolvedValueOnce({ results: shareObligations });
 
-    const { findByTestId } = render(<PaymentScreen />);
+    const { findByTestId } = await render(<PaymentScreen />);
 
-    fireEvent.press(await findByTestId('payment-method-SPLIT'));
-    fireEvent.changeText(await findByTestId('split-share-count-input'), '3');
-    fireEvent.press(await findByTestId('submit-split-setup'));
+    await fireEvent.press(await findByTestId('payment-method-SPLIT'));
+    await fireEvent.changeText(await findByTestId('split-share-count-input'), '3');
+    await fireEvent.press(await findByTestId('submit-split-setup'));
 
     await waitFor(() =>
       expect(mockCreateObligations).toHaveBeenCalledWith('booking-1', {
@@ -127,15 +127,15 @@ describe('Payment screen (module 2.4)', () => {
     mockCreateObligations.mockResolvedValueOnce({ results: shareObligations });
     mockRecordCashPayment.mockResolvedValueOnce({ payment_id: 'pay-1' });
 
-    const { findByTestId } = render(<PaymentScreen />);
+    const { findByTestId } = await render(<PaymentScreen />);
 
-    fireEvent.press(await findByTestId('payment-method-SPLIT'));
-    fireEvent.changeText(await findByTestId('split-share-count-input'), '2');
-    fireEvent.press(await findByTestId('submit-split-setup'));
+    await fireEvent.press(await findByTestId('payment-method-SPLIT'));
+    await fireEvent.changeText(await findByTestId('split-share-count-input'), '2');
+    await fireEvent.press(await findByTestId('submit-split-setup'));
     await findByTestId('payment-method-selector');
 
-    fireEvent.press(await findByTestId('payment-method-CASH'));
-    fireEvent.press(await findByTestId('confirm-cash-payment'));
+    await fireEvent.press(await findByTestId('payment-method-CASH'));
+    await fireEvent.press(await findByTestId('confirm-cash-payment'));
 
     await waitFor(() => expect(mockRecordCashPayment).toHaveBeenCalledWith(['ob-1'], undefined));
   });
@@ -156,9 +156,9 @@ describe('Payment screen (module 2.4)', () => {
         coin_balance: 0,
       });
 
-      const { findByTestId } = render(<PaymentScreen />);
-      fireEvent.changeText(await findByTestId('promo-code-input'), 'SAVE10');
-      fireEvent.press(await findByTestId('apply-discount-button'));
+      const { findByTestId } = await render(<PaymentScreen />);
+      await fireEvent.changeText(await findByTestId('promo-code-input'), 'SAVE10');
+      await fireEvent.press(await findByTestId('apply-discount-button'));
 
       await waitFor(() =>
         expect(mockApplyCheckoutDiscount).toHaveBeenCalledWith('ob-1', {
@@ -175,7 +175,7 @@ describe('Payment screen (module 2.4)', () => {
       mockGetObligations.mockResolvedValue({ results: [OBLIGATION] });
       mockGetMyProfile.mockResolvedValueOnce({ coin_balance: 150 });
 
-      const { findByTestId } = render(<PaymentScreen />);
+      const { findByTestId } = await render(<PaymentScreen />);
 
       expect(await findByTestId('coins-to-redeem-input')).toBeTruthy();
     });
@@ -184,7 +184,7 @@ describe('Payment screen (module 2.4)', () => {
       mockGetObligations.mockResolvedValue({ results: [OBLIGATION] });
       mockGetMyProfile.mockResolvedValueOnce({ coin_balance: 0 });
 
-      const { findByTestId, queryByTestId } = render(<PaymentScreen />);
+      const { findByTestId, queryByTestId } = await render(<PaymentScreen />);
       await findByTestId('checkout-discount-section');
 
       expect(queryByTestId('coins-to-redeem-input')).toBeNull();
@@ -194,9 +194,9 @@ describe('Payment screen (module 2.4)', () => {
       mockGetObligations.mockResolvedValue({ results: [OBLIGATION] });
       mockApplyCheckoutDiscount.mockRejectedValueOnce(new Error('generic'));
 
-      const { findByTestId } = render(<PaymentScreen />);
-      fireEvent.changeText(await findByTestId('promo-code-input'), 'BADCODE');
-      fireEvent.press(await findByTestId('apply-discount-button'));
+      const { findByTestId } = await render(<PaymentScreen />);
+      await fireEvent.changeText(await findByTestId('promo-code-input'), 'BADCODE');
+      await fireEvent.press(await findByTestId('apply-discount-button'));
 
       expect(await findByTestId('discount-error-message')).toBeTruthy();
     });

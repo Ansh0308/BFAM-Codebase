@@ -99,16 +99,16 @@ describe('ManageTeamScreen (module 2.5)', () => {
 
   it('sends an invite with the entered player id', async () => {
     mockInviteToTeam.mockResolvedValueOnce({ invitation_id: 'inv-1' });
-    const { findByTestId } = render(<ManageTeamScreen />);
+    const { findByTestId } = await render(<ManageTeamScreen />);
 
-    fireEvent.changeText(await findByTestId('invite-player-id-input'), 'new-player-id');
-    fireEvent.press(await findByTestId('send-invite-button'));
+    await fireEvent.changeText(await findByTestId('invite-player-id-input'), 'new-player-id');
+    await fireEvent.press(await findByTestId('send-invite-button'));
 
     await waitFor(() => expect(mockInviteToTeam).toHaveBeenCalledWith('team-1', 'new-player-id'));
   });
 
   it('never shows a "make captain" or "remove" action for the current captain', async () => {
-    const { findByTestId, queryByTestId } = render(<ManageTeamScreen />);
+    const { findByTestId, queryByTestId } = await render(<ManageTeamScreen />);
     await findByTestId('manage-member-captain-player');
 
     expect(queryByTestId('make-captain-captain-player')).toBeNull();
@@ -118,18 +118,18 @@ describe('ManageTeamScreen (module 2.5)', () => {
 
   // Backlog B-10: view another player's profile from a roster/team row.
   it('navigates to the public player profile when a member row is tapped', async () => {
-    const { findByTestId } = render(<ManageTeamScreen />);
+    const { findByTestId } = await render(<ManageTeamScreen />);
 
-    fireEvent.press(await findByTestId('manage-member-avatar-member-player'));
+    await fireEvent.press(await findByTestId('manage-member-avatar-member-player'));
 
     expect(mockPush).toHaveBeenCalledWith('/player-profile?playerId=member-player');
   });
 
   it('changes the captain when "Make Captain" is pressed for another member', async () => {
     mockChangeCaptain.mockResolvedValueOnce(undefined);
-    const { findByTestId } = render(<ManageTeamScreen />);
+    const { findByTestId } = await render(<ManageTeamScreen />);
 
-    fireEvent.press(await findByTestId('make-captain-member-player'));
+    await fireEvent.press(await findByTestId('make-captain-member-player'));
 
     await waitFor(() => expect(mockChangeCaptain).toHaveBeenCalledWith('team-1', 'member-player'));
   });
@@ -152,11 +152,11 @@ describe('ManageTeamScreen (module 2.5)', () => {
       });
       mockInviteToTeam.mockResolvedValueOnce({ invitation_id: 'inv-2' });
 
-      const { findByTestId } = render(<ManageTeamScreen />);
-      fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
+      const { findByTestId } = await render(<ManageTeamScreen />);
+      await fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
 
       expect(await findByTestId('team-invite-contact-row-p-contact-1')).toBeTruthy();
-      fireEvent.press(await findByTestId('team-invite-invite-button-p-contact-1'));
+      await fireEvent.press(await findByTestId('team-invite-invite-button-p-contact-1'));
 
       await waitFor(() => expect(mockInviteToTeam).toHaveBeenCalledWith('team-1', 'BF2001'));
     });
@@ -164,8 +164,8 @@ describe('ManageTeamScreen (module 2.5)', () => {
     it('shows a message when contacts permission is denied', async () => {
       mockRequestPermissionsAsync.mockResolvedValue({ status: 'denied' });
 
-      const { findByTestId } = render(<ManageTeamScreen />);
-      fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
+      const { findByTestId } = await render(<ManageTeamScreen />);
+      await fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
 
       expect(await findByTestId('team-invite-contacts-denied')).toBeTruthy();
       expect(mockMatchContacts).not.toHaveBeenCalled();
@@ -177,8 +177,8 @@ describe('ManageTeamScreen (module 2.5)', () => {
       });
       mockMatchContacts.mockResolvedValueOnce({ results: [] });
 
-      const { findByTestId, findByText } = render(<ManageTeamScreen />);
-      fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
+      const { findByTestId, findByText } = await render(<ManageTeamScreen />);
+      await fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
 
       await findByText(/none of your contacts are on bfam yet/i);
     });

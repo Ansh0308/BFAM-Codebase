@@ -41,9 +41,9 @@ describe('Home — Book Turf quick action with Discover hidden (backlog A-12)', 
   });
 
   it('routes straight to the owned turf availability screen instead of Discover', async () => {
-    const { getByTestId } = render(<Home />);
+    const { getByTestId } = await render(<Home />);
 
-    fireEvent.press(getByTestId('home-book-turf-quick-action'));
+    await fireEvent.press(getByTestId('home-book-turf-quick-action'));
 
     await waitFor(() => expect(mockGetTurfs).toHaveBeenCalledWith({}));
     await waitFor(() =>
@@ -56,8 +56,8 @@ describe('Home — Book Turf quick action with Discover hidden (backlog A-12)', 
   it('shows an error if there is no turf to book yet', async () => {
     mockGetTurfs.mockResolvedValue({ page: 1, page_size: 20, results: [] });
 
-    const { getByTestId, findByText } = render(<Home />);
-    fireEvent.press(getByTestId('home-book-turf-quick-action'));
+    const { getByTestId, findByText } = await render(<Home />);
+    await fireEvent.press(getByTestId('home-book-turf-quick-action'));
 
     await findByText(/no turf is available/i);
     expect(mockPush).not.toHaveBeenCalled();

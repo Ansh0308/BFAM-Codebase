@@ -45,7 +45,7 @@ describe('Player Check-In (module 2.12, PRD §8.3/§8.4 "Check-In")', () => {
 
   it('lists confirmed players with their current attendance state', async () => {
     mockGetGameRoom.mockResolvedValueOnce(ROOM);
-    const { findByText, getByTestId } = render(<RosterCheckInScreen />);
+    const { findByText, getByTestId } = await render(<RosterCheckInScreen />);
 
     expect(await findByText('BF1001')).toBeTruthy();
     expect(getByTestId('checked-in-p2')).toBeTruthy();
@@ -55,8 +55,8 @@ describe('Player Check-In (module 2.12, PRD §8.3/§8.4 "Check-In")', () => {
     mockGetGameRoom.mockResolvedValue(ROOM);
     mockSetAttendance.mockResolvedValueOnce(undefined);
 
-    const { findByTestId } = render(<RosterCheckInScreen />);
-    fireEvent.press(await findByTestId('check-in-button-p1'));
+    const { findByTestId } = await render(<RosterCheckInScreen />);
+    await fireEvent.press(await findByTestId('check-in-button-p1'));
 
     await waitFor(() => expect(mockSetAttendance).toHaveBeenCalledWith('m1', 'p1', 'CHECKED_IN'));
   });
@@ -67,8 +67,8 @@ describe('Player Check-In (module 2.12, PRD §8.3/§8.4 "Check-In")', () => {
       new BFAMApiError('Your staff account is still pending verification by the turf owner.', 403),
     );
 
-    const { findByTestId, findByText } = render(<RosterCheckInScreen />);
-    fireEvent.press(await findByTestId('check-in-button-p1'));
+    const { findByTestId, findByText } = await render(<RosterCheckInScreen />);
+    await fireEvent.press(await findByTestId('check-in-button-p1'));
 
     expect(await findByText(/pending verification/i)).toBeTruthy();
   });

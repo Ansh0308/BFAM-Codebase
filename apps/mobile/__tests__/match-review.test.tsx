@@ -30,11 +30,11 @@ describe('Match Review screen (backlog B-4)', () => {
       coins_awarded: 20,
       coin_balance: 20,
     });
-    const { getByTestId } = render(<MatchReviewScreen />);
+    const { getByTestId } = await render(<MatchReviewScreen />);
 
-    fireEvent.press(getByTestId('star-4'));
-    fireEvent.changeText(getByTestId('review-text-input'), 'Great turf, well organized.');
-    fireEvent.press(getByTestId('submit-review'));
+    await fireEvent.press(getByTestId('star-4'));
+    await fireEvent.changeText(getByTestId('review-text-input'), 'Great turf, well organized.');
+    await fireEvent.press(getByTestId('submit-review'));
 
     await waitFor(() =>
       expect(mockSubmitReview).toHaveBeenCalledWith('m1', {
@@ -50,19 +50,19 @@ describe('Match Review screen (backlog B-4)', () => {
       coins_awarded: 20,
       coin_balance: 20,
     });
-    const { getByTestId, findByTestId, findByText } = render(<MatchReviewScreen />);
+    const { getByTestId, findByTestId, findByText } = await render(<MatchReviewScreen />);
 
-    fireEvent.press(getByTestId('star-5'));
-    fireEvent.press(getByTestId('submit-review'));
+    await fireEvent.press(getByTestId('star-5'));
+    await fireEvent.press(getByTestId('submit-review'));
 
     await findByTestId('review-submitted');
     await findByText(/earned 20 bfam coins/i);
   });
 
-  it('requires a star rating before submitting', () => {
-    const { getByTestId, getByText } = render(<MatchReviewScreen />);
+  it('requires a star rating before submitting', async () => {
+    const { getByTestId, getByText } = await render(<MatchReviewScreen />);
 
-    fireEvent.press(getByTestId('submit-review'));
+    await fireEvent.press(getByTestId('submit-review'));
 
     expect(getByText(/pick a star rating/i)).toBeTruthy();
     expect(mockSubmitReview).not.toHaveBeenCalled();
@@ -72,10 +72,10 @@ describe('Match Review screen (backlog B-4)', () => {
     mockSubmitReview.mockRejectedValueOnce(
       new BFAMApiError('You have already reviewed this match.', 409),
     );
-    const { getByTestId, findByTestId, queryByTestId } = render(<MatchReviewScreen />);
+    const { getByTestId, findByTestId, queryByTestId } = await render(<MatchReviewScreen />);
 
-    fireEvent.press(getByTestId('star-3'));
-    fireEvent.press(getByTestId('submit-review'));
+    await fireEvent.press(getByTestId('star-3'));
+    await fireEvent.press(getByTestId('submit-review'));
 
     expect(await findByTestId('review-error')).toBeTruthy();
     expect(queryByTestId('review-submitted')).toBeNull();

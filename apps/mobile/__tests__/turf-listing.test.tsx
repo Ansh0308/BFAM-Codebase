@@ -65,7 +65,7 @@ describe('TurfListing screen (module 2.3)', () => {
       ],
     });
 
-    const { findAllByTestId, queryByText } = render(<TurfListing />);
+    const { findAllByTestId, queryByText } = await render(<TurfListing />);
 
     const cards = await findAllByTestId('turf-card-t1');
     expect(cards.length).toBeGreaterThan(0);
@@ -77,10 +77,10 @@ describe('TurfListing screen (module 2.3)', () => {
   it('re-fetches with the search query when the user submits the search box', async () => {
     mockGetTurfs.mockResolvedValue({ page: 1, page_size: 20, results: [] });
 
-    const { getByTestId } = render(<TurfListing />);
+    const { getByTestId } = await render(<TurfListing />);
     await waitFor(() => expect(mockGetTurfs).toHaveBeenCalledTimes(1));
 
-    fireEvent.changeText(getByTestId('turf-search-input'), 'Green Park');
+    await fireEvent.changeText(getByTestId('turf-search-input'), 'Green Park');
     fireEvent(getByTestId('turf-search-input'), 'submitEditing');
 
     await waitFor(() => expect(mockGetTurfs).toHaveBeenCalledWith({ q: 'Green Park' }));
@@ -88,7 +88,7 @@ describe('TurfListing screen (module 2.3)', () => {
 
   it('shows an empty-state message when no turfs match', async () => {
     mockGetTurfs.mockResolvedValueOnce({ page: 1, page_size: 20, results: [] });
-    const { findByText } = render(<TurfListing />);
+    const { findByText } = await render(<TurfListing />);
     expect(await findByText(/no turfs match/i)).toBeTruthy();
   });
 
@@ -111,9 +111,9 @@ describe('TurfListing screen (module 2.3)', () => {
       ],
     });
 
-    const { findAllByTestId } = render(<TurfListing />);
+    const { findAllByTestId } = await render(<TurfListing />);
     const cards = await findAllByTestId('turf-card-t1');
-    fireEvent.press(cards[0]);
+    await fireEvent.press(cards[0]);
 
     expect(mockPush).toHaveBeenCalledWith('/(tabs)/discover/turf/t1');
   });
@@ -125,7 +125,7 @@ describe('TurfListing screen (module 2.3)', () => {
       coords: { latitude: 22.3039, longitude: 70.8022 },
     });
 
-    render(<TurfListing />);
+    await render(<TurfListing />);
 
     await waitFor(() => expect(mockGetTurfs).toHaveBeenCalledWith({ lat: 22.3039, lng: 70.8022 }));
   });
@@ -134,7 +134,7 @@ describe('TurfListing screen (module 2.3)', () => {
     mockGetTurfs.mockResolvedValue({ page: 1, page_size: 20, results: [] });
     mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
 
-    render(<TurfListing />);
+    await render(<TurfListing />);
 
     await waitFor(() => expect(mockGetTurfs).toHaveBeenCalledWith({}));
     expect(mockGetCurrentPositionAsync).not.toHaveBeenCalled();
@@ -188,7 +188,7 @@ describe('TurfListing screen (module 2.3)', () => {
         ],
       });
 
-      const { findAllByTestId, findAllByText, queryAllByTestId } = render(<TurfListing />);
+      const { findAllByTestId, findAllByText, queryAllByTestId } = await render(<TurfListing />);
 
       expect((await findAllByTestId('venue-card-v1')).length).toBeGreaterThan(0);
       expect((await findAllByText('Redline Sports Complex')).length).toBeGreaterThan(0);
@@ -233,9 +233,9 @@ describe('TurfListing screen (module 2.3)', () => {
         ],
       });
 
-      const { findAllByTestId } = render(<TurfListing />);
+      const { findAllByTestId } = await render(<TurfListing />);
       const cards = await findAllByTestId('venue-card-v1');
-      fireEvent.press(cards[0]);
+      await fireEvent.press(cards[0]);
 
       expect(mockPush).toHaveBeenCalledWith('/(tabs)/discover/venue/v1');
     });

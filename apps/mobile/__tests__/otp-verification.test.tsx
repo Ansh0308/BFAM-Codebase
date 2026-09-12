@@ -33,7 +33,7 @@ describe('OtpVerification screen', () => {
   });
 
   it('renders a 6-digit OTP input once the code has been sent', async () => {
-    const { findByTestId } = render(<OtpVerification />);
+    const { findByTestId } = await render(<OtpVerification />);
 
     for (let i = 0; i < 6; i += 1) {
       await findByTestId(`otp-input-${i}`);
@@ -48,15 +48,15 @@ describe('OtpVerification screen', () => {
       role: 'PLAYER',
     });
 
-    const { findByTestId } = render(<OtpVerification />);
+    const { findByTestId } = await render(<OtpVerification />);
 
     for (let i = 0; i < 6; i += 1) {
       const box = await findByTestId(`otp-input-${i}`);
-      fireEvent.changeText(box, String(i + 1));
+      await fireEvent.changeText(box, String(i + 1));
     }
 
     const verifyButton = await findByTestId('otp-verify');
-    fireEvent.press(verifyButton);
+    await fireEvent.press(verifyButton);
 
     await waitFor(() => {
       expect(mockVerifyOtp).toHaveBeenCalledWith('+919876543210', '123456', 'LOGIN');
@@ -69,15 +69,15 @@ describe('OtpVerification screen', () => {
   it('shows an error state for an invalid/expired code and clears the input', async () => {
     mockVerifyOtp.mockRejectedValueOnce(new Error('invalid'));
 
-    const { findByTestId, findByText } = render(<OtpVerification />);
+    const { findByTestId, findByText } = await render(<OtpVerification />);
 
     for (let i = 0; i < 6; i += 1) {
       const box = await findByTestId(`otp-input-${i}`);
-      fireEvent.changeText(box, '9');
+      await fireEvent.changeText(box, '9');
     }
 
     const verifyButton = await findByTestId('otp-verify');
-    fireEvent.press(verifyButton);
+    await fireEvent.press(verifyButton);
 
     await findByText(/invalid or expired/i);
   });

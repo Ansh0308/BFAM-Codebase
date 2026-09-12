@@ -24,15 +24,15 @@ describe('Language screen', () => {
   });
 
   it('marks the saved language as selected once loaded', async () => {
-    const { findByTestId } = render(<Language />);
+    const { findByTestId } = await render(<Language />);
     await findByTestId('language-check-en');
   });
 
   it('persists the new language via updateMyProfile when a different option is picked', async () => {
-    const { findByTestId } = render(<Language />);
+    const { findByTestId } = await render(<Language />);
     await findByTestId('language-check-en');
 
-    fireEvent.press(await findByTestId('language-option-hi'));
+    await fireEvent.press(await findByTestId('language-option-hi'));
 
     await waitFor(() => {
       expect(mockUpdateMyProfile).toHaveBeenCalledWith({ preferred_language: 'hi' });

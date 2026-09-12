@@ -77,7 +77,7 @@ describe('TurfAvailability screen (module 2.3)', () => {
 
   it('visually distinguishes AVAILABLE from BOOKED slots and disables the booked one', async () => {
     mockGetAvailability.mockResolvedValueOnce(SAMPLE_AVAILABILITY);
-    const { getByTestId } = render(<TurfAvailability />);
+    const { getByTestId } = await render(<TurfAvailability />);
 
     await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
     const availableSlot = getByTestId('slot-18:00:00');
@@ -89,10 +89,10 @@ describe('TurfAvailability screen (module 2.3)', () => {
 
   it('opens the booking confirmation modal only for an available slot', async () => {
     mockGetAvailability.mockResolvedValueOnce(SAMPLE_AVAILABILITY);
-    const { getByTestId, queryByTestId } = render(<TurfAvailability />);
+    const { getByTestId, queryByTestId } = await render(<TurfAvailability />);
 
     await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
-    fireEvent.press(getByTestId('slot-18:00:00'));
+    await fireEvent.press(getByTestId('slot-18:00:00'));
 
     await waitFor(() => expect(queryByTestId('confirm-booking-button')).toBeTruthy());
   });
@@ -101,11 +101,11 @@ describe('TurfAvailability screen (module 2.3)', () => {
     mockGetAvailability.mockResolvedValueOnce(SAMPLE_AVAILABILITY);
     mockCreateBooking.mockResolvedValueOnce({ booking_id: 'b1' });
 
-    const { getByTestId } = render(<TurfAvailability />);
+    const { getByTestId } = await render(<TurfAvailability />);
     await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
-    fireEvent.press(getByTestId('slot-18:00:00'));
+    await fireEvent.press(getByTestId('slot-18:00:00'));
     await waitFor(() => expect(getByTestId('confirm-booking-button')).toBeTruthy());
-    fireEvent.press(getByTestId('confirm-booking-button'));
+    await fireEvent.press(getByTestId('confirm-booking-button'));
 
     await waitFor(() =>
       expect(mockReplace).toHaveBeenCalledWith('/(tabs)/discover/booking/b1/confirmation'),
@@ -118,11 +118,11 @@ describe('TurfAvailability screen (module 2.3)', () => {
       new BFAMApiError('This slot is no longer available. Please choose another time.', 409),
     );
 
-    const { getByTestId } = render(<TurfAvailability />);
+    const { getByTestId } = await render(<TurfAvailability />);
     await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
-    fireEvent.press(getByTestId('slot-18:00:00'));
+    await fireEvent.press(getByTestId('slot-18:00:00'));
     await waitFor(() => expect(getByTestId('confirm-booking-button')).toBeTruthy());
-    fireEvent.press(getByTestId('confirm-booking-button'));
+    await fireEvent.press(getByTestId('confirm-booking-button'));
 
     await waitFor(() =>
       expect(getByTestId('booking-error-message').props.children).toBe(
@@ -139,16 +139,16 @@ describe('TurfAvailability screen (module 2.3)', () => {
       mockGetAvailability.mockResolvedValueOnce(THREE_OPEN_HOURS);
       mockCreateBooking.mockResolvedValueOnce({ booking_id: 'b1' });
 
-      const { getByTestId } = render(<TurfAvailability />);
+      const { getByTestId } = await render(<TurfAvailability />);
       await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
-      fireEvent.press(getByTestId('slot-18:00:00'));
+      await fireEvent.press(getByTestId('slot-18:00:00'));
 
       await waitFor(() => expect(getByTestId('duration-hours-value')).toBeTruthy());
       expect(getByTestId('duration-hours-value').props.children.join('')).toBe('1 hr');
       expect(getByTestId('booking-time-range').props.children.join('')).toContain('18:00–19:00');
 
-      fireEvent.press(getByTestId('duration-increase'));
-      fireEvent.press(getByTestId('duration-increase'));
+      await fireEvent.press(getByTestId('duration-increase'));
+      await fireEvent.press(getByTestId('duration-increase'));
 
       expect(getByTestId('duration-hours-value').props.children.join('')).toBe('3 hrs');
       expect(getByTestId('booking-time-range').props.children.join('')).toContain('18:00–21:00');
@@ -156,7 +156,7 @@ describe('TurfAvailability screen (module 2.3)', () => {
       // hour's rate multiplied by 3.
       expect(getByTestId('booking-total-price').props.children.join('')).toBe('₹3200 total');
 
-      fireEvent.press(getByTestId('confirm-booking-button'));
+      await fireEvent.press(getByTestId('confirm-booking-button'));
 
       await waitFor(() =>
         expect(mockCreateBooking).toHaveBeenCalledWith(
@@ -167,9 +167,9 @@ describe('TurfAvailability screen (module 2.3)', () => {
 
     it('caps the duration stepper at the run of contiguous AVAILABLE hours — never across a booked slot', async () => {
       mockGetAvailability.mockResolvedValueOnce(SAMPLE_AVAILABILITY); // 18:00 open, 19:00 booked
-      const { getByTestId } = render(<TurfAvailability />);
+      const { getByTestId } = await render(<TurfAvailability />);
       await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
-      fireEvent.press(getByTestId('slot-18:00:00'));
+      await fireEvent.press(getByTestId('slot-18:00:00'));
 
       await waitFor(() => expect(getByTestId('duration-hours-value')).toBeTruthy());
       const increaseButton = getByTestId('duration-increase');
@@ -177,22 +177,22 @@ describe('TurfAvailability screen (module 2.3)', () => {
         increaseButton.props.accessibilityState?.disabled ?? increaseButton.props.disabled,
       ).toBeTruthy();
 
-      fireEvent.press(getByTestId('duration-increase'));
+      await fireEvent.press(getByTestId('duration-increase'));
       expect(getByTestId('duration-hours-value').props.children.join('')).toBe('1 hr');
     });
 
     it('resets the duration back to 1 hour when a different slot is opened', async () => {
       mockGetAvailability.mockResolvedValueOnce(THREE_OPEN_HOURS);
-      const { getByTestId } = render(<TurfAvailability />);
+      const { getByTestId } = await render(<TurfAvailability />);
       await waitFor(() => expect(getByTestId('slot-18:00:00')).toBeTruthy());
 
-      fireEvent.press(getByTestId('slot-18:00:00'));
+      await fireEvent.press(getByTestId('slot-18:00:00'));
       await waitFor(() => expect(getByTestId('duration-hours-value')).toBeTruthy());
-      fireEvent.press(getByTestId('duration-increase'));
+      await fireEvent.press(getByTestId('duration-increase'));
       expect(getByTestId('duration-hours-value').props.children.join('')).toBe('2 hrs');
 
-      fireEvent.press(getByTestId('cancel-booking-button'));
-      fireEvent.press(getByTestId('slot-19:00:00'));
+      await fireEvent.press(getByTestId('cancel-booking-button'));
+      await fireEvent.press(getByTestId('slot-19:00:00'));
 
       await waitFor(() =>
         expect(getByTestId('duration-hours-value').props.children.join('')).toBe('1 hr'),

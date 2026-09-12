@@ -46,9 +46,9 @@ describe('Match Result screen — Rate This Match link (backlog B-4)', () => {
   });
 
   it('navigates to the review screen for this match', async () => {
-    const { findByTestId } = render(<MatchResultScreen />);
+    const { findByTestId } = await render(<MatchResultScreen />);
 
-    fireEvent.press(await findByTestId('open-review'));
+    await fireEvent.press(await findByTestId('open-review'));
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/match-review?matchId=match-1'));
   });

@@ -49,10 +49,10 @@ describe('My Teams — copy an existing team (backlog A-11)', () => {
   });
 
   it('navigates to Create Team with the team fields as copyFrom params', async () => {
-    const { findByTestId } = render(<MyTeamsScreen />);
+    const { findByTestId } = await render(<MyTeamsScreen />);
 
     const copyButton = await findByTestId('copy-team-team-1');
-    fireEvent.press(copyButton);
+    await fireEvent.press(copyButton);
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith({

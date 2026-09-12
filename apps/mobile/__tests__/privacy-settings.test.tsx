@@ -8,13 +8,13 @@ jest.mock('expo-router', () => ({
 import PrivacySettings from '../app/privacy-settings';
 
 describe('PrivacySettings screen', () => {
-  it('toggles each preference switch independently', () => {
-    const { getByTestId } = render(<PrivacySettings />);
+  it('toggles each preference switch independently', async () => {
+    const { getByTestId } = await render(<PrivacySettings />);
 
     const publicProfile = getByTestId('toggle-public-profile-switch');
     expect(publicProfile.props.accessibilityState.checked).toBe(true);
 
-    fireEvent.press(publicProfile);
+    await fireEvent.press(publicProfile);
 
     expect(getByTestId('toggle-public-profile-switch').props.accessibilityState.checked).toBe(
       false,

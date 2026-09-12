@@ -28,8 +28,8 @@ describe('RoleSelection screen', () => {
     useSignupStore.setState({ identifier: '+919876543210', password: 'SuperSecret123' });
   });
 
-  it('renders exactly 3 role cards (no Admin)', () => {
-    const { getByTestId, queryByTestId } = render(<RoleSelection />);
+  it('renders exactly 3 role cards (no Admin)', async () => {
+    const { getByTestId, queryByTestId } = await render(<RoleSelection />);
     expect(getByTestId('role-card-PLAYER')).toBeTruthy();
     expect(getByTestId('role-card-TURF_OWNER')).toBeTruthy();
     expect(getByTestId('role-card-TURF_STAFF')).toBeTruthy();
@@ -37,11 +37,11 @@ describe('RoleSelection screen', () => {
   });
 
   it('selecting Player navigates to Favorite Cricketer instead of creating the account directly', async () => {
-    const { getByTestId } = render(<RoleSelection />);
+    const { getByTestId } = await render(<RoleSelection />);
 
-    fireEvent.press(getByTestId('role-card-PLAYER'));
-    fireEvent.press(getByTestId('waiver-checkbox'));
-    fireEvent.press(getByTestId('role-selection-continue'));
+    await fireEvent.press(getByTestId('role-card-PLAYER'));
+    await fireEvent.press(getByTestId('waiver-checkbox'));
+    await fireEvent.press(getByTestId('role-selection-continue'));
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/favorite-cricketer');
@@ -56,11 +56,11 @@ describe('RoleSelection screen', () => {
       bfam_id: null,
     });
 
-    const { getByTestId } = render(<RoleSelection />);
+    const { getByTestId } = await render(<RoleSelection />);
 
-    fireEvent.press(getByTestId('role-card-TURF_OWNER'));
-    fireEvent.press(getByTestId('waiver-checkbox'));
-    fireEvent.press(getByTestId('role-selection-continue'));
+    await fireEvent.press(getByTestId('role-card-TURF_OWNER'));
+    await fireEvent.press(getByTestId('waiver-checkbox'));
+    await fireEvent.press(getByTestId('role-selection-continue'));
 
     await waitFor(() => {
       expect(mockCompleteAccountCreation).toHaveBeenCalledWith(
@@ -83,11 +83,11 @@ describe('RoleSelection screen', () => {
       bfam_id: null,
     });
 
-    const { getByTestId } = render(<RoleSelection />);
+    const { getByTestId } = await render(<RoleSelection />);
 
-    fireEvent.press(getByTestId('role-card-TURF_STAFF'));
-    fireEvent.press(getByTestId('waiver-checkbox'));
-    fireEvent.press(getByTestId('role-selection-continue'));
+    await fireEvent.press(getByTestId('role-card-TURF_STAFF'));
+    await fireEvent.press(getByTestId('waiver-checkbox'));
+    await fireEvent.press(getByTestId('role-selection-continue'));
 
     await waitFor(() => {
       expect(mockCompleteAccountCreation).toHaveBeenCalledWith(
@@ -98,16 +98,16 @@ describe('RoleSelection screen', () => {
   });
 
   it('blocks Continue until the liability waiver is checked (PRD §32.9)', async () => {
-    const { getByTestId, findByText } = render(<RoleSelection />);
+    const { getByTestId, findByText } = await render(<RoleSelection />);
 
-    fireEvent.press(getByTestId('role-card-TURF_OWNER'));
-    fireEvent.press(getByTestId('role-selection-continue'));
+    await fireEvent.press(getByTestId('role-card-TURF_OWNER'));
+    await fireEvent.press(getByTestId('role-selection-continue'));
 
     expect(await findByText(/accept the liability waiver/i)).toBeTruthy();
     expect(mockCompleteAccountCreation).not.toHaveBeenCalled();
 
-    fireEvent.press(getByTestId('waiver-checkbox'));
-    fireEvent.press(getByTestId('role-selection-continue'));
+    await fireEvent.press(getByTestId('waiver-checkbox'));
+    await fireEvent.press(getByTestId('role-selection-continue'));
 
     await waitFor(() => expect(mockCompleteAccountCreation).toHaveBeenCalled());
   });

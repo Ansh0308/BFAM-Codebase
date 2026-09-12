@@ -34,7 +34,7 @@ describe('Venue pitch picker (Discover follow-up feedback)', () => {
       ],
     });
 
-    const { findByText, findByTestId } = render(<VenuePitchPickerScreen />);
+    const { findByText, findByTestId } = await render(<VenuePitchPickerScreen />);
 
     expect(await findByText('Redline Sports Complex')).toBeTruthy();
     expect(await findByTestId('venue-pitch-card-t1')).toBeTruthy();
@@ -52,15 +52,15 @@ describe('Venue pitch picker (Discover follow-up feedback)', () => {
       ],
     });
 
-    const { findByTestId } = render(<VenuePitchPickerScreen />);
-    fireEvent.press(await findByTestId('venue-pitch-card-t1'));
+    const { findByTestId } = await render(<VenuePitchPickerScreen />);
+    await fireEvent.press(await findByTestId('venue-pitch-card-t1'));
 
     expect(mockPush).toHaveBeenCalledWith('/(tabs)/discover/turf/t1');
   });
 
   it('shows an error state when the venue fails to load', async () => {
     mockGetVenueDetails.mockRejectedValueOnce(new Error('not found'));
-    const { findByTestId } = render(<VenuePitchPickerScreen />);
+    const { findByTestId } = await render(<VenuePitchPickerScreen />);
     expect(await findByTestId('venue-picker-error')).toBeTruthy();
   });
 
@@ -72,7 +72,7 @@ describe('Venue pitch picker (Discover follow-up feedback)', () => {
       city: 'Rajkot',
       turfs: [],
     });
-    const { findByTestId } = render(<VenuePitchPickerScreen />);
+    const { findByTestId } = await render(<VenuePitchPickerScreen />);
     await waitFor(() => expect(mockGetVenueDetails).toHaveBeenCalledWith('v1'));
     expect(await findByTestId('venue-picker-empty')).toBeTruthy();
   });
