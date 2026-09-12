@@ -3,7 +3,7 @@ import { ActivityIndicator, Platform, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
@@ -14,9 +14,12 @@ import { useAuthStore } from '../../../../src/store/authStore';
 
 // QR-based Check-In (PRD §12.48). The organizer/scorer displays the
 // match's check-in code as a QR; a player either scans it with the camera
-// (native only — expo-barcode-scanner has no web support, so that path is
-// gated to Platform.OS !== 'web') or types the 6-digit code shown under
-// the QR as a fallback that always works.
+// (native only, via expo-camera's barcode scanning — no web support, so
+// that path is gated to Platform.OS !== 'web') or types the 6-digit code
+// shown under the QR as a fallback that always works. Was expo-barcode-
+// scanner, which has no native module under Expo Go on SDK 57+; migrated
+// to expo-camera (already a dependency, and Expo's maintained successor
+// for barcode scanning) instead of pinning an unmaintained package.
 export default function CheckInScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const user = useAuthStore((s) => s.user);
@@ -24,7 +27,7 @@ export default function CheckInScreen() {
   const [isManager, setIsManager] = useState<boolean | null>(null);
   const [manualCode, setManualCode] = useState('');
   const [scanning, setScanning] = useState(false);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -64,9 +67,12 @@ export default function CheckInScreen() {
 
   async function startScanning() {
     if (Platform.OS === 'web') return;
-    const { status } = await BarCodeScanner.requestPermissionsAsync();
-    setHasCameraPermission(status === 'granted');
-    if (status === 'granted') setScanning(true);
+    const { granted } = await requestCameraPermission();
+    if (granted) setScanning(true);
+  }
+
+  function handleBarcodeScanned({ data }: BarcodeScanningResult) {
+    submitCode(data);
   }
 
   if (isManager === null) {
@@ -150,13 +156,14 @@ export default function CheckInScreen() {
                 style={{ height: 280 }}
                 testID="scanner-view"
               >
-                <BarCodeScanner
-                  onBarCodeScanned={({ data }) => submitCode(data)}
+                <CameraView
+                  onBarcodeScanned={handleBarcodeScanned}
                   style={{ flex: 1 }}
+                  testID="camera-view"
                 />
               </View>
             )}
-            {hasCameraPermission === false && (
+            {cameraPermission?.granted === false && (
               <Text className="text-brand-red text-body mt-2">
                 Camera permission denied — enter the code manually below.
               </Text>

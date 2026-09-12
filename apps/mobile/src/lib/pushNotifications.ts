@@ -1,4 +1,3 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { apiClient } from './apiClient';
 
@@ -7,8 +6,18 @@ import { apiClient } from './apiClient';
 // and Expo push tokens aren't available on a simulator/emulator or web —
 // none of that should ever block app usage, so every failure here is
 // caught and swallowed rather than surfaced to the user.
+//
+// expo-notifications is imported lazily (inside the try block) rather than
+// statically at module scope: in Expo Go on Android (SDK 53+), merely
+// importing it triggers a synchronous throw at module-eval time (push
+// notifications were removed from Expo Go entirely), which would otherwise
+// crash this module's importers — including the root layout — before this
+// function is ever called. A dynamic import turns that throw into a
+// rejected promise this try/catch can actually catch.
 export async function registerForPushNotifications(): Promise<void> {
   try {
+    const Notifications = await import('expo-notifications');
+
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',

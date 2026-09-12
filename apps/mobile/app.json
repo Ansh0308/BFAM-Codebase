@@ -42,6 +42,12 @@
           "contactsPermission": "BFAM checks your contacts' phone numbers against registered players so you can invite people you know. Only phone numbers are sent, never names or other contact details."
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "BFAM uses your camera to scan a match's check-in QR code."
+        }
+      ],
       "@sentry/react-native",
       "expo-font",
       "expo-web-browser",

@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import type { Audio as AudioType } from 'expo-av';
 
 // Stadium sound-effect manifest (modules 2.7's countdown sting and 2.8's
 // AUDIO_TRIGGERS — six/four/wicket/fifty/century/hat-trick/match-won/
@@ -39,18 +39,27 @@ const SOUND_SOURCES: Record<SoundTrigger, string | null> = {
   COUNTDOWN_START: null,
 };
 
-let cache: Partial<Record<SoundTrigger, Audio.Sound>> = {};
+let cache: Partial<Record<SoundTrigger, AudioType.Sound>> = {};
 
 // No-ops if the trigger has no source wired (see SCOPE NOTE above), if
 // `enabled` is false (the turf's stadium_sound_enabled flag, or the
 // viewer's own mute toggle), or if playback fails for any reason —
 // missing sound must never break the surrounding feature.
+//
+// expo-av is imported lazily (inside the try block, only once a real
+// source is wired) rather than statically at module scope: expo-av has no
+// native module in Expo Go under SDK 57 ("Cannot find native module
+// 'ExponentAV'"), and that throw happens at import time, which would
+// otherwise crash every screen that imports this file even though — with
+// every SOUND_SOURCES entry still null — this function always no-ops
+// before touching Audio anyway.
 export async function playTriggerSound(trigger: SoundTrigger, enabled: boolean) {
   if (!enabled) return;
   const source = SOUND_SOURCES[trigger];
   if (!source) return;
 
   try {
+    const { Audio } = await import('expo-av');
     let sound = cache[trigger];
     if (!sound) {
       const created = await Audio.Sound.createAsync({ uri: source });
