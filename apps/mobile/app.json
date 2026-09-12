@@ -41,7 +41,11 @@
         {
           "contactsPermission": "BFAM checks your contacts' phone numbers against registered players so you can invite people you know. Only phone numbers are sent, never names or other contact details."
         }
-      ]
+      ],
+      "@sentry/react-native",
+      "expo-font",
+      "expo-web-browser",
+      "expo-asset"
     ]
   }
 }
