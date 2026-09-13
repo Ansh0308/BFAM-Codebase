@@ -78,24 +78,28 @@ describe('Scoring Interface (backlog A-7: fewer taps; UI rebuild per reference s
 
   // A player-picker row is collapsed by default — open it, then tap the
   // option, same as the reference design's tap-to-open row cards.
-  function selectPlayer(utils: ReturnType<typeof render>, rowTestId: string, playerId: string) {
-    fireEvent.press(utils.getByTestId(rowTestId));
-    fireEvent.press(utils.getByTestId(`${rowTestId}-options-${playerId}`));
+  async function selectPlayer(
+    utils: Awaited<ReturnType<typeof render>>,
+    rowTestId: string,
+    playerId: string,
+  ) {
+    await fireEvent.press(utils.getByTestId(rowTestId));
+    await fireEvent.press(utils.getByTestId(`${rowTestId}-options-${playerId}`));
   }
 
   async function renderReady() {
-    const utils = render(<ScoringInterfaceScreen />);
+    const utils = await render(<ScoringInterfaceScreen />);
     await waitFor(() => expect(utils.getByTestId('scoring-interface-screen')).toBeTruthy());
-    selectPlayer(utils, 'striker-select', 'p1');
-    selectPlayer(utils, 'non-striker-select', 'p2');
-    selectPlayer(utils, 'bowler-select', 'p3');
+    await selectPlayer(utils, 'striker-select', 'p1');
+    await selectPlayer(utils, 'non-striker-select', 'p2');
+    await selectPlayer(utils, 'bowler-select', 'p3');
     return utils;
   }
 
   it('a one-tap Swap button flips the striker and non-striker', async () => {
     const { getByTestId } = await renderReady();
 
-    fireEvent.press(getByTestId('swap-strike-button'));
+    await fireEvent.press(getByTestId('swap-strike-button'));
 
     // p2 (was non-striker) is now shown as the selected striker, and vice versa.
     expect(within(getByTestId('striker-select')).getByText('BF1002')).toBeTruthy();
@@ -106,7 +110,7 @@ describe('Scoring Interface (backlog A-7: fewer taps; UI rebuild per reference s
     const { getByTestId } = await renderReady();
 
     await act(async () => {
-      fireEvent.press(getByTestId('run-1'));
+      await fireEvent.press(getByTestId('run-1'));
     });
 
     await waitFor(() => expect(mockRecordBall).toHaveBeenCalled());
@@ -118,7 +122,7 @@ describe('Scoring Interface (backlog A-7: fewer taps; UI rebuild per reference s
     const { getByTestId } = await renderReady();
 
     await act(async () => {
-      fireEvent.press(getByTestId('run-4'));
+      await fireEvent.press(getByTestId('run-4'));
     });
 
     await waitFor(() => expect(mockRecordBall).toHaveBeenCalled());
@@ -129,9 +133,9 @@ describe('Scoring Interface (backlog A-7: fewer taps; UI rebuild per reference s
   it('records the extra runs on top of a wide as runs run for rotation purposes', async () => {
     const { getByTestId } = await renderReady();
 
-    fireEvent.press(getByTestId('extra-WIDE'));
+    await fireEvent.press(getByTestId('extra-WIDE'));
     await act(async () => {
-      fireEvent.press(getByTestId('run-1'));
+      await fireEvent.press(getByTestId('run-1'));
     });
 
     await waitFor(() =>
@@ -146,10 +150,10 @@ describe('Scoring Interface (backlog A-7: fewer taps; UI rebuild per reference s
   it('clears the striker slot after a confirmed wicket, forcing a fresh pick', async () => {
     const { getByTestId } = await renderReady();
 
-    fireEvent.press(getByTestId('wicket-button'));
-    fireEvent.press(getByTestId('wicket-type-BOWLED'));
+    await fireEvent.press(getByTestId('wicket-button'));
+    await fireEvent.press(getByTestId('wicket-type-BOWLED'));
     await act(async () => {
-      fireEvent.press(getByTestId('confirm-wicket'));
+      await fireEvent.press(getByTestId('confirm-wicket'));
     });
 
     await waitFor(() => expect(mockRecordBall).toHaveBeenCalled());
@@ -165,7 +169,7 @@ describe('Scoring Interface (backlog A-7: fewer taps; UI rebuild per reference s
     }
 
     await act(async () => {
-      fireEvent.press(getByTestId('run-4'));
+      await fireEvent.press(getByTestId('run-4'));
     });
     await waitFor(() => expect(mockRecordBall).toHaveBeenCalled());
 

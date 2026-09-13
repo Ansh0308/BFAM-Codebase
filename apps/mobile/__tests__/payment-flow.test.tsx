@@ -9,6 +9,8 @@ jest.mock('../src/lib/apiClient', () => ({
     recordCashPayment: jest.fn(),
     initiateGatewayPayment: jest.fn(),
     getBookingDetails: jest.fn(),
+    getMyProfile: jest.fn(),
+    applyCheckoutDiscount: jest.fn(),
   },
 }));
 
@@ -22,6 +24,8 @@ const mockGetObligations = apiClient.getObligations as jest.Mock;
 const mockCreateObligations = apiClient.createObligations as jest.Mock;
 const mockRecordCashPayment = apiClient.recordCashPayment as jest.Mock;
 const mockGetBookingDetails = apiClient.getBookingDetails as jest.Mock;
+const mockGetMyProfile = apiClient.getMyProfile as jest.Mock;
+const mockApplyCheckoutDiscount = apiClient.applyCheckoutDiscount as jest.Mock;
 
 import PaymentScreen from '../app/(tabs)/discover/booking/[bookingId]/payment';
 
@@ -42,11 +46,13 @@ describe('Payment screen (module 2.4)', () => {
     mockRecordCashPayment.mockReset();
     mockGetBookingDetails.mockReset();
     mockPush.mockReset();
+    mockGetMyProfile.mockReset().mockResolvedValue({ coin_balance: 0 });
+    mockApplyCheckoutDiscount.mockReset();
   });
 
   it('offers all 5 payment method options (PRD §12.16)', async () => {
     mockGetObligations.mockResolvedValueOnce({ results: [] });
-    const { findByTestId } = render(<PaymentScreen />);
+    const { findByTestId } = await render(<PaymentScreen />);
 
     expect(await findByTestId('payment-method-UPI')).toBeTruthy();
     expect(await findByTestId('payment-method-RAZORPAY')).toBeTruthy();
@@ -59,10 +65,10 @@ describe('Payment screen (module 2.4)', () => {
     mockGetObligations.mockResolvedValue({ results: [OBLIGATION] });
     mockRecordCashPayment.mockResolvedValueOnce({ payment_id: 'pay-1' });
 
-    const { findByTestId } = render(<PaymentScreen />);
+    const { findByTestId } = await render(<PaymentScreen />);
 
-    fireEvent.press(await findByTestId('payment-method-CASH'));
-    fireEvent.press(await findByTestId('confirm-cash-payment'));
+    await fireEvent.press(await findByTestId('payment-method-CASH'));
+    await fireEvent.press(await findByTestId('confirm-cash-payment'));
 
     await waitFor(() => expect(mockRecordCashPayment).toHaveBeenCalledWith(['ob-1'], undefined));
     expect(await findByTestId('payment-done')).toBeTruthy();
@@ -72,9 +78,9 @@ describe('Payment screen (module 2.4)', () => {
     mockGetObligations.mockResolvedValue({ results: [OBLIGATION] });
     mockRecordCashPayment.mockRejectedValueOnce(new Error('boom'));
 
-    const { findByTestId } = render(<PaymentScreen />);
-    fireEvent.press(await findByTestId('payment-method-CASH'));
-    fireEvent.press(await findByTestId('confirm-cash-payment'));
+    const { findByTestId } = await render(<PaymentScreen />);
+    await fireEvent.press(await findByTestId('payment-method-CASH'));
+    await fireEvent.press(await findByTestId('confirm-cash-payment'));
 
     expect(await findByTestId('cash-entry-screen')).toBeTruthy();
   });
@@ -89,11 +95,11 @@ describe('Payment screen (module 2.4)', () => {
     }));
     mockCreateObligations.mockResolvedValueOnce({ results: shareObligations });
 
-    const { findByTestId } = render(<PaymentScreen />);
+    const { findByTestId } = await render(<PaymentScreen />);
 
-    fireEvent.press(await findByTestId('payment-method-SPLIT'));
-    fireEvent.changeText(await findByTestId('split-share-count-input'), '3');
-    fireEvent.press(await findByTestId('submit-split-setup'));
+    await fireEvent.press(await findByTestId('payment-method-SPLIT'));
+    await fireEvent.changeText(await findByTestId('split-share-count-input'), '3');
+    await fireEvent.press(await findByTestId('submit-split-setup'));
 
     await waitFor(() =>
       expect(mockCreateObligations).toHaveBeenCalledWith('booking-1', {
@@ -121,16 +127,78 @@ describe('Payment screen (module 2.4)', () => {
     mockCreateObligations.mockResolvedValueOnce({ results: shareObligations });
     mockRecordCashPayment.mockResolvedValueOnce({ payment_id: 'pay-1' });
 
-    const { findByTestId } = render(<PaymentScreen />);
+    const { findByTestId } = await render(<PaymentScreen />);
 
-    fireEvent.press(await findByTestId('payment-method-SPLIT'));
-    fireEvent.changeText(await findByTestId('split-share-count-input'), '2');
-    fireEvent.press(await findByTestId('submit-split-setup'));
+    await fireEvent.press(await findByTestId('payment-method-SPLIT'));
+    await fireEvent.changeText(await findByTestId('split-share-count-input'), '2');
+    await fireEvent.press(await findByTestId('submit-split-setup'));
     await findByTestId('payment-method-selector');
 
-    fireEvent.press(await findByTestId('payment-method-CASH'));
-    fireEvent.press(await findByTestId('confirm-cash-payment'));
+    await fireEvent.press(await findByTestId('payment-method-CASH'));
+    await fireEvent.press(await findByTestId('confirm-cash-payment'));
 
     await waitFor(() => expect(mockRecordCashPayment).toHaveBeenCalledWith(['ob-1'], undefined));
+  });
+
+  // Backlog B-1: promo code / BFAM Coins at checkout.
+  describe('promo code and BFAM Coins', () => {
+    it('applies a promo code and reflects the reduced amount due', async () => {
+      mockGetObligations
+        .mockResolvedValueOnce({ results: [OBLIGATION] })
+        .mockResolvedValueOnce({ results: [{ ...OBLIGATION, amount_due: 900 }] });
+      mockApplyCheckoutDiscount.mockResolvedValueOnce({
+        obligation_id: 'ob-1',
+        original_amount_due: 1000,
+        promo_discount: 100,
+        coins_spent: 0,
+        coin_discount: 0,
+        new_amount_due: 900,
+        coin_balance: 0,
+      });
+
+      const { findByTestId } = await render(<PaymentScreen />);
+      await fireEvent.changeText(await findByTestId('promo-code-input'), 'SAVE10');
+      await fireEvent.press(await findByTestId('apply-discount-button'));
+
+      await waitFor(() =>
+        expect(mockApplyCheckoutDiscount).toHaveBeenCalledWith('ob-1', {
+          promo_code: 'SAVE10',
+          coins_to_redeem: undefined,
+        }),
+      );
+      expect(await findByTestId('discount-applied-note')).toBeTruthy();
+      const dueText = await findByTestId('payment-amount-due');
+      expect(dueText.props.children.join('')).toBe('₹900 due');
+    });
+
+    it('offers to redeem coins once the player profile shows a positive balance', async () => {
+      mockGetObligations.mockResolvedValue({ results: [OBLIGATION] });
+      mockGetMyProfile.mockResolvedValueOnce({ coin_balance: 150 });
+
+      const { findByTestId } = await render(<PaymentScreen />);
+
+      expect(await findByTestId('coins-to-redeem-input')).toBeTruthy();
+    });
+
+    it('hides the coins field when the player has no coins', async () => {
+      mockGetObligations.mockResolvedValue({ results: [OBLIGATION] });
+      mockGetMyProfile.mockResolvedValueOnce({ coin_balance: 0 });
+
+      const { findByTestId, queryByTestId } = await render(<PaymentScreen />);
+      await findByTestId('checkout-discount-section');
+
+      expect(queryByTestId('coins-to-redeem-input')).toBeNull();
+    });
+
+    it('shows a clean error when the promo code is rejected', async () => {
+      mockGetObligations.mockResolvedValue({ results: [OBLIGATION] });
+      mockApplyCheckoutDiscount.mockRejectedValueOnce(new Error('generic'));
+
+      const { findByTestId } = await render(<PaymentScreen />);
+      await fireEvent.changeText(await findByTestId('promo-code-input'), 'BADCODE');
+      await fireEvent.press(await findByTestId('apply-discount-button'));
+
+      expect(await findByTestId('discount-error-message')).toBeTruthy();
+    });
   });
 });

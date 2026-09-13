@@ -32,7 +32,7 @@ describe('NotificationSettings screen (module 2.11 — persisted, not local-stat
       promotions: false,
     });
 
-    const { getByTestId, queryByTestId } = render(<NotificationSettings />);
+    const { getByTestId, queryByTestId } = await render(<NotificationSettings />);
 
     await waitFor(() => expect(queryByTestId('notification-settings-loading')).toBeNull());
 
@@ -54,10 +54,10 @@ describe('NotificationSettings screen (module 2.11 — persisted, not local-stat
       promotions: true,
     });
 
-    const { getByTestId, queryByTestId } = render(<NotificationSettings />);
+    const { getByTestId, queryByTestId } = await render(<NotificationSettings />);
     await waitFor(() => expect(queryByTestId('notification-settings-loading')).toBeNull());
 
-    fireEvent.press(getByTestId('toggle-promotions-switch'));
+    await fireEvent.press(getByTestId('toggle-promotions-switch'));
 
     await waitFor(() => expect(mockUpdatePreferences).toHaveBeenCalledWith({ promotions: true }));
     expect(getByTestId('toggle-promotions-switch').props.accessibilityState.checked).toBe(true);
@@ -72,10 +72,10 @@ describe('NotificationSettings screen (module 2.11 — persisted, not local-stat
     });
     mockUpdatePreferences.mockRejectedValueOnce(new Error('network error'));
 
-    const { getByTestId, queryByTestId } = render(<NotificationSettings />);
+    const { getByTestId, queryByTestId } = await render(<NotificationSettings />);
     await waitFor(() => expect(queryByTestId('notification-settings-loading')).toBeNull());
 
-    fireEvent.press(getByTestId('toggle-promotions-switch'));
+    await fireEvent.press(getByTestId('toggle-promotions-switch'));
     await waitFor(() => expect(mockUpdatePreferences).toHaveBeenCalled());
 
     await waitFor(() =>
@@ -86,7 +86,7 @@ describe('NotificationSettings screen (module 2.11 — persisted, not local-stat
   it('shows an error state when preferences fail to load', async () => {
     mockGetPreferences.mockRejectedValueOnce(new Error('network error'));
 
-    const { findByText } = render(<NotificationSettings />);
+    const { findByText } = await render(<NotificationSettings />);
     expect(await findByText(/could not load/i)).toBeTruthy();
   });
 });

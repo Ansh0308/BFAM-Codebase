@@ -1,16 +1,25 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJwt } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
-import { cashPaymentSchema, initiateGatewayPaymentSchema } from '../validation/schemas';
+import {
+  applyCheckoutDiscountSchema,
+  cashPaymentSchema,
+  initiateGatewayPaymentSchema,
+} from '../validation/schemas';
 import {
   initiateGatewayPayment,
   listPaymentsForUser,
   recordCashPayment,
 } from '../services/paymentService';
+import { applyCheckoutDiscount } from '../services/checkoutService';
 import {
   GatewayNotConfiguredError,
+  InsufficientCoinBalanceError,
   InvalidPaymentStateError,
   ObligationNotFoundError,
+  PlayerProfileNotFoundError,
+  PromoCodeNotApplicableError,
+  PromoCodeNotFoundError,
   StaffNotVerifiedError,
 } from '../domain/errors';
 
@@ -89,6 +98,49 @@ router.post(
       }
       if (error instanceof StaffNotVerifiedError) {
         return res.status(403).json({ error: { message: error.message, status: 403 } });
+      }
+      throw error;
+    }
+  }),
+);
+
+// POST /payments/obligations/:obligationId/discount (backlog B-1) — apply
+// a promo code and/or BFAM Coins to a pending obligation before paying.
+// Reduces payment_obligations.amount_due directly, so the existing
+// gateway/cash payment routes above just work against the already-
+// discounted amount, unmodified.
+router.post(
+  '/obligations/:obligationId/discount',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = applyCheckoutDiscountSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid discount payload', status: 400 } });
+    }
+    try {
+      const result = await applyCheckoutDiscount(req.params.obligationId, req.auth!.sub, {
+        promoCode: parsed.data.promo_code,
+        coinsToRedeem: parsed.data.coins_to_redeem,
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof ObligationNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      if (error instanceof PromoCodeNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      if (
+        error instanceof PromoCodeNotApplicableError ||
+        error instanceof InvalidPaymentStateError
+      ) {
+        return res.status(409).json({ error: { message: error.message, status: 409 } });
+      }
+      if (
+        error instanceof InsufficientCoinBalanceError ||
+        error instanceof PlayerProfileNotFoundError
+      ) {
+        return res.status(422).json({ error: { message: error.message, status: 422 } });
       }
       throw error;
     }

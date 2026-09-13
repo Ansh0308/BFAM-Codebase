@@ -38,16 +38,16 @@ import { useAuthStore } from '../src/store/authStore';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function selectDateOfBirth(findByTestId: (id: string) => Promise<any>) {
-  fireEvent.press(await findByTestId('date-of-birth-trigger'));
-  fireEvent.press(await findByTestId('date-of-birth-day-option-15'));
-  fireEvent.press(await findByTestId('date-of-birth-month-option-06'));
-  fireEvent.press(await findByTestId('date-of-birth-year-option-2000'));
-  fireEvent.press(await findByTestId('date-of-birth-done'));
+  await fireEvent.press(await findByTestId('date-of-birth-trigger'));
+  await fireEvent.press(await findByTestId('date-of-birth-day-option-15'));
+  await fireEvent.press(await findByTestId('date-of-birth-month-option-06'));
+  await fireEvent.press(await findByTestId('date-of-birth-year-option-2000'));
+  await fireEvent.press(await findByTestId('date-of-birth-done'));
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fillRequiredPlayerFields(findByTestId: (id: string) => Promise<any>) {
-  fireEvent.press(await findByTestId('gender-FEMALE'));
+  await fireEvent.press(await findByTestId('gender-FEMALE'));
   await selectDateOfBirth(findByTestId);
 }
 
@@ -84,7 +84,7 @@ describe('ProfileSetup screen', () => {
   it('shows cricket-specific fields for a PLAYER account', async () => {
     useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
 
-    const { findByTestId } = render(<ProfileSetup />);
+    const { findByTestId } = await render(<ProfileSetup />);
 
     await findByTestId('playing-role');
     await findByTestId('batting-style');
@@ -95,7 +95,7 @@ describe('ProfileSetup screen', () => {
   it('hides cricket-specific fields for a TURF_OWNER account', async () => {
     useAuthStore.setState({ user: { user_id: 'u2', bfam_id: null, role: 'TURF_OWNER' } });
 
-    const { queryByTestId, findByTestId } = render(<ProfileSetup />);
+    const { queryByTestId, findByTestId } = await render(<ProfileSetup />);
 
     await findByTestId('profile-setup-save');
     expect(queryByTestId('playing-role')).toBeNull();
@@ -105,10 +105,10 @@ describe('ProfileSetup screen', () => {
   it('picking a photo uploads it and persists the hosted URL on save', async () => {
     useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
 
-    const { findByTestId, queryByTestId } = render(<ProfileSetup />);
+    const { findByTestId, queryByTestId } = await render(<ProfileSetup />);
 
     const picker = await findByTestId('profile-photo-picker');
-    fireEvent.press(picker);
+    await fireEvent.press(picker);
 
     await waitFor(() => {
       expect(mockUploadProfilePhoto).toHaveBeenCalledWith('file://picked-photo.jpg', 'image/jpeg');
@@ -117,7 +117,7 @@ describe('ProfileSetup screen', () => {
 
     await fillRequiredPlayerFields(findByTestId);
     const saveButton = await findByTestId('profile-setup-save');
-    fireEvent.press(saveButton);
+    await fireEvent.press(saveButton);
 
     await waitFor(() => {
       expect(mockUpdateMyProfile).toHaveBeenCalledWith(
@@ -138,14 +138,14 @@ describe('ProfileSetup screen', () => {
     notConfiguredError.status = 501;
     mockUploadProfilePhoto.mockRejectedValueOnce(notConfiguredError);
 
-    const { findByTestId } = render(<ProfileSetup />);
+    const { findByTestId } = await render(<ProfileSetup />);
 
-    fireEvent.press(await findByTestId('profile-photo-picker'));
+    await fireEvent.press(await findByTestId('profile-photo-picker'));
 
     await findByTestId('profile-photo-not-hosted-note');
 
     await fillRequiredPlayerFields(findByTestId);
-    fireEvent.press(await findByTestId('profile-setup-save'));
+    await fireEvent.press(await findByTestId('profile-setup-save'));
 
     await waitFor(() => {
       expect(mockUpdateMyProfile).toHaveBeenCalledWith(
@@ -157,11 +157,11 @@ describe('ProfileSetup screen', () => {
   it('picking an avatar preset saves the preset sentinel without uploading', async () => {
     useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
 
-    const { findByTestId } = render(<ProfileSetup />);
+    const { findByTestId } = await render(<ProfileSetup />);
 
-    fireEvent.press(await findByTestId('avatar-preset-bat-red'));
+    await fireEvent.press(await findByTestId('avatar-preset-bat-red'));
     await fillRequiredPlayerFields(findByTestId);
-    fireEvent.press(await findByTestId('profile-setup-save'));
+    await fireEvent.press(await findByTestId('profile-setup-save'));
 
     await waitFor(() => {
       expect(mockUpdateMyProfile).toHaveBeenCalledWith(
@@ -174,14 +174,14 @@ describe('ProfileSetup screen', () => {
   it('picking an avatar preset after a real photo replaces the photo selection', async () => {
     useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
 
-    const { findByTestId } = render(<ProfileSetup />);
+    const { findByTestId } = await render(<ProfileSetup />);
 
-    fireEvent.press(await findByTestId('profile-photo-picker'));
+    await fireEvent.press(await findByTestId('profile-photo-picker'));
     await waitFor(() => expect(mockUploadProfilePhoto).toHaveBeenCalled());
 
-    fireEvent.press(await findByTestId('avatar-preset-ball-ink'));
+    await fireEvent.press(await findByTestId('avatar-preset-ball-ink'));
     await fillRequiredPlayerFields(findByTestId);
-    fireEvent.press(await findByTestId('profile-setup-save'));
+    await fireEvent.press(await findByTestId('profile-setup-save'));
 
     await waitFor(() => {
       expect(mockUpdateMyProfile).toHaveBeenCalledWith(
@@ -194,9 +194,9 @@ describe('ProfileSetup screen', () => {
     useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
     mockUploadProfilePhoto.mockRejectedValueOnce(new Error('network error'));
 
-    const { findByTestId } = render(<ProfileSetup />);
+    const { findByTestId } = await render(<ProfileSetup />);
 
-    fireEvent.press(await findByTestId('profile-photo-picker'));
+    await fireEvent.press(await findByTestId('profile-photo-picker'));
 
     await findByTestId('profile-setup-error');
   });
@@ -204,16 +204,16 @@ describe('ProfileSetup screen', () => {
   it('selecting playing role, batting style, and experience saves them for a player', async () => {
     useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
 
-    const { findByTestId } = render(<ProfileSetup />);
+    const { findByTestId } = await render(<ProfileSetup />);
 
-    fireEvent.press(await findByTestId('playing-role-BOWLER'));
-    fireEvent.press(await findByTestId('batting-style-LEFT_HANDED'));
-    fireEvent.press(await findByTestId('experience-level-ADVANCED'));
+    await fireEvent.press(await findByTestId('playing-role-BOWLER'));
+    await fireEvent.press(await findByTestId('batting-style-LEFT_HANDED'));
+    await fireEvent.press(await findByTestId('experience-level-ADVANCED'));
 
-    fireEvent.press(await findByTestId('bowling-style-LEFT_ARM'));
+    await fireEvent.press(await findByTestId('bowling-style-LEFT_ARM'));
 
     await fillRequiredPlayerFields(findByTestId);
-    fireEvent.press(await findByTestId('profile-setup-save'));
+    await fireEvent.press(await findByTestId('profile-setup-save'));
 
     await waitFor(() => {
       expect(mockUpdateMyProfile).toHaveBeenCalledWith(
@@ -232,10 +232,10 @@ describe('ProfileSetup screen', () => {
   it('requires gender for a player and blocks saving without it', async () => {
     useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
 
-    const { findByTestId } = render(<ProfileSetup />);
+    const { findByTestId } = await render(<ProfileSetup />);
 
     await selectDateOfBirth(findByTestId);
-    fireEvent.press(await findByTestId('profile-setup-save'));
+    await fireEvent.press(await findByTestId('profile-setup-save'));
 
     const error = await findByTestId('profile-setup-error');
     expect(error.props.children).toMatch(/gender/i);
@@ -245,10 +245,10 @@ describe('ProfileSetup screen', () => {
   it('requires date of birth for a player and blocks saving without it', async () => {
     useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
 
-    const { findByTestId } = render(<ProfileSetup />);
+    const { findByTestId } = await render(<ProfileSetup />);
 
-    fireEvent.press(await findByTestId('gender-MALE'));
-    fireEvent.press(await findByTestId('profile-setup-save'));
+    await fireEvent.press(await findByTestId('gender-MALE'));
+    await fireEvent.press(await findByTestId('profile-setup-save'));
 
     const error = await findByTestId('profile-setup-error');
     expect(error.props.children).toMatch(/date of birth/i);
@@ -259,9 +259,9 @@ describe('ProfileSetup screen', () => {
     useAuthStore.setState({ user: { user_id: 'u2', bfam_id: null, role: 'TURF_OWNER' } });
     mockGetMyProfile.mockResolvedValue({ ...EMPTY_PROFILE, role: 'TURF_OWNER', bfam_id: null });
 
-    const { findByTestId } = render(<ProfileSetup />);
+    const { findByTestId } = await render(<ProfileSetup />);
 
-    fireEvent.press(await findByTestId('profile-setup-save'));
+    await fireEvent.press(await findByTestId('profile-setup-save'));
 
     await waitFor(() => {
       expect(mockUpdateMyProfile).toHaveBeenCalled();
@@ -272,10 +272,10 @@ describe('ProfileSetup screen', () => {
     useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
     mockUpdateMyProfile.mockRejectedValueOnce(new Error('network error'));
 
-    const { findByTestId } = render(<ProfileSetup />);
+    const { findByTestId } = await render(<ProfileSetup />);
 
     await fillRequiredPlayerFields(findByTestId);
-    fireEvent.press(await findByTestId('profile-setup-save'));
+    await fireEvent.press(await findByTestId('profile-setup-save'));
 
     await findByTestId('profile-setup-error');
     expect(mockReplace).not.toHaveBeenCalled();

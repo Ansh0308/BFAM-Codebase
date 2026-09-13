@@ -6,6 +6,8 @@
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { UserRole } from './authService';
+import { PlayerNotFoundError } from '../domain/errors';
+import { getFollowSummary, type FollowSummary } from './followService';
 
 export interface MyProfile {
   user_id: string;
@@ -34,6 +36,10 @@ export interface MyProfile {
   // listed; null for a player who hasn't set one yet, and always null for
   // non-PLAYER roles (no `players` row to hold it).
   full_name: string | null;
+  // Backlog B-1/B-4 — BFAM Coins balance; null for non-PLAYER roles (no
+  // `players` row to hold it), never null for an actual player (defaults
+  // to 0).
+  coin_balance: number | null;
 }
 
 export async function getMyProfile(userId: string): Promise<MyProfile | null> {
@@ -67,6 +73,7 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       favorite_cricketer_name: null,
       favorite_cricketer_external_id: null,
       full_name: null,
+      coin_balance: null,
     };
   }
 
@@ -82,8 +89,9 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
     favorite_cricketer_name: string | null;
     favorite_cricketer_external_id: string | null;
     full_name: string | null;
+    coin_balance: number | null;
   }>(
-    'SELECT playing_role, batting_style, bowling_style, experience_level, date_of_birth, gender, skill_rating, reliability_score, favorite_cricketer_name, favorite_cricketer_external_id, full_name FROM players WHERE user_id = :userId LIMIT 1',
+    'SELECT playing_role, batting_style, bowling_style, experience_level, date_of_birth, gender, skill_rating, reliability_score, favorite_cricketer_name, favorite_cricketer_external_id, full_name, coin_balance FROM players WHERE user_id = :userId LIMIT 1',
     { type: QueryTypes.SELECT, replacements: { userId } },
   );
 
@@ -101,8 +109,53 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       favorite_cricketer_name: null,
       favorite_cricketer_external_id: null,
       full_name: null,
+      coin_balance: null,
     }),
   };
+}
+
+// Backlog B-10: another player's profile, viewed from a roster/team row —
+// deliberately a much smaller shape than MyProfile. Excludes everything
+// privacy-sensitive (phone_number, email, date_of_birth, gender,
+// coin_balance) and everything only meaningful to the account owner.
+// skill_rating/reliability_score ARE included — both are already shown in
+// team/match-facing contexts elsewhere in the app (Open Teams' Fair Play
+// score, the scorecard), so there's no new exposure in showing them on a
+// profile a teammate taps into from a roster row.
+export interface PublicPlayerProfile {
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+  profile_photo_url: string | null;
+  city: string | null;
+  playing_role: string | null;
+  batting_style: string | null;
+  bowling_style: string | null;
+  experience_level: string | null;
+  skill_rating: number;
+  reliability_score: string;
+  favorite_cricketer_name: string | null;
+  // Backlog B-9 — follower/following counts, plus whether the viewer
+  // (if any) currently follows this player.
+  follow_summary: FollowSummary;
+}
+
+export async function getPublicProfile(
+  playerId: string,
+  viewerUserId?: string,
+): Promise<PublicPlayerProfile> {
+  const [row] = await sequelize.query<Omit<PublicPlayerProfile, 'follow_summary'>>(
+    `SELECT p.player_id, p.bfam_id, p.full_name, u.profile_photo_url, u.city,
+            p.playing_role, p.batting_style, p.bowling_style, p.experience_level,
+            p.skill_rating, p.reliability_score, p.favorite_cricketer_name
+     FROM players p
+     JOIN users u ON u.user_id = p.user_id
+     WHERE p.player_id = :playerId AND u.deleted_at IS NULL`,
+    { type: QueryTypes.SELECT, replacements: { playerId } },
+  );
+  if (!row) throw new PlayerNotFoundError(playerId);
+  const follow_summary = await getFollowSummary(playerId, viewerUserId);
+  return { ...row, follow_summary };
 }
 
 // Note: `email` is deliberately NOT part of this generic update — it can

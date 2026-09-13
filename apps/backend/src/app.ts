@@ -46,6 +46,15 @@ import {
   AdminBfamIdError,
 } from './services/adminBfamIdService';
 import { listAllPlayers } from './services/adminUserService';
+import { createPromoCode, listPromoCodes } from './services/promoCodeService';
+import {
+  createPromoCodeSchema,
+  createBannerSchema,
+  updateBannerSchema,
+} from './validation/schemas';
+import { createBanner, deleteBanner, listAllBanners, updateBanner } from './services/bannerService';
+import { BannerNotFoundError } from './domain/errors';
+import bannersRouter from './routes/banners';
 import {
   getMyProfile,
   updateMyProfile,
@@ -73,7 +82,9 @@ import venuesRouter from './routes/venues';
 import bookingsRouter from './routes/bookings';
 import paymentsRouter from './routes/payments';
 import teamsRouter from './routes/teams';
+import roomsRouter from './routes/rooms';
 import matchesRouter from './routes/matches';
+import playersRouter from './routes/players';
 import scoringRouter from './routes/scoring';
 import statisticsRouter from './routes/statistics';
 import notificationsRouter from './routes/notifications';
@@ -966,6 +977,110 @@ app.get(
   },
 );
 
+// Backlog B-1 — Promo Codes: ADMIN-only for now, same "no dedicated CMS
+// yet" note as /admin/players — created directly via this API until
+// backlog B-6 gives Admin Web a real management surface for it.
+app.post(
+  '/admin/promo-codes',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (req: Request, res: Response) => {
+    const parsed = createPromoCodeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'Invalid promo code payload', status: 400 } });
+    }
+    try {
+      const promo = await createPromoCode(req.auth!.sub, parsed.data);
+      return res.status(201).json(promo);
+    } catch (error) {
+      if (error instanceof Error && /Duplicate entry/.test(error.message)) {
+        return res
+          .status(409)
+          .json({ error: { message: 'That promo code already exists.', status: 409 } });
+      }
+      throw error;
+    }
+  },
+);
+app.get(
+  '/admin/promo-codes',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (_req: Request, res: Response) => {
+    try {
+      const promos = await listPromoCodes();
+      return res.status(200).json({ results: promos });
+    } catch {
+      return res
+        .status(500)
+        .json({ error: { message: 'Failed to list promo codes', status: 500 } });
+    }
+  },
+);
+
+// Backlog B-6 — Home Page Carousel admin CMS: ADMIN-only create/list/
+// update/delete for the banners GET /banners serves to players.
+app.post(
+  '/admin/banners',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (req: Request, res: Response) => {
+    const parsed = createBannerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid banner payload', status: 400 } });
+    }
+    const banner = await createBanner(req.auth!.sub, parsed.data);
+    return res.status(201).json(banner);
+  },
+);
+app.get(
+  '/admin/banners',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (_req: Request, res: Response) => {
+    const banners = await listAllBanners();
+    return res.status(200).json({ results: banners });
+  },
+);
+app.patch(
+  '/admin/banners/:bannerId',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (req: Request, res: Response) => {
+    const parsed = updateBannerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid banner payload', status: 400 } });
+    }
+    try {
+      const banner = await updateBanner(req.params.bannerId, parsed.data);
+      return res.status(200).json(banner);
+    } catch (error) {
+      if (error instanceof BannerNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      throw error;
+    }
+  },
+);
+app.delete(
+  '/admin/banners/:bannerId',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (req: Request, res: Response) => {
+    try {
+      await deleteBanner(req.params.bannerId);
+      return res.status(204).send();
+    } catch (error) {
+      if (error instanceof BannerNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      throw error;
+    }
+  },
+);
+
 // Module 2.4 — Razorpay webhook: verifies the signature, drives the
 // payment_status state machine (PENDING -> SUCCESS/FAILED), allocates a
 // SUCCESS payment across the obligations named in the order's `notes`
@@ -1045,7 +1160,12 @@ app.use('/bookings', bookingsRouter);
 app.use('/payments', paymentsRouter);
 // Module 2.5 — Teams (PRD §12.3, §12.4).
 app.use('/teams', teamsRouter);
+app.use('/rooms', roomsRouter);
 app.use('/matches', matchesRouter);
+// Backlog B-2 — Contacts-Based Invites.
+app.use('/players', playersRouter);
+// Backlog B-6 — Home Page Carousel (player-facing read).
+app.use('/banners', bannersRouter);
 // scoringRouter defines its own full paths (some under /matches/:matchId,
 // some under /innings/:inningsId) — mounted at root rather than a shared
 // prefix.

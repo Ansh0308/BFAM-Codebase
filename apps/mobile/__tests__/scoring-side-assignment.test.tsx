@@ -68,25 +68,25 @@ describe('Scoring Interface — assign players to a side (backlog A-10)', () => 
   });
 
   it('disables Start Innings until every confirmed player has a side', async () => {
-    const { getByTestId } = render(<ScoringInterfaceScreen />);
+    const { getByTestId } = await render(<ScoringInterfaceScreen />);
     await waitFor(() => expect(getByTestId('start-innings-screen')).toBeTruthy());
 
-    fireEvent.press(getByTestId('batting-side'));
+    await fireEvent.press(getByTestId('batting-side'));
 
     expect(getByTestId('start-innings-button').props.accessibilityState.disabled).toBe(true);
   });
 
   it('enables Start Innings once every player is assigned, then saves the assignments', async () => {
-    const { getByTestId } = render(<ScoringInterfaceScreen />);
+    const { getByTestId } = await render(<ScoringInterfaceScreen />);
     await waitFor(() => expect(getByTestId('start-innings-screen')).toBeTruthy());
 
-    fireEvent.press(getByTestId('assign-p1-TEAM_A'));
-    fireEvent.press(getByTestId('assign-p2-TEAM_B'));
-    fireEvent.press(getByTestId('batting-side-mt-a'));
+    await fireEvent.press(getByTestId('assign-p1-TEAM_A'));
+    await fireEvent.press(getByTestId('assign-p2-TEAM_B'));
+    await fireEvent.press(getByTestId('batting-side-mt-a'));
 
     expect(getByTestId('start-innings-button').props.accessibilityState.disabled).toBe(false);
 
-    fireEvent.press(getByTestId('start-innings-button'));
+    await fireEvent.press(getByTestId('start-innings-button'));
 
     await waitFor(() =>
       expect(mockAssignSides).toHaveBeenCalledWith('match-1', [
@@ -100,14 +100,14 @@ describe('Scoring Interface — assign players to a side (backlog A-10)', () => 
   // Backlog A-8: extras-count-toward-score toggle, defaulted on, set once
   // before the very first innings alongside side assignment.
   it('sends the extras toggle when starting the first innings', async () => {
-    const { getByTestId } = render(<ScoringInterfaceScreen />);
+    const { getByTestId } = await render(<ScoringInterfaceScreen />);
     await waitFor(() => expect(getByTestId('start-innings-screen')).toBeTruthy());
 
-    fireEvent.press(getByTestId('extras-count-toggle-switch'));
-    fireEvent.press(getByTestId('assign-p1-TEAM_A'));
-    fireEvent.press(getByTestId('assign-p2-TEAM_B'));
-    fireEvent.press(getByTestId('batting-side-mt-a'));
-    fireEvent.press(getByTestId('start-innings-button'));
+    await fireEvent.press(getByTestId('extras-count-toggle-switch'));
+    await fireEvent.press(getByTestId('assign-p1-TEAM_A'));
+    await fireEvent.press(getByTestId('assign-p2-TEAM_B'));
+    await fireEvent.press(getByTestId('batting-side-mt-a'));
+    await fireEvent.press(getByTestId('start-innings-button'));
 
     await waitFor(() =>
       expect(mockSetExtrasCountTowardScore).toHaveBeenCalledWith('match-1', false),

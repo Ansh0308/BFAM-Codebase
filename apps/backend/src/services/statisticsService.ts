@@ -8,9 +8,14 @@ import {
 } from '../domain/statistics';
 import {
   applyRatingDelta,
+  applyReliabilityDelta,
+  BASELINE_RELIABILITY_SCORE,
   BASELINE_SKILL_RATING,
+  computeFairPlayRatingDelta,
   computeMatchPerformanceRatingDelta,
+  computeParticipationFairness,
 } from '../domain/rating';
+import { oversNotationToLegalBalls } from '../domain/scoring';
 import { MatchNotFoundError, PlayerProfileNotFoundError } from '../domain/errors';
 import { sendNotification } from './notificationService';
 
@@ -92,8 +97,101 @@ export async function materializeMatchStatistics(matchId: string) {
   });
 
   await materializeRatingEvents(matchId, Array.from(lines.values()));
+  await materializeFairPlayEvents(matchId, Array.from(lines.values()));
 
   return { match_id: matchId, players_materialized: lines.size };
+}
+
+// Fair Play Rating (backlog B-5, RELIABILITY dimension): one FAIR_PLAY
+// rating event per confirmed roster player per match, scored by how evenly
+// their match_team shared balls faced (batting) and balls bowled (bowling)
+// across everyone assigned to that side — see domain/rating.ts for the
+// formula. Every player on the same match_team gets the same delta for a
+// given match, since fairness of participation is a property of how the
+// match was run, not of any individual's own play. Matches where sides were
+// never assigned (backlog A-10, e.g. an older match) are skipped entirely —
+// there's no side roster to measure fairness across.
+async function materializeFairPlayEvents(matchId: string, lines: PlayerMatchStatLine[]) {
+  const roster = await sequelize.query<{
+    player_id: string;
+    match_team_id: string | null;
+  }>(
+    `SELECT player_id, match_team_id FROM match_players
+     WHERE match_id = :matchId AND invitation_status = 'CONFIRMED'`,
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+
+  const bySide = new Map<string, string[]>();
+  for (const r of roster) {
+    if (!r.match_team_id) continue;
+    const players = bySide.get(r.match_team_id) ?? [];
+    players.push(r.player_id);
+    bySide.set(r.match_team_id, players);
+  }
+  if (bySide.size === 0) return;
+
+  const statsByPlayer = new Map(lines.map((l) => [l.player_id, l]));
+
+  const alreadyRated = await sequelize.query<{ player_id: string }>(
+    `SELECT player_id FROM player_rating_events
+     WHERE match_id = :matchId AND event_type = 'FAIR_PLAY' AND rating_dimension = 'RELIABILITY'`,
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+  const alreadyRatedIds = new Set(alreadyRated.map((r) => r.player_id));
+
+  const now = new Date();
+  const newEvents: Record<string, unknown>[] = [];
+
+  for (const playerIds of bySide.values()) {
+    const ballsFaced = playerIds.map((id) => statsByPlayer.get(id)?.balls_faced ?? 0);
+    const ballsBowled = playerIds.map((id) =>
+      oversNotationToLegalBalls(statsByPlayer.get(id)?.overs_bowled ?? 0),
+    );
+    const battingFairness = computeParticipationFairness(ballsFaced);
+    const bowlingFairness = computeParticipationFairness(ballsBowled);
+    const matchFairness = (battingFairness + bowlingFairness) / 2;
+    const delta = computeFairPlayRatingDelta(matchFairness);
+
+    for (const playerId of playerIds) {
+      if (alreadyRatedIds.has(playerId)) continue;
+
+      const previousScore = await getPlayerReliabilityScore(playerId);
+      const resultingValue = applyReliabilityDelta(previousScore, delta);
+
+      newEvents.push({
+        rating_event_id: randomUUID(),
+        player_id: playerId,
+        match_id: matchId,
+        event_type: 'FAIR_PLAY',
+        rating_dimension: 'RELIABILITY',
+        rating_delta: delta,
+        resulting_value: resultingValue,
+        created_by: null,
+        created_at: now,
+      });
+
+      await sequelize
+        .getQueryInterface()
+        .bulkUpdate('players', { reliability_score: resultingValue }, { player_id: playerId });
+    }
+  }
+
+  if (newEvents.length > 0) {
+    await sequelize.getQueryInterface().bulkInsert('player_rating_events', newEvents);
+  }
+}
+
+// The resulting_value of the player's most recent RELIABILITY-dimension
+// event — equivalently, players.reliability_score, kept in sync with it
+// above — or the baseline if they have no event yet.
+export async function getPlayerReliabilityScore(playerId: string): Promise<number> {
+  const [latest] = await sequelize.query<{ resulting_value: number }>(
+    `SELECT resulting_value FROM player_rating_events
+     WHERE player_id = :playerId AND rating_dimension = 'RELIABILITY'
+     ORDER BY created_at DESC LIMIT 1`,
+    { type: QueryTypes.SELECT, replacements: { playerId } },
+  );
+  return latest ? Number(latest.resulting_value) : BASELINE_RELIABILITY_SCORE;
 }
 
 // Basic Skill Rating (PRD §12.29): one MATCH_PERFORMANCE/SKILL rating

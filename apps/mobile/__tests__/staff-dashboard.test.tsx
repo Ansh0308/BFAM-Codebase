@@ -33,25 +33,25 @@ describe('StaffDashboard (module 2.12, PRD §8.4)', () => {
       ],
     });
 
-    const { findByText } = render(<StaffDashboard />);
+    const { findByText } = await render(<StaffDashboard />);
     expect(await findByText('Redline Turf Arena')).toBeTruthy();
   });
 
   it('shows an empty state when there are no bookings today', async () => {
     mockGetBookings.mockResolvedValueOnce({ results: [] });
-    const { findByTestId } = render(<StaffDashboard />);
+    const { findByTestId } = await render(<StaffDashboard />);
     expect(await findByTestId('staff-bookings-empty')).toBeTruthy();
   });
 
   it('the verification banner and Match Operations link both navigate correctly', async () => {
     mockGetBookings.mockResolvedValueOnce({ results: [] });
-    const { findByTestId } = render(<StaffDashboard />);
+    const { findByTestId } = await render(<StaffDashboard />);
     await waitFor(() => expect(mockGetBookings).toHaveBeenCalled());
 
-    fireEvent.press(await findByTestId('verification-status-banner'));
+    await fireEvent.press(await findByTestId('verification-status-banner'));
     expect(mockPush).toHaveBeenCalledWith('/staff-verification');
 
-    fireEvent.press(await findByTestId('quick-link-matches'));
+    await fireEvent.press(await findByTestId('quick-link-matches'));
     expect(mockPush).toHaveBeenCalledWith('/staff-matches');
   });
 });

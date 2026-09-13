@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { GameRoom, MatchPlayer } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
@@ -211,6 +210,16 @@ export default function GameRoomScreen() {
             testID="open-check-in"
           />
         </View>
+        {/* Backlog B-3: Match Chat — open to the same roster as Check In. */}
+        <View className="mt-3">
+          <Button
+            label="Chat"
+            variant="secondary"
+            iconLeft={<Feather name="message-circle" size={16} color="#D80000" />}
+            onPress={() => router.push(`/(tabs)/matches/${matchId}/chat`)}
+            testID="open-chat"
+          />
+        </View>
         {isManager && (
           <View className="mt-3">
             <Button
@@ -285,12 +294,18 @@ function RosterRow({
   const attendance = ATTENDANCE_META[player.attendance_status];
   const canVacate = (isSelf || isManager) && player.invitation_status === 'CONFIRMED';
 
+  const router = useRouter();
+
   return (
     <View
       className="flex-row items-center justify-between py-3 border-b border-border-subtle"
       testID={`roster-row-${player.player_id}`}
     >
-      <View className="flex-row items-center flex-1">
+      <Pressable
+        className="flex-row items-center flex-1"
+        onPress={() => router.push(`/player-profile?playerId=${player.player_id}`)}
+        testID={`roster-row-avatar-${player.player_id}`}
+      >
         <Avatar size={36} />
         <View className="ml-3 flex-1">
           <View className="flex-row items-center">
@@ -322,7 +337,7 @@ function RosterRow({
             ) : null}
           </View>
         </View>
-      </View>
+      </Pressable>
       {canVacate && (
         <Pressable
           onPress={onVacate}

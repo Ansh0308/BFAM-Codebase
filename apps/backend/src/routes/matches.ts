@@ -10,6 +10,8 @@ import {
   inviteToMatchSchema,
   recordTossSchema,
   respondToMatchInvitationSchema,
+  sendChatMessageSchema,
+  submitReviewSchema,
   updateAttendanceSchema,
 } from '../validation/schemas';
 import {
@@ -39,6 +41,8 @@ import {
   updateMyAttendance,
   vacateSpot,
 } from '../services/matchService';
+import { submitReview } from '../services/reviewService';
+import { getMessages, sendMessage } from '../services/chatService';
 import {
   ForbiddenActionError,
   InvalidCheckInCodeError,
@@ -48,8 +52,10 @@ import {
   MatchInvitationNotFoundError,
   MatchNotCompletedError,
   MatchNotFoundError,
+  MatchNotYetCompletedError,
   PlayerProfileNotFoundError,
   ReplacementNotFoundError,
+  ReviewAlreadySubmittedError,
   StaffNotVerifiedError,
 } from '../domain/errors';
 
@@ -74,7 +80,9 @@ function handleMatchError(error: unknown, res: Response) {
     error instanceof InvalidMatchStateError ||
     error instanceof MatchAlreadyExistsForBookingError ||
     error instanceof InvalidCheckInCodeError ||
-    error instanceof MatchNotCompletedError
+    error instanceof MatchNotCompletedError ||
+    error instanceof MatchNotYetCompletedError ||
+    error instanceof ReviewAlreadySubmittedError
   ) {
     return res.status(409).json({ error: { message: error.message, status: 409 } });
   }
@@ -543,6 +551,67 @@ router.get(
     try {
       const info = await getRebookInfo(req.params.matchId, req.auth!.sub);
       return res.status(200).json(info);
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /matches/:matchId/review (backlog B-4): submit a post-match review
+// — one per (player, match), only once the match has finished, rewarded
+// with a flat coin amount (see COIN_REWARD_PER_REVIEW in reviewService.ts).
+router.post(
+  '/:matchId/review',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = submitReviewSchema.safeParse({ ...req.body, match_id: req.params.matchId });
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid review payload', status: 400 } });
+    }
+    try {
+      const result = await submitReview(req.auth!.sub, parsed.data);
+      return res.status(201).json(result);
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// GET /matches/:matchId/messages (backlog B-3) — full chat history for
+// this match's room, oldest first.
+router.get(
+  '/:matchId/messages',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const messages = await getMessages(req.params.matchId, req.auth!.sub);
+      return res.status(200).json({ results: messages });
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /matches/:matchId/messages (backlog B-3) — post a text message;
+// broadcast over Socket.IO to the match room and notifies the rest of the
+// confirmed roster.
+router.post(
+  '/:matchId/messages',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = sendChatMessageSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid message payload', status: 400 } });
+    }
+    try {
+      const message = await sendMessage(req.params.matchId, req.auth!.sub, parsed.data.body);
+      return res.status(201).json(message);
     } catch (error) {
       const handled = handleMatchError(error, res);
       if (handled) return handled;

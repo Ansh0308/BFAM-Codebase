@@ -28,10 +28,13 @@ describe('Dispute Result flow (module 2.13, PRD §32.2)', () => {
 
   it('submits the dispute for the match in the route params', async () => {
     mockCreateMatchDispute.mockResolvedValueOnce({ ticket_id: 't1', status: 'OPEN' });
-    const { getByTestId } = render(<MatchDisputeScreen />);
+    const { getByTestId } = await render(<MatchDisputeScreen />);
 
-    fireEvent.changeText(getByTestId('dispute-description'), "The final score doesn't match.");
-    fireEvent.press(getByTestId('submit-dispute'));
+    await fireEvent.changeText(
+      getByTestId('dispute-description'),
+      "The final score doesn't match.",
+    );
+    await fireEvent.press(getByTestId('submit-dispute'));
 
     await waitFor(() =>
       expect(mockCreateMatchDispute).toHaveBeenCalledWith('m1', "The final score doesn't match."),
@@ -40,19 +43,22 @@ describe('Dispute Result flow (module 2.13, PRD §32.2)', () => {
 
   it('a freshly submitted dispute lands in the OPEN state and routes to Complaint Status', async () => {
     mockCreateMatchDispute.mockResolvedValueOnce({ ticket_id: 't1', status: 'OPEN' });
-    const { getByTestId } = render(<MatchDisputeScreen />);
+    const { getByTestId } = await render(<MatchDisputeScreen />);
 
-    fireEvent.changeText(getByTestId('dispute-description'), "The final score doesn't match.");
-    fireEvent.press(getByTestId('submit-dispute'));
+    await fireEvent.changeText(
+      getByTestId('dispute-description'),
+      "The final score doesn't match.",
+    );
+    await fireEvent.press(getByTestId('submit-dispute'));
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/complaint-status'));
   });
 
-  it('rejects a too-short description without calling the API', () => {
-    const { getByTestId, getByText } = render(<MatchDisputeScreen />);
+  it('rejects a too-short description without calling the API', async () => {
+    const { getByTestId, getByText } = await render(<MatchDisputeScreen />);
 
-    fireEvent.changeText(getByTestId('dispute-description'), 'no');
-    fireEvent.press(getByTestId('submit-dispute'));
+    await fireEvent.changeText(getByTestId('dispute-description'), 'no');
+    await fireEvent.press(getByTestId('submit-dispute'));
 
     expect(getByText(/more detail/i)).toBeTruthy();
     expect(mockCreateMatchDispute).not.toHaveBeenCalled();
@@ -62,10 +68,13 @@ describe('Dispute Result flow (module 2.13, PRD §32.2)', () => {
     mockCreateMatchDispute.mockRejectedValueOnce(
       new BFAMApiError('Only someone who played in this match can dispute its result.', 403),
     );
-    const { getByTestId, findByTestId } = render(<MatchDisputeScreen />);
+    const { getByTestId, findByTestId } = await render(<MatchDisputeScreen />);
 
-    fireEvent.changeText(getByTestId('dispute-description'), "The final score doesn't match.");
-    fireEvent.press(getByTestId('submit-dispute'));
+    await fireEvent.changeText(
+      getByTestId('dispute-description'),
+      "The final score doesn't match.",
+    );
+    await fireEvent.press(getByTestId('submit-dispute'));
 
     expect(await findByTestId('dispute-error')).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();

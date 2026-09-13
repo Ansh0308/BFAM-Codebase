@@ -9,6 +9,7 @@ import {
   JoinRequestNotFoundError,
   PlayerNotFoundByBfamIdError,
   PlayerProfileNotFoundError,
+  SkillRatingTooLowError,
   TeamNotFoundError,
 } from '../domain/errors';
 import { sendNotification } from './notificationService';
@@ -25,6 +26,8 @@ interface TeamRow {
   created_by: string;
   created_at: Date;
   updated_at: Date;
+  // Backlog B-8 — null means no constraint (anyone may request to join).
+  min_skill_rating: number | null;
 }
 
 interface MemberRow {
@@ -99,6 +102,9 @@ export interface CreateTeamInput {
   skill_level?: string | null;
   home_city?: string | null;
   is_open_for_players?: boolean;
+  // Backlog B-8: a join request from a player below this Basic Skill
+  // Rating (module 2.10) is rejected — null/omitted means no constraint.
+  min_skill_rating?: number | null;
 }
 
 // Creates a team and, in the same transaction, makes the creator its first
@@ -123,6 +129,7 @@ export async function createTeam(userId: string, input: CreateTeamInput) {
           skill_level: input.skill_level ?? null,
           home_city: input.home_city ?? null,
           is_open_for_players: input.is_open_for_players ?? false,
+          min_skill_rating: input.min_skill_rating ?? null,
           team_status: 'ACTIVE',
           created_by: userId,
           created_at: now,
@@ -210,14 +217,28 @@ export async function listOpenTeams(filters: OpenTeamFilters) {
     replacements.city = `%${filters.city}%`;
   }
 
-  return sequelize.query<TeamRow & { active_member_count: number }>(
+  const rows = await sequelize.query<
+    TeamRow & { active_member_count: number; fair_play_score: string | null }
+  >(
     `SELECT t.*,
-       (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.team_id AND tm.membership_status = 'ACTIVE') AS active_member_count
+       (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.team_id AND tm.membership_status = 'ACTIVE') AS active_member_count,
+       (SELECT AVG(p.reliability_score) FROM team_members tm
+          JOIN players p ON p.player_id = tm.player_id
+          WHERE tm.team_id = t.team_id AND tm.membership_status = 'ACTIVE') AS fair_play_score
      FROM teams t
      WHERE ${conditions.join(' AND ')}
      ORDER BY t.team_name ASC`,
     { type: QueryTypes.SELECT, replacements },
   );
+
+  // Backlog B-5: MySQL's AVG() over a DECIMAL column returns a string via
+  // raw sequelize.query (same quirk documented elsewhere in this codebase
+  // for other DECIMAL reads) — round to a whole number for display, or
+  // null for a team with no active members yet (average of an empty set).
+  return rows.map((row) => ({
+    ...row,
+    fair_play_score: row.fair_play_score == null ? null : Math.round(Number(row.fair_play_score)),
+  }));
 }
 
 // Invite/add/remove players (PRD §12.3) — captain-only.
@@ -467,6 +488,19 @@ export async function requestToJoinTeam(teamId: string, userId: string) {
   const existingMembership = await fetchMembership(teamId, playerId);
   if (existingMembership && existingMembership.membership_status === 'ACTIVE') {
     throw new AlreadyTeamMemberError();
+  }
+
+  // Backlog B-8: a captain-set minimum Basic Skill Rating gate — checked
+  // against the same players.skill_rating value the Player Profile screen
+  // shows (module 2.10), not a separate copy.
+  if (team.min_skill_rating != null) {
+    const [player] = await sequelize.query<{ skill_rating: number }>(
+      'SELECT skill_rating FROM players WHERE player_id = :playerId',
+      { type: QueryTypes.SELECT, replacements: { playerId } },
+    );
+    if (!player || player.skill_rating < team.min_skill_rating) {
+      throw new SkillRatingTooLowError(team.min_skill_rating);
+    }
   }
 
   const [pending] = await sequelize.query<{ request_id: string }>(

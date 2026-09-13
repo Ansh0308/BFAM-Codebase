@@ -11,6 +11,7 @@ import { Button } from '../../../../src/components/Button';
 import { ChipSelect } from '../../../../src/components/ChipSelect';
 import { TextField } from '../../../../src/components/TextField';
 import { ToggleRow } from '../../../../src/components/ToggleRow';
+import { BallOutcomeFlash, type BallOutcome } from '../../../../src/components/BallOutcomeFlash';
 import { playTriggerSound } from '../../../../src/lib/sounds';
 
 // A ball this over, purely for the "Current Over" dots display — tracked
@@ -156,6 +157,9 @@ export default function ScoringInterfaceScreen() {
   // only one at a time, tap-to-open/tap-to-close instead of always showing
   // all three lists at once.
   const [openPicker, setOpenPicker] = useState<'striker' | 'nonStriker' | 'bowler' | null>(null);
+  // A brief celebratory overlay on a boundary or wicket — the exact moment
+  // a ball is actually recorded (see BallOutcomeFlash), not tied to sound.
+  const [flashOutcome, setFlashOutcome] = useState<BallOutcome>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -322,6 +326,9 @@ export default function ScoringInterfaceScreen() {
       if (res.audio_trigger !== 'NONE') {
         playTriggerSound(res.audio_trigger, musicEnabled).catch(() => {});
       }
+      if (input.is_wicket) setFlashOutcome('WICKET');
+      else if (input.runs_scored === 6) setFlashOutcome('SIX');
+      else if (input.runs_scored === 4) setFlashOutcome('FOUR');
       // Real-cricket strike rotation, done automatically instead of asking
       // the organizer to tap Swap after every odd-run ball — the single
       // biggest tap-count win in this screen since it fires on ~1 in 3
@@ -558,7 +565,11 @@ export default function ScoringInterfaceScreen() {
   const legalOverBalls = overBalls.filter((b) => b.isLegal);
 
   return (
-    <View className="flex-1 bg-surface" testID="scoring-interface-screen">
+    <View
+      className="flex-1 bg-surface"
+      style={{ position: 'relative' }}
+      testID="scoring-interface-screen"
+    >
       {/* Custom branded header (Design §5's diagonal red motif, compact
           version) — this screen hides the default Stack header so it can
           carry the BFAM mark like the reference layout. */}
@@ -917,6 +928,7 @@ export default function ScoringInterfaceScreen() {
           </View>
         </View>
       </ScrollView>
+      <BallOutcomeFlash outcome={flashOutcome} onDone={() => setFlashOutcome(null)} />
     </View>
   );
 }

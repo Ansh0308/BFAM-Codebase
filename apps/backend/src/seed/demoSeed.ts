@@ -55,21 +55,101 @@ interface SeedUser {
   role: string;
 }
 
+// A larger, varied name pool so a demo can show 50+ distinct players
+// without every row looking like an obvious template repeat.
+const FIRST_NAMES = [
+  'Rohan',
+  'Aditya',
+  'Karan',
+  'Vivaan',
+  'Arjun',
+  'Kabir',
+  'Yash',
+  'Dev',
+  'Aarav',
+  'Sai',
+  'Reyansh',
+  'Ishaan',
+  'Vihaan',
+  'Rudra',
+  'Krish',
+  'Aryan',
+  'Dhruv',
+  'Parth',
+  'Neil',
+  'Om',
+  'Harsh',
+  'Jay',
+  'Kunal',
+  'Manav',
+  'Nikhil',
+  'Pranav',
+  'Rajat',
+  'Sahil',
+  'Tanmay',
+  'Uday',
+  'Varun',
+  'Zeel',
+  'Aditi',
+  'Bhavya',
+  'Chirag',
+  'Darshan',
+  'Esha',
+  'Falguni',
+  'Gaurav',
+  'Hemal',
+  'Ishan',
+  'Jigar',
+  'Kavya',
+  'Lavanya',
+  'Mihir',
+  'Nirav',
+  'Ojas',
+  'Priyansh',
+  'Raj',
+  'Samir',
+  'Tarun',
+  'Utkarsh',
+  'Vikram',
+  'Yug',
+  'Aayush',
+  'Bhargav',
+];
+const LAST_NAMES = [
+  'Mehta',
+  'Shah',
+  'Patel',
+  'Joshi',
+  'Desai',
+  'Trivedi',
+  'Rana',
+  'Solanki',
+  'Vora',
+  'Thakkar',
+  'Parekh',
+  'Gandhi',
+  'Modi',
+  'Bhatt',
+  'Pandya',
+  'Rathod',
+  'Chauhan',
+  'Zaveri',
+  'Doshi',
+  'Kapadia',
+];
+const N_PLAYERS = 56;
+const N_TEAMS = 12;
+
 async function main() {
   await sequelize.authenticate();
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
 
   // ---- Users & players --------------------------------------------------
-  const playerNames = [
-    'Rohan Mehta',
-    'Aditya Shah',
-    'Karan Patel',
-    'Vivaan Joshi',
-    'Arjun Desai',
-    'Kabir Trivedi',
-    'Yash Rana',
-    'Dev Solanki',
-  ];
+  const playerNames = Array.from(
+    { length: N_PLAYERS },
+    (_, i) =>
+      `${FIRST_NAMES[i % FIRST_NAMES.length]} ${LAST_NAMES[Math.floor(i / FIRST_NAMES.length) % LAST_NAMES.length || i % LAST_NAMES.length]}`,
+  );
   const playerUsers: SeedUser[] = playerNames.map((_, i) => ({
     user_id: randomUUID(),
     phone_number: `+9199${RUN_TAG}${String(i).padStart(2, '0')}`,
@@ -95,7 +175,7 @@ async function main() {
     allUsers.map((u, i) => ({
       user_id: u.user_id,
       phone_number: u.phone_number,
-      email: `${u.role.toLowerCase()}${i}.demo@bfam.local`,
+      email: `${u.role.toLowerCase()}${i}.${RUN_TAG}.demo@bfam.local`,
       password_hash: passwordHash,
       role: u.role,
       account_status: 'ACTIVE',
@@ -119,14 +199,15 @@ async function main() {
     player_id: randomUUID(),
     user_id: u.user_id,
     bfam_id: u.bfam_id,
+    full_name: playerNames[i],
     playing_role: roles[i % roles.length],
     batting_style: i % 3 === 0 ? 'LEFT_HANDED' : 'RIGHT_HANDED',
     bowling_style: i % 2 === 0 ? 'RIGHT_ARM_MEDIUM' : 'RIGHT_ARM_FAST',
     experience_level: ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'][i % 3],
-    skill_rating: 550 + i * 20,
-    reliability_score: 90 + i,
+    skill_rating: 450 + ((i * 13) % 350),
+    reliability_score: 80 + (i % 20),
     bio: `Demo player #${i + 1} — seeded for testing.`,
-    date_of_birth: `199${i % 9}-0${(i % 9) + 1}-1${i}`,
+    date_of_birth: `199${i % 9}-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`,
     gender: i % 2 === 0 ? 'MALE' : 'FEMALE',
     favorite_cricketer_name: null,
     favorite_cricketer_external_id: null,
@@ -138,37 +219,52 @@ async function main() {
   const playerIdByUserId = new Map(players.map((p) => [p.user_id, p.player_id]));
 
   // ---- Teams (via teamService — real captain/membership invariants) -----
-  const teamAlpha = await createTeam(playerUsers[0].user_id, {
-    team_name: 'Rajkot Royals',
-    description: 'Weekend box-cricket regulars, always up for a game.',
-    skill_level: 'INTERMEDIATE',
-    home_city: 'Rajkot',
-    is_open_for_players: true,
-  });
-  for (const u of playerUsers.slice(1, 5)) {
-    const inv = await inviteToTeam(
-      teamAlpha!.team_id,
-      playerUsers[0].user_id,
-      playerIdByUserId.get(u.user_id)!,
-    );
-    await respondToInvitation(inv.invitation_id, u.user_id, true);
+  // N_TEAMS teams of varied size (4-8 members incl. captain), drawn
+  // round-robin from the player pool so members overlap across teams the
+  // way real players do (no exclusivity constraint on team membership).
+  const TEAM_NAMES = [
+    'Rajkot Royals',
+    'Night Owls CC',
+    'Turf Titans',
+    'Boundary Breakers',
+    'Kings XI Rajkot',
+    'Yorker Yodhas',
+    'Sixer Squad',
+    'Midnight Strikers',
+    'Chakra Cricketers',
+    'Ring Road Raiders',
+    'Green Park Gladiators',
+    'Floodlight Falcons',
+  ];
+  const SKILL_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'] as const;
+  const teams: Array<{ team_id: string; team_name: string }> = [];
+  let poolCursor = 0;
+  for (let t = 0; t < N_TEAMS; t++) {
+    const size = 4 + (t % 5); // 4..8 members incl. captain
+    const members: SeedUser[] = [];
+    for (let m = 0; m < size; m++) {
+      members.push(playerUsers[poolCursor % playerUsers.length]);
+      poolCursor++;
+    }
+    const [captain, ...rest] = members;
+    const team = await createTeam(captain.user_id, {
+      team_name: TEAM_NAMES[t] ?? `Demo Team ${t + 1}`,
+      description: `Seeded demo team #${t + 1}.`,
+      skill_level: SKILL_LEVELS[t % SKILL_LEVELS.length],
+      home_city: 'Rajkot',
+      is_open_for_players: t % 3 !== 0,
+    });
+    for (const u of rest) {
+      const inv = await inviteToTeam(
+        team!.team_id,
+        captain.user_id,
+        playerIdByUserId.get(u.user_id)!,
+      );
+      await respondToInvitation(inv.invitation_id, u.user_id, true);
+    }
+    teams.push({ team_id: team!.team_id, team_name: team!.team_name });
   }
-
-  const teamBravo = await createTeam(playerUsers[5].user_id, {
-    team_name: 'Night Owls CC',
-    description: 'Under-lights specialists.',
-    skill_level: 'ADVANCED',
-    home_city: 'Rajkot',
-    is_open_for_players: true,
-  });
-  for (const u of playerUsers.slice(6, 8)) {
-    const inv = await inviteToTeam(
-      teamBravo!.team_id,
-      playerUsers[5].user_id,
-      playerIdByUserId.get(u.user_id)!,
-    );
-    await respondToInvitation(inv.invitation_id, u.user_id, true);
-  }
+  const teamAlpha = { team_id: teams[0].team_id, team_name: teams[0].team_name };
 
   // ---- Turfs --------------------------------------------------------------
   const turfDefs = [
@@ -358,6 +454,85 @@ async function main() {
     ball_type: 'TENNIS',
     overs_per_innings: 6,
     scoring_mode: 'PLAYER_MANAGED',
+  });
+
+  // ---- Booking + Match E: paused right at the toss step (Playing XI
+  // confirmed both sides, toss not yet recorded) — for exercising/demoing
+  // the toss step itself live rather than only its already-decided result.
+  const bookingE = await createBooking({
+    turfId: turfs[1].turf_id,
+    bookedBy: playerUsers[8].user_id,
+    bookingDate: daysFromNow(0),
+    startTime: '21:00',
+    durationMinutes: 60,
+    paymentMode: 'CASH',
+  });
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate('bookings', { booking_status: 'CONFIRMED' }, { booking_id: bookingE.booking_id });
+  const matchE = await createMatch(playerUsers[8].user_id, {
+    booking_id: bookingE.booking_id,
+    match_name: 'Ready for Toss',
+    match_type: 'FRIENDS',
+    ball_type: 'TENNIS',
+    overs_per_innings: 6,
+    scoring_mode: 'PLAYER_MANAGED',
+  });
+  const rosterE = playerUsers.slice(9, 15);
+  for (const u of rosterE) {
+    const invite = await inviteToMatch(
+      matchE.match_id,
+      playerUsers[8].user_id,
+      playerIdByUserId.get(u.user_id)!,
+    );
+    await respondToMatchInvitation(invite.invitation_id, u.user_id, 'CONFIRMED');
+  }
+  await startIntro(matchE.match_id, playerUsers[8].user_id);
+  await confirmPlayingXi(matchE.match_id, playerUsers[8].user_id, 'TEAM_A');
+  await confirmPlayingXi(matchE.match_id, playerUsers[8].user_id, 'TEAM_B');
+
+  // ---- Booking + Match F: paused right after toss, first ball not yet
+  // bowled — for exercising/demoing the Scoring Interface from a clean
+  // start rather than only a fully-completed innings.
+  const bookingF = await createBooking({
+    turfId: turfs[2].turf_id,
+    bookedBy: playerUsers[15].user_id,
+    bookingDate: daysFromNow(0),
+    startTime: '22:00',
+    durationMinutes: 60,
+    paymentMode: 'CASH',
+  });
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate('bookings', { booking_status: 'CONFIRMED' }, { booking_id: bookingF.booking_id });
+  const matchF = await createMatch(playerUsers[15].user_id, {
+    booking_id: bookingF.booking_id,
+    match_name: 'Ready for Scoring',
+    match_type: 'FRIENDS',
+    ball_type: 'TENNIS',
+    overs_per_innings: 6,
+    scoring_mode: 'PLAYER_MANAGED',
+  });
+  const rosterF = playerUsers.slice(16, 22);
+  for (const u of rosterF) {
+    const invite = await inviteToMatch(
+      matchF.match_id,
+      playerUsers[15].user_id,
+      playerIdByUserId.get(u.user_id)!,
+    );
+    await respondToMatchInvitation(invite.invitation_id, u.user_id, 'CONFIRMED');
+  }
+  const introF = await startIntro(matchF.match_id, playerUsers[15].user_id);
+  await confirmPlayingXi(matchF.match_id, playerUsers[15].user_id, 'TEAM_A');
+  await confirmPlayingXi(matchF.match_id, playerUsers[15].user_id, 'TEAM_B');
+  const teamAIdF = introF.matchTeams.find((t) => t.side_label === 'TEAM_A')!.match_team_id;
+  const teamBIdF = introF.matchTeams.find((t) => t.side_label === 'TEAM_B')!.match_team_id;
+  await recordToss(matchF.match_id, playerUsers[15].user_id, teamAIdF, 'BAT');
+  await completeIntro(matchF.match_id, playerUsers[15].user_id);
+  await startInnings(matchF.match_id, playerUsers[15].user_id, {
+    innings_number: 1,
+    batting_match_team_id: teamAIdF,
+    bowling_match_team_id: teamBIdF,
   });
 
   // ---- Booking + Match C: fully completed with a real ball-by-ball ------
@@ -576,7 +751,7 @@ async function main() {
       title: 'Team invite',
       body: 'You were invited to join Rajkot Royals.',
       related_entity_type: 'team',
-      related_entity_id: teamAlpha!.team_id,
+      related_entity_id: teamAlpha.team_id,
       delivery_channel: 'IN_APP',
       delivery_status: 'READ',
       created_at: now,
@@ -594,12 +769,20 @@ async function main() {
   console.log(
     `  - 3 turfs (owner: ${ownerUser.phone_number}), each with pricing/images/facilities`,
   );
-  console.log('  - 2 teams: Rajkot Royals (captain player #1), Night Owls CC (captain player #6)');
+  console.log(
+    `  - ${N_TEAMS} teams of 4-8 players each, drawn round-robin from the ${N_PLAYERS} seeded players`,
+  );
   console.log(
     `  - Match A "${matchA.match_name}": roster still filling (2 confirmed, 1 maybe, 1 pending, 1 never invited)`,
   );
   console.log(
     `  - Match B "${matchB.match_name}": fully confirmed roster, turf-staff-managed scoring, intro not started`,
+  );
+  console.log(
+    `  - Match E "${matchE.match_name}": Playing XI confirmed both sides, toss NOT recorded yet`,
+  );
+  console.log(
+    `  - Match F "${matchF.match_name}": toss done, innings started, no balls scored yet`,
   );
   console.log(
     '  - Match C "Royals vs Owls — Derby": COMPLETED, 2 full innings scored ball-by-ball, result finalized with POTM',

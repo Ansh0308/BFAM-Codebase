@@ -44,12 +44,19 @@ export default function CreateTeamScreen() {
   const [isOpen, setIsOpen] = useState(
     params.copyFromIsOpen != null ? params.copyFromIsOpen === 'true' : true,
   );
+  // Backlog B-8: a join request from below this Basic Skill Rating is
+  // rejected server-side — blank means no constraint, same as today.
+  const [minSkillRating, setMinSkillRating] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
     if (teamName.trim().length < 2) {
       setError('Give your team a name (at least 2 characters).');
+      return;
+    }
+    if (minSkillRating && (Number.isNaN(Number(minSkillRating)) || Number(minSkillRating) < 0)) {
+      setError('Minimum Skill Rating must be a whole number.');
       return;
     }
     setSubmitting(true);
@@ -61,6 +68,7 @@ export default function CreateTeamScreen() {
         home_city: homeCity || null,
         skill_level: skillLevel,
         is_open_for_players: isOpen,
+        min_skill_rating: minSkillRating ? Number(minSkillRating) : null,
       });
       router.replace(`/(tabs)/teams/${team.team_id}`);
     } catch (err) {
@@ -115,6 +123,17 @@ export default function CreateTeamScreen() {
             testID="is-open-toggle"
           />
         </View>
+
+        {isOpen && (
+          <TextField
+            label="Minimum Skill Rating (optional)"
+            value={minSkillRating}
+            onChangeText={setMinSkillRating}
+            placeholder="e.g. 600 — leave blank for no requirement"
+            keyboardType="number-pad"
+            testID="min-skill-rating-input"
+          />
+        )}
 
         {error && <Text className="text-brand-red text-body mb-4">{error}</Text>}
 

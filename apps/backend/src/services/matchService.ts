@@ -5,6 +5,7 @@ import { getBookingById } from './bookingService';
 import { getObligationsForBooking } from './paymentService';
 import { sendNotification } from './notificationService';
 import { assertStaffVerified } from './staffService';
+import { postSystemMessage } from './chatService';
 import {
   ForbiddenActionError,
   InvalidCheckInCodeError,
@@ -56,6 +57,25 @@ async function resolvePlayerId(userId: string): Promise<string> {
   );
   if (!player) throw new PlayerProfileNotFoundError();
   return player.player_id;
+}
+
+// Backlog B-3: auto-posts a chat system message for a check-in/
+// confirmation event — same full_name-falls-back-to-bfam_id convention
+// used everywhere else a player is shown (backlog A-9). Never allowed to
+// fail the check-in/confirmation action that triggered it, same contract
+// as notificationService.sendNotification and chatService.postSystemMessage
+// itself.
+async function postRosterEventMessage(matchId: string, playerId: string, suffix: string) {
+  try {
+    const [player] = await sequelize.query<{ bfam_id: string; full_name: string | null }>(
+      'SELECT bfam_id, full_name FROM players WHERE player_id = :playerId',
+      { type: QueryTypes.SELECT, replacements: { playerId } },
+    );
+    const name = player?.full_name || player?.bfam_id || 'A player';
+    await postSystemMessage(matchId, `${name} ${suffix}`);
+  } catch (error) {
+    console.error(`[matchService] Failed to post roster event message for ${matchId}:`, error);
+  }
 }
 
 async function fetchMatch(matchId: string): Promise<MatchRow | null> {
@@ -488,6 +508,7 @@ export async function respondToMatchInvitation(
         relatedEntityId: invitation.match_id,
       });
     }
+    await postRosterEventMessage(invitation.match_id, playerId, 'confirmed for the match.');
   }
 
   return { invitation_id: invitationId, response };
@@ -535,6 +556,10 @@ export async function updateMyAttendance(
     },
     { match_player_id: membership.match_player_id },
   );
+
+  if (status === 'CHECKED_IN') {
+    await postRosterEventMessage(matchId, playerId, 'checked in.');
+  }
 }
 
 export async function setPlayerAttendance(
@@ -569,6 +594,10 @@ export async function setPlayerAttendance(
     },
     { match_player_id: membership.match_player_id },
   );
+
+  if (status === 'CHECKED_IN') {
+    await postRosterEventMessage(matchId, targetPlayerId, 'checked in.');
+  }
 }
 
 // QR-based Check-In (PRD §12.48). The organizer/scorer displays
@@ -596,6 +625,8 @@ export async function checkInWithCode(matchId: string, userId: string, code: str
       { attendance_status: 'CHECKED_IN', checked_in_at: new Date() },
       { match_player_id: membership.match_player_id },
     );
+
+  await postRosterEventMessage(matchId, playerId, 'checked in.');
 }
 
 // Player Replacement, step 1 — vacancy (PRD §12.15). The vacating player

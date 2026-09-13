@@ -1,5 +1,6 @@
 import React from 'react';
 import { Stack } from 'expo-router';
+import { SCREEN_TRANSITION } from '../../../src/theme/navigation';
 
 // Module 2.5 — Teams. Reached from the Teams tab in the bottom nav.
 export default function TeamsLayout() {
@@ -9,6 +10,7 @@ export default function TeamsLayout() {
         headerStyle: { backgroundColor: '#FFFFFF' },
         headerTintColor: '#0D0D0D',
         headerShadowVisible: false,
+        animation: SCREEN_TRANSITION,
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />

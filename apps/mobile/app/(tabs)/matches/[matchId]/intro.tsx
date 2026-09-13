@@ -275,9 +275,11 @@ export default function MatchIntroScreen() {
                         </Text>
                       </Animated.View>
                       {tossWinnerSide ? (
-                        <Text style={styles.tossResult} testID="coin-flip-result">
-                          {tossWinnerSide === 'TEAM_A' ? 'Team A' : 'Team B'} won the toss!
-                        </Text>
+                        <PopReveal revealKey={tossWinnerSide}>
+                          <Text style={styles.tossResult} testID="coin-flip-result">
+                            {tossWinnerSide === 'TEAM_A' ? 'Team A' : 'Team B'} won the toss!
+                          </Text>
+                        </PopReveal>
                       ) : (
                         <Pressable
                           onPress={flipCoin}
@@ -291,6 +293,18 @@ export default function MatchIntroScreen() {
                         </Pressable>
                       )}
                     </View>
+                  )}
+
+                  {/* Backlog D-3: manual toss previously had no reveal
+                      moment at all — the coin-flip path already announced
+                      its winner, so this brings manual mode to the same
+                      "regardless of how the winner is decided" bar. */}
+                  {tossMode === 'MANUAL' && tossWinnerSide && (
+                    <PopReveal revealKey={tossWinnerSide} testID="manual-toss-result">
+                      <Text style={styles.tossResult}>
+                        {tossWinnerSide === 'TEAM_A' ? 'Team A' : 'Team B'} won the toss!
+                      </Text>
+                    </PopReveal>
                   )}
 
                   {(tossMode === 'MANUAL' || tossWinnerSide) && (
@@ -326,10 +340,15 @@ export default function MatchIntroScreen() {
               )
             ) : (
               <>
-                <Text style={styles.tossResult}>
-                  {tossWinnerSide === 'TEAM_A' ? 'Team A' : 'Team B'} won the toss, chose to{' '}
-                  {tossDecision === 'BAT' ? 'bat' : 'bowl'}
-                </Text>
+                <PopReveal
+                  revealKey={`${tossWinnerSide}-${tossDecision}`}
+                  testID="toss-final-result"
+                >
+                  <Text style={styles.tossResult}>
+                    {tossWinnerSide === 'TEAM_A' ? 'Team A' : 'Team B'} won the toss, chose to{' '}
+                    {tossDecision === 'BAT' ? 'bat' : 'bowl'}
+                  </Text>
+                </PopReveal>
                 <Pressable onPress={finish} style={styles.primaryButton} testID="continue-to-match">
                   <Text style={styles.primaryButtonText}>CONTINUE</Text>
                 </Pressable>
@@ -339,6 +358,45 @@ export default function MatchIntroScreen() {
         )}
       </View>
     </SafeAreaView>
+  );
+}
+
+// Backlog D-3: a generic pop-in + fade reveal, re-triggered whenever
+// `revealKey` changes — the same scale/opacity shape CountdownNumber below
+// already uses for the countdown ticks, generalized so the toss result
+// (manual or coin-flip) gets the same "moment" treatment rather than just
+// appearing.
+function PopReveal({
+  children,
+  revealKey,
+  testID,
+}: {
+  children: React.ReactNode;
+  revealKey: string | number;
+  testID?: string;
+}) {
+  const scale = useSharedValue(0.5);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    scale.value = 0.5;
+    opacity.value = 0;
+    scale.value = withSequence(
+      withTiming(1.1, { duration: 220, easing: Easing.out(Easing.exp) }),
+      withTiming(1, { duration: 120 }),
+    );
+    opacity.value = withTiming(1, { duration: 220 });
+  }, [revealKey]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={animatedStyle} testID={testID}>
+      {children}
+    </Animated.View>
   );
 }
 

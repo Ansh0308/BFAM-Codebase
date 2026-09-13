@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { OpenTeam } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
@@ -95,16 +95,45 @@ export default function OpenTeamsScreen() {
                       <Feather name="users" size={18} color="#D80000" />
                     </View>
                     <View className="flex-1">
-                      <Text
-                        className="font-ui font-semibold text-card-title text-ink-black"
-                        numberOfLines={1}
-                      >
-                        {item.team_name}
-                      </Text>
+                      <View className="flex-row items-center">
+                        <Text
+                          className="font-ui font-semibold text-card-title text-ink-black flex-shrink"
+                          numberOfLines={1}
+                        >
+                          {item.team_name}
+                        </Text>
+                        {/* Backlog B-5: Fair Play score — how evenly this
+                            team has shared batting/bowling chances across
+                            its roster, averaged from active members'
+                            reliability_score. Hidden until the team has
+                            an active member with a computed score. */}
+                        {item.fair_play_score != null && (
+                          <View
+                            className="ml-2 rounded-full border border-brand-red px-2 py-0.5 flex-row items-center"
+                            testID={`fair-play-score-${item.team_id}`}
+                          >
+                            <Feather name="shield" size={10} color="#D80000" />
+                            <Text className="font-ui text-micro font-bold text-brand-red ml-1">
+                              {item.fair_play_score}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       <Text className="text-text-secondary text-micro mt-0.5">
                         {item.home_city ?? 'City not set'} · {item.skill_level ?? 'Any level'} ·{' '}
                         {item.active_member_count} members
                       </Text>
+                      {/* Backlog B-8: shown so a player knows the
+                          requirement before requesting, rather than only
+                          finding out from a rejected request. */}
+                      {item.min_skill_rating != null && (
+                        <Text
+                          className="text-text-tertiary text-micro mt-0.5"
+                          testID={`min-skill-rating-${item.team_id}`}
+                        >
+                          Requires {item.min_skill_rating}+ Skill Rating
+                        </Text>
+                      )}
                     </View>
                   </View>
                   <Pressable

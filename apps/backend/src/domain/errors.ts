@@ -151,6 +151,17 @@ export class PlayerNotFoundByBfamIdError extends Error {
   }
 }
 
+// Backlog B-10 — looking up someone else's public profile by their
+// internal player_id (e.g. from a roster row), as opposed to
+// PlayerProfileNotFoundError (the *caller's own* missing profile) or
+// PlayerNotFoundByBfamIdError (looked up by BFAM ID instead).
+export class PlayerNotFoundError extends Error {
+  constructor(playerId: string) {
+    super(`No player found with id ${playerId}.`);
+    this.name = 'PlayerNotFoundError';
+  }
+}
+
 export class InvalidTeamStateError extends Error {
   constructor(message: string) {
     super(message);
@@ -299,5 +310,101 @@ export class WaiverNotAcceptedError extends Error {
   constructor() {
     super('You need to accept the liability waiver before filing an injury report.');
     this.name = 'WaiverNotAcceptedError';
+  }
+}
+
+// ---- Backlog B-1: Promo Codes & BFAM Coins ----
+
+export class PromoCodeNotFoundError extends Error {
+  constructor() {
+    super('That promo code was not found.');
+    this.name = 'PromoCodeNotFoundError';
+  }
+}
+
+export class PromoCodeNotApplicableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PromoCodeNotApplicableError';
+  }
+}
+
+export class InsufficientCoinBalanceError extends Error {
+  constructor() {
+    super("You don't have enough BFAM Coins for that.");
+    this.name = 'InsufficientCoinBalanceError';
+  }
+}
+
+// ---- Backlog B-4: Reviews ----
+
+export class ReviewAlreadySubmittedError extends Error {
+  constructor() {
+    super('You have already reviewed this match.');
+    this.name = 'ReviewAlreadySubmittedError';
+  }
+}
+
+export class MatchNotYetCompletedError extends Error {
+  constructor() {
+    super('You can only review a match after it has finished.');
+    this.name = 'MatchNotYetCompletedError';
+  }
+}
+
+// ---- Backlog B-9: Follows ----
+
+export class CannotFollowSelfError extends Error {
+  constructor() {
+    super("You can't follow yourself.");
+    this.name = 'CannotFollowSelfError';
+  }
+}
+
+// ---- Backlog B-8: Rating-Gated Team Vacancies ----
+
+export class SkillRatingTooLowError extends Error {
+  constructor(minSkillRating: number) {
+    super(`This team requires a Basic Skill Rating of at least ${minSkillRating} to join.`);
+    this.name = 'SkillRatingTooLowError';
+  }
+}
+
+// ---- Backlog B-6: Home Page Carousel / Admin CMS ----
+
+export class BannerNotFoundError extends Error {
+  constructor() {
+    super('That banner was not found.');
+    this.name = 'BannerNotFoundError';
+  }
+}
+
+// ---- Backlog B-11: Pre-Match Room (lobby) ----
+
+export class RoomNotFoundError extends Error {
+  constructor(roomId: string) {
+    super(`Room ${roomId} not found`);
+    this.name = 'RoomNotFoundError';
+  }
+}
+
+export class InvalidRoomStateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidRoomStateError';
+  }
+}
+
+export class AlreadyInRoomError extends Error {
+  constructor() {
+    super('This player is already in this room.');
+    this.name = 'AlreadyInRoomError';
+  }
+}
+
+export class RoomFullError extends Error {
+  constructor() {
+    super('This room is already full.');
+    this.name = 'RoomFullError';
   }
 }

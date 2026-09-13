@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { JoinRequest, TeamDetails } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
@@ -11,18 +10,27 @@ import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
 import { TextField } from '../../../../src/components/TextField';
 import { Avatar } from '../../../../src/components/Avatar';
+import { ContactsInviteSection } from '../../../../src/components/ContactsInviteSection';
 
 // Team Management (PRD §12.3): invite/remove players, change captain, and
 // respond to Join Team Requests (PRD §12.4). Captain-only — the backend
-// re-enforces this regardless of what this screen shows.
+// re-enforces this regardless of what this screen shows. Backlog B-2 adds
+// checking the captain's device contacts against registered players as a
+// third invite path, alongside BFAM ID entry.
 export default function ManageTeamScreen() {
   const { teamId } = useLocalSearchParams<{ teamId: string }>();
+  const router = useRouter();
   const [team, setTeam] = useState<TeamDetails | null>(null);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [invitePlayerId, setInvitePlayerId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Contacts invites don't add a member immediately (they create a
+  // team_invitations row, same as BFAM ID invite) — tracked locally so the
+  // "Invite" button flips to "Invited" for this session without needing a
+  // dedicated pending-invites list on this screen.
+  const [contactInvitedIds, setContactInvitedIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,6 +76,13 @@ export default function ManageTeamScreen() {
     });
   }
 
+  async function inviteFromContacts(playerId: string, bfamId: string) {
+    await withBusy(async () => {
+      await apiClient.inviteToTeam(teamId, bfamId);
+      setContactInvitedIds((prev) => new Set(prev).add(playerId));
+    });
+  }
+
   if (loading || !team) {
     return (
       <ScreenContainer>
@@ -95,6 +110,13 @@ export default function ManageTeamScreen() {
 
       {error && <Text className="text-brand-red text-body mb-4">{error}</Text>}
 
+      <ContactsInviteSection
+        invitedIds={contactInvitedIds}
+        busy={busy}
+        onInvite={(match) => inviteFromContacts(match.player_id, match.bfam_id)}
+        testIDPrefix="team-invite"
+      />
+
       <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
         Members ({team.members.length})
       </Text>
@@ -104,7 +126,11 @@ export default function ManageTeamScreen() {
           className="flex-row items-center justify-between py-3 border-b border-border-subtle"
           testID={`manage-member-${member.player_id}`}
         >
-          <View className="flex-row items-center flex-1">
+          <Pressable
+            className="flex-row items-center flex-1"
+            onPress={() => router.push(`/player-profile?playerId=${member.player_id}`)}
+            testID={`manage-member-avatar-${member.player_id}`}
+          >
             <Avatar size={36} />
             <View className="ml-3">
               <Text className="text-text-primary text-body">
@@ -116,7 +142,7 @@ export default function ManageTeamScreen() {
                 </View>
               )}
             </View>
-          </View>
+          </Pressable>
           {member.role_in_team !== 'CAPTAIN' && (
             <View className="flex-row items-center">
               <Pressable

@@ -1,8 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Match } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
 import { colors } from '../../../src/theme/tokens';
@@ -54,6 +53,19 @@ export default function MyMatchesScreen() {
     <ScreenContainer>
       <View className="pt-6 flex-1" testID="my-matches-screen">
         <Text className="font-ui font-bold text-title-xl text-ink-black mb-4">Matches</Text>
+
+        <View className="mb-6">
+          {/* Backlog B-11: a second, "find players first" way to get a game
+              together — runs alongside the book-first flow above/below,
+              doesn't replace it. */}
+          <Button
+            label="Find a Room"
+            variant="secondary"
+            iconLeft={<Feather name="users" size={16} color="#D80000" />}
+            onPress={() => router.push('/(tabs)/matches/rooms')}
+            testID="find-a-room-button"
+          />
+        </View>
 
         {loading ? (
           <ActivityIndicator size="large" color={colors.brandRed} testID="my-matches-loading" />

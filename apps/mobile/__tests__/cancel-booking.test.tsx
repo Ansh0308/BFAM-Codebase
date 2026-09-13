@@ -26,10 +26,10 @@ describe('CancelBooking screen (module 2.3)', () => {
 
   it('submits the cancellation reason and returns to Booking Details on success', async () => {
     mockCancelBooking.mockResolvedValueOnce({ booking_id: 'b1', booking_status: 'CANCELLED' });
-    const { getByTestId } = render(<CancelBooking />);
+    const { getByTestId } = await render(<CancelBooking />);
 
-    fireEvent.changeText(getByTestId('cancellation-reason-input'), 'Rained out');
-    fireEvent.press(getByTestId('confirm-cancel-button'));
+    await fireEvent.changeText(getByTestId('cancellation-reason-input'), 'Rained out');
+    await fireEvent.press(getByTestId('confirm-cancel-button'));
 
     await waitFor(() => expect(mockCancelBooking).toHaveBeenCalledWith('b1', 'Rained out'));
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)/discover/booking/b1');
@@ -37,9 +37,9 @@ describe('CancelBooking screen (module 2.3)', () => {
 
   it('shows a clean error message when cancellation fails', async () => {
     mockCancelBooking.mockRejectedValueOnce(new Error('network down'));
-    const { getByTestId, findByText } = render(<CancelBooking />);
+    const { getByTestId, findByText } = await render(<CancelBooking />);
 
-    fireEvent.press(getByTestId('confirm-cancel-button'));
+    await fireEvent.press(getByTestId('confirm-cancel-button'));
 
     expect(await findByText(/could not cancel this booking/i)).toBeTruthy();
   });

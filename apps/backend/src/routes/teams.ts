@@ -30,6 +30,7 @@ import {
   JoinRequestNotFoundError,
   PlayerNotFoundByBfamIdError,
   PlayerProfileNotFoundError,
+  SkillRatingTooLowError,
   TeamNotFoundError,
 } from '../domain/errors';
 
@@ -48,7 +49,11 @@ function handleTeamError(error: unknown, res: Response) {
   if (error instanceof PlayerNotFoundByBfamIdError) {
     return res.status(404).json({ error: { message: error.message, status: 404 } });
   }
-  if (error instanceof AlreadyTeamMemberError || error instanceof InvalidTeamStateError) {
+  if (
+    error instanceof AlreadyTeamMemberError ||
+    error instanceof InvalidTeamStateError ||
+    error instanceof SkillRatingTooLowError
+  ) {
     return res.status(409).json({ error: { message: error.message, status: 409 } });
   }
   return null;

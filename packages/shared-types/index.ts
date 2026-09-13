@@ -62,6 +62,35 @@ export interface MyProfile {
   // Backlog A-9 — shown in place of the BFAM ID everywhere a player is
   // listed (roster rows, scoring selectors, invite lists).
   full_name: string | null;
+  // Backlog B-1/B-4 — BFAM Coins balance; null for non-PLAYER roles.
+  coin_balance: number | null;
+}
+
+// Backlog B-10: another player's profile, viewed from a roster/team row.
+// Deliberately a much smaller shape than MyProfile — see
+// profileService.getPublicProfile (backend) for what's excluded and why.
+// Backlog B-9: follower/following counts, plus whether the viewer
+// currently follows this player.
+export interface FollowSummary {
+  followers_count: number;
+  following_count: number;
+  is_following: boolean;
+}
+
+export interface PublicPlayerProfile {
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+  profile_photo_url: string | null;
+  city: string | null;
+  playing_role: string | null;
+  batting_style: string | null;
+  bowling_style: string | null;
+  experience_level: string | null;
+  skill_rating: number;
+  reliability_score: string;
+  favorite_cricketer_name: string | null;
+  follow_summary: FollowSummary;
 }
 
 // `email` is deliberately not part of this payload — it can only be set via
@@ -283,6 +312,17 @@ export interface PaymentObligation {
   updated_at: string;
 }
 
+// Backlog B-1: promo code / BFAM Coins checkout discount.
+export interface CheckoutDiscountResult {
+  obligation_id: string;
+  original_amount_due: number;
+  promo_discount: number;
+  coins_spent: number;
+  coin_discount: number;
+  new_amount_due: number;
+  coin_balance: number;
+}
+
 export type PaymentMethodType = 'UPI' | 'RAZORPAY' | 'CASH' | 'CAPTAIN_PAYS' | 'SPLIT';
 export type PaymentStatusType = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
 
@@ -333,6 +373,8 @@ export interface Team {
   created_by: string;
   created_at: string;
   updated_at: string;
+  // Backlog B-8: minimum Basic Skill Rating required to join; null = no constraint.
+  min_skill_rating: number | null;
 }
 
 export interface TeamMember {
@@ -348,6 +390,16 @@ export interface TeamMember {
   favorite_cricketer_name?: string | null;
 }
 
+// Backlog B-2: one registered player matched from the caller's device
+// contacts — phone_number echoes back exactly the string the caller sent,
+// so the mobile client can map it back to the specific contact entry.
+export interface ContactMatch {
+  phone_number: string;
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+}
+
 export interface TeamDetails extends Team {
   members: TeamMember[];
 }
@@ -358,6 +410,8 @@ export interface MyTeam extends Team {
 
 export interface OpenTeam extends Team {
   active_member_count: number;
+  /** Backlog B-5: average reliability_score across active members, rounded; null if the team has no active members yet. */
+  fair_play_score: number | null;
 }
 
 export interface CreateTeamInput {
@@ -367,6 +421,7 @@ export interface CreateTeamInput {
   skill_level?: TeamSkillLevel | null;
   home_city?: string | null;
   is_open_for_players?: boolean;
+  min_skill_rating?: number | null;
 }
 
 export interface JoinRequest {
@@ -591,6 +646,52 @@ export interface MatchResult {
   player_of_the_match_id: string | null;
   player_of_the_match_bfam_id?: string | null;
   finalized_at: string;
+}
+
+// Backlog B-4: post-match review reward.
+export interface ReviewSubmissionResult {
+  review_id: string;
+  coins_awarded: number;
+  coin_balance: number;
+}
+
+// Backlog B-6: Home page carousel banner / admin CMS.
+export interface HomeBanner {
+  banner_id: string;
+  title: string;
+  image_url: string;
+  link_url: string | null;
+  display_order: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateBannerInput {
+  title: string;
+  image_url: string;
+  link_url?: string | null;
+  display_order?: number;
+  is_active?: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
+}
+
+export type UpdateBannerInput = Partial<CreateBannerInput>;
+
+// Backlog B-3: Match Chat.
+export interface ChatMessage {
+  message_id: string;
+  match_id: string;
+  sender_id: string | null;
+  message_type: 'TEXT' | 'SYSTEM';
+  body: string;
+  created_at: string;
+  sender_bfam_id: string | null;
+  sender_full_name: string | null;
 }
 
 export interface MatchIntro {
@@ -853,4 +954,64 @@ export interface LiveMatchSession {
   socket_id: string;
   connected_at: string;
   disconnected_at?: string;
+}
+
+// Backlog B-11: a pre-match "room" (lobby) — a new flow that runs
+// alongside today's book-first match creation, not a replacement for it.
+// Never linked to the persistent Team entity: a room is always disposable
+// once its match starts.
+export type RoomStatus = 'FILLING' | 'READY' | 'CONVERTED' | 'CANCELLED';
+export type RoomPlayerSide = 'UNASSIGNED' | 'TEAM_A' | 'TEAM_B';
+
+export interface Room {
+  room_id: string;
+  room_name: string;
+  captain_user_id: string;
+  ball_type: MatchBallType;
+  overs_per_innings: number;
+  max_players: number;
+  room_status: RoomStatus;
+  match_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OpenRoom extends Room {
+  player_count: number;
+}
+
+export interface RoomPlayer {
+  room_player_id: string;
+  room_id: string;
+  player_id: string;
+  side: RoomPlayerSide;
+  is_captain: boolean;
+  joined_at: string;
+  bfam_id?: string;
+  full_name?: string | null;
+}
+
+export interface RoomDetails extends Room {
+  players: RoomPlayer[];
+}
+
+export interface CreateRoomInput {
+  room_name: string;
+  ball_type: MatchBallType;
+  overs_per_innings: number;
+  max_players: number;
+}
+
+export interface ConvertRoomInput {
+  turf_id: string;
+  booking_date: string;
+  start_time: string;
+  duration_minutes: number;
+  payment_mode: 'UPI' | 'GATEWAY' | 'CASH' | 'CAPTAIN_PAYS' | 'SPLIT_PAYMENT';
+}
+
+export interface ConvertRoomResult {
+  room_id: string;
+  match_id: string;
+  booking_id: string;
 }

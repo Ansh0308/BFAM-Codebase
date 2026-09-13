@@ -1,15 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import type { AvailabilitySlot, TurfAvailability } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../../src/lib/apiClient';
@@ -20,12 +14,15 @@ function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function nextSevenDays(): string[] {
-  const today = new Date();
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    return toDateStr(d);
+function todayStr(): string {
+  return toDateStr(new Date());
+}
+
+function formatDisplayDate(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
   });
 }
 
@@ -38,8 +35,8 @@ export default function TurfAvailabilityScreen() {
   const { turfId, turfName } = useLocalSearchParams<{ turfId: string; turfName?: string }>();
   const router = useRouter();
   const navigation = useNavigation();
-  const dates = useMemo(() => nextSevenDays(), []);
-  const [selectedDate, setSelectedDate] = useState(dates[0]);
+  const [selectedDate, setSelectedDate] = useState(todayStr());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [availability, setAvailability] = useState<TurfAvailability | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -151,30 +148,32 @@ export default function TurfAvailabilityScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-surface-alt" edges={['bottom']}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-6 py-3">
-        {dates.map((d) => {
-          const isSelected = d === selectedDate;
-          return (
-            <Pressable
-              key={d}
-              onPress={() => setSelectedDate(d)}
-              className={`rounded-md px-4 py-2 mr-2 border ${
-                isSelected ? 'bg-brand-red border-brand-red' : 'bg-surface border-border-strong'
-              }`}
-              testID={`date-chip-${d}`}
-            >
-              <Text
-                className={`text-body font-ui ${isSelected ? 'text-surface' : 'text-text-primary'}`}
-              >
-                {new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, {
-                  weekday: 'short',
-                  day: 'numeric',
-                })}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <Pressable
+        onPress={() => setShowDatePicker(true)}
+        className="flex-row items-center justify-between mx-6 mt-3 px-4 py-3 bg-surface rounded-md border border-border-strong"
+        testID="availability-date-picker-trigger"
+      >
+        <View className="flex-row items-center">
+          <Feather name="calendar" size={18} color={colors.brandRed} />
+          <Text className="font-ui font-semibold text-body text-ink-black ml-3">
+            {selectedDate === todayStr() ? 'Today' : formatDisplayDate(selectedDate)}
+          </Text>
+        </View>
+        <Feather name="chevron-down" size={18} color={colors.textTertiary} />
+      </Pressable>
+      {showDatePicker && (
+        <DateTimePicker
+          value={new Date(`${selectedDate}T00:00:00`)}
+          mode="date"
+          display="default"
+          minimumDate={new Date()}
+          onChange={(event: DateTimePickerEvent, date?: Date) => {
+            setShowDatePicker(false);
+            if (event.type === 'dismissed' || !date) return;
+            setSelectedDate(toDateStr(date));
+          }}
+        />
+      )}
 
       <View className="flex-1 px-6">
         {loading && (
