@@ -7,14 +7,15 @@ import { apiClient } from '../../../src/lib/apiClient';
 import { colors } from '../../../src/theme/tokens';
 import { ScreenContainer } from '../../../src/components/ScreenContainer';
 import { Button } from '../../../src/components/Button';
+import { StatusBadge, type StatusVariant } from '../../../src/components/StatusBadge';
 
-const STATUS_LABEL: Record<string, string> = {
-  OPEN: 'Open',
-  PENDING: 'Pending',
-  CONFIRMED: 'Confirmed',
-  IN_PROGRESS: 'Live',
-  COMPLETED: 'Completed',
-  CANCELLED: 'Cancelled',
+const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
+  OPEN: { label: 'Open', variant: 'info' },
+  PENDING: { label: 'Pending', variant: 'warning' },
+  CONFIRMED: { label: 'Confirmed', variant: 'success' },
+  IN_PROGRESS: { label: 'Live', variant: 'live' },
+  COMPLETED: { label: 'Completed', variant: 'neutral' },
+  CANCELLED: { label: 'Cancelled', variant: 'danger' },
 };
 
 function formatMatchTime(iso: string) {
@@ -114,11 +115,11 @@ export default function MyMatchesScreen() {
                     {formatMatchTime(item.scheduled_start_time)}
                   </Text>
                 </View>
-                <View className="rounded-full border border-brand-red px-2 py-0.5">
-                  <Text className="font-ui text-micro font-bold text-brand-red">
-                    {STATUS_LABEL[item.match_status] ?? item.match_status}
-                  </Text>
-                </View>
+                <StatusBadge
+                  label={STATUS_META[item.match_status]?.label ?? item.match_status}
+                  variant={STATUS_META[item.match_status]?.variant ?? 'neutral'}
+                  testID={`match-status-${item.match_id}`}
+                />
               </Pressable>
             )}
           />

@@ -174,6 +174,25 @@ export default function ScoringInterfaceScreen() {
       setMatchTeams(intro?.matchTeams ?? []);
       setLive(liveScore);
       if (intro) setMusicEnabled(intro.intro.background_music_enabled);
+
+      // The toss already decided who bats and who bowls — re-asking here
+      // was pure redundant tapping. Pre-fill (never overrides a choice the
+      // organizer already made) whenever a toss result exists and the
+      // first innings hasn't started yet; a match scored without running
+      // the toss step at all still falls back to the manual pickers below.
+      if (
+        intro?.intro.toss_winner_match_team_id &&
+        intro.intro.toss_decision &&
+        !liveScore.innings
+      ) {
+        const winnerId = intro.intro.toss_winner_match_team_id;
+        const otherId =
+          intro.matchTeams.find((t) => t.match_team_id !== winnerId)?.match_team_id ?? null;
+        const battingId = intro.intro.toss_decision === 'BAT' ? winnerId : otherId;
+        const bowlingId = intro.intro.toss_decision === 'BAT' ? otherId : winnerId;
+        setBattingSide((prev) => prev ?? battingId);
+        setBowlingSide((prev) => prev ?? bowlingId);
+      }
       if (scorecard) setExtrasCountTowardScore(scorecard.extras_count_toward_score);
       setSideAssignments((prev) => {
         const next = { ...prev };
@@ -193,9 +212,13 @@ export default function ScoringInterfaceScreen() {
     load();
   }, [load]);
 
-  const confirmedPlayers = room?.players.filter((p) => p.invitation_status === 'CONFIRMED') ?? [];
+  // Feedback: scoring shouldn't be blocked on who tapped Confirm in the
+  // app — an organizer scores whoever actually showed up. Only a player
+  // who explicitly said they can't play is excluded; PENDING/MAYBE/
+  // NO_RESPONSE are all still pickable as striker, non-striker, or bowler.
+  const eligiblePlayers = room?.players.filter((p) => p.invitation_status !== 'CANT_PLAY') ?? [];
   const allSidesAssigned =
-    confirmedPlayers.length > 0 && confirmedPlayers.every((p) => sideAssignments[p.player_id]);
+    eligiblePlayers.length > 0 && eligiblePlayers.every((p) => sideAssignments[p.player_id]);
 
   // Backlog A-10: once sides are assigned, the striker/non-striker pickers
   // only offer the batting side's players and the bowler picker only the
@@ -203,7 +226,7 @@ export default function ScoringInterfaceScreen() {
   // scored before this feature existed) falls back to appearing in both,
   // so nothing silently disappears for pre-existing matches.
   function optionsForSide(matchTeamId: string | null) {
-    return confirmedPlayers
+    return eligiblePlayers
       .filter((p) => {
         const assigned = sideAssignments[p.player_id] ?? p.match_team_id;
         return !assigned || !matchTeamId || assigned === matchTeamId;
@@ -213,10 +236,10 @@ export default function ScoringInterfaceScreen() {
 
   const battingOptions = live?.innings
     ? optionsForSide(live.innings.batting_match_team_id)
-    : confirmedPlayers.map((p) => ({ value: p.player_id, label: displayName(p) }));
+    : eligiblePlayers.map((p) => ({ value: p.player_id, label: displayName(p) }));
   const bowlingOptions = live?.innings
     ? optionsForSide(live.innings.bowling_match_team_id)
-    : confirmedPlayers.map((p) => ({ value: p.player_id, label: displayName(p) }));
+    : eligiblePlayers.map((p) => ({ value: p.player_id, label: displayName(p) }));
 
   async function startInnings() {
     if (!battingSide || !bowlingSide) return;
@@ -225,7 +248,7 @@ export default function ScoringInterfaceScreen() {
     try {
       // Only actually needed the first time (subsequent innings reuse the
       // same assignments), but idempotent — safe to send every time.
-      const assignments = confirmedPlayers
+      const assignments = eligiblePlayers
         .filter((p) => sideAssignments[p.player_id])
         .map((p) => ({ player_id: p.player_id, match_team_id: sideAssignments[p.player_id] }));
       if (assignments.length > 0) {
@@ -472,7 +495,7 @@ export default function ScoringInterfaceScreen() {
           <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-2">
             Assign Players to a Side
           </Text>
-          {confirmedPlayers.map((p) => (
+          {eligiblePlayers.map((p) => (
             <View
               key={p.player_id}
               className="flex-row items-center justify-between py-2 border-b border-border-subtle"

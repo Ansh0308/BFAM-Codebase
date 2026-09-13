@@ -93,9 +93,17 @@ export default function Profile() {
 
         <View className="items-center mt-2 mb-6">
           <Avatar uri={profile?.profile_photo_url} size={96} />
+          {profile?.full_name ? (
+            <Text
+              className="font-display text-title-xl text-ink-black mt-3"
+              testID="profile-full-name"
+            >
+              {profile.full_name}
+            </Text>
+          ) : null}
           {profile?.bfam_id ? (
-            <View className="mt-3">
-              <BfamIdBadge bfamId={profile.bfam_id} size="lg" />
+            <View className={profile?.full_name ? 'mt-1' : 'mt-3'}>
+              <BfamIdBadge bfamId={profile.bfam_id} size={profile?.full_name ? 'sm' : 'lg'} />
             </View>
           ) : null}
           <Text className="font-ui text-body text-text-secondary mt-1">
@@ -112,6 +120,23 @@ export default function Profile() {
               Edit Profile
             </Text>
           </Pressable>
+
+          {profile?.follow_summary ? (
+            <View className="flex-row mt-4" style={{ gap: 32 }} testID="follow-summary">
+              <View className="items-center">
+                <Text className="font-ui font-bold text-body text-ink-black">
+                  {profile.follow_summary.followers_count}
+                </Text>
+                <Text className="font-ui text-micro text-text-tertiary">Followers</Text>
+              </View>
+              <View className="items-center">
+                <Text className="font-ui font-bold text-body text-ink-black">
+                  {profile.follow_summary.following_count}
+                </Text>
+                <Text className="font-ui text-micro text-text-tertiary">Following</Text>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         {isPlayer ? (

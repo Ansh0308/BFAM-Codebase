@@ -8,11 +8,12 @@ import { ScreenHeader } from '../src/components/ScreenHeader';
 import { Button } from '../src/components/Button';
 import { apiClient } from '../src/lib/apiClient';
 import { colors } from '../src/theme/tokens';
+import { StatusBadge, type StatusVariant } from '../src/components/StatusBadge';
 
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Pending review',
-  APPROVED: 'Approved',
-  REJECTED: 'Rejected — resubmit below',
+const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
+  PENDING: { label: 'Pending review', variant: 'warning' },
+  APPROVED: { label: 'Approved', variant: 'success' },
+  REJECTED: { label: 'Rejected — resubmit below', variant: 'danger' },
 };
 
 // Staff Verification, step 1 (module 2.12, PRD §32.14): the staff member
@@ -100,14 +101,13 @@ export default function StaffVerificationScreen() {
             <Text className="font-ui font-bold text-body text-text-primary">
               {a.turf_name ?? a.turf_id}
             </Text>
-            <Text
-              className={`font-ui text-micro uppercase mt-1 ${
-                a.verification_status === 'APPROVED' ? 'text-brand-red' : 'text-text-secondary'
-              }`}
-              testID={`status-${a.assignment_id}`}
-            >
-              {STATUS_LABEL[a.verification_status]}
-            </Text>
+            <View className="mt-1">
+              <StatusBadge
+                label={STATUS_META[a.verification_status]?.label ?? a.verification_status}
+                variant={STATUS_META[a.verification_status]?.variant ?? 'neutral'}
+                testID={`status-${a.assignment_id}`}
+              />
+            </View>
             {a.rejection_reason && (
               <Text className="font-ui text-micro text-text-tertiary mt-1">
                 {a.rejection_reason}

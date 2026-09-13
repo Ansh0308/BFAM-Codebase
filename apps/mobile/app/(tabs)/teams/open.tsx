@@ -109,11 +109,11 @@ export default function OpenTeamsScreen() {
                             an active member with a computed score. */}
                         {item.fair_play_score != null && (
                           <View
-                            className="ml-2 rounded-full border border-brand-red px-2 py-0.5 flex-row items-center"
+                            className="ml-2 rounded-md bg-status-info-bg px-2.5 py-1 flex-row items-center"
                             testID={`fair-play-score-${item.team_id}`}
                           >
-                            <Feather name="shield" size={10} color="#D80000" />
-                            <Text className="font-ui text-micro font-bold text-brand-red ml-1">
+                            <Feather name="shield" size={10} color="#1D5DAD" />
+                            <Text className="font-ui text-micro font-bold text-status-info ml-1">
                               {item.fair_play_score}
                             </Text>
                           </View>

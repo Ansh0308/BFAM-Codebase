@@ -230,6 +230,44 @@ describe('Match Countdown Intro (module 2.7)', () => {
     expect(queryByTestId('coin-flip')).toBeNull();
   });
 
+  // Feedback: Playing XI should show real names, not BFAM IDs, and split
+  // by side once sides are known.
+  it('shows each player by name, split into Team A / Team B once sides are assigned', async () => {
+    mockStartMatchIntro.mockResolvedValue({
+      intro: { background_music_enabled: false },
+      players: [
+        {
+          player_id: 'p1',
+          bfam_id: 'BF1001',
+          full_name: 'Rohan Mehta',
+          participant_role: 'CAPTAIN',
+          side_label: 'TEAM_A',
+        },
+        {
+          player_id: 'p2',
+          bfam_id: 'BF1002',
+          full_name: 'Aditya Rathod',
+          participant_role: 'PLAYER',
+          side_label: 'TEAM_B',
+        },
+      ],
+      matchTeams: MATCH_TEAMS,
+    });
+
+    const { getByTestId, getByText } = await render(<MatchIntroScreen />);
+    await waitFor(() => expect(getByTestId('intro-countdown')).toBeTruthy());
+
+    await act(async () => {
+      jest.advanceTimersByTime(10_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-xi-reveal')).toBeTruthy());
+
+    expect(getByText('Rohan Mehta')).toBeTruthy();
+    expect(getByText('Aditya Rathod')).toBeTruthy();
+    expect(getByText('TEAM A')).toBeTruthy();
+    expect(getByText('TEAM B')).toBeTruthy();
+  });
+
   it('a passive (non-manager) viewer never calls the manager-only start endpoint and only mirrors broadcast stages', async () => {
     mockGetGameRoom.mockResolvedValue({ organizer_id: 'someone-else', assigned_scorer_id: null });
     const { getByTestId } = await render(<MatchIntroScreen />);

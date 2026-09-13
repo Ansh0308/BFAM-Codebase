@@ -8,6 +8,7 @@ import {
   CreateTeamInput,
   GameRoom,
   GatewayPaymentOrder,
+  LiveMatchSummary,
   AudioTrigger,
   Innings,
   IntroContext,
@@ -511,6 +512,12 @@ export class BFAMApiClient {
     return this.request<{ results: OpenTeam[] }>(`/teams/open${toQueryString(filters)}`);
   }
 
+  // Backlog G-20: the Opponent Team picker in Create Match — searches every
+  // active team by name, not just ones open for new players.
+  async searchTeams(query: string): Promise<{ results: OpenTeam[] }> {
+    return this.request<{ results: OpenTeam[] }>(`/teams/search${toQueryString({ q: query })}`);
+  }
+
   async getTeamDetails(teamId: string): Promise<TeamDetails> {
     return this.request<TeamDetails>(`/teams/${teamId}`);
   }
@@ -617,6 +624,12 @@ export class BFAMApiClient {
 
   async getMyMatches(): Promise<{ results: Match[] }> {
     return this.request<{ results: Match[] }>('/matches/mine');
+  }
+
+  // Backlog G-20: "Live Now" discovery (Discover tab) — every PUBLIC match
+  // currently in progress, for anyone to spectate.
+  async getLiveMatches(): Promise<{ results: LiveMatchSummary[] }> {
+    return this.request<{ results: LiveMatchSummary[] }>('/matches/live');
   }
 
   async getGameRoom(matchId: string): Promise<GameRoom> {

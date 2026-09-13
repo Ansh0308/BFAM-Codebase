@@ -6,6 +6,7 @@ import type { MyTeam } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
 import { colors } from '../../../src/theme/tokens';
 import { ScreenContainer } from '../../../src/components/ScreenContainer';
+import { StatusBadge } from '../../../src/components/StatusBadge';
 import { Button } from '../../../src/components/Button';
 
 // My Teams (PRD §12.3).
@@ -93,8 +94,8 @@ export default function MyTeamsScreen() {
                       {item.team_name}
                     </Text>
                     {item.role_in_team === 'CAPTAIN' && (
-                      <View className="ml-2 rounded-full border border-brand-red px-2 py-0.5">
-                        <Text className="font-ui text-micro font-bold text-brand-red">Captain</Text>
+                      <View className="ml-2">
+                        <StatusBadge label="Captain" variant="warning" />
                       </View>
                     )}
                   </View>

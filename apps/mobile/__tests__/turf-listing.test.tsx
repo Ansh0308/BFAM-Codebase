@@ -3,7 +3,7 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { apiClient } from '../src/lib/apiClient';
 
 jest.mock('../src/lib/apiClient', () => ({
-  apiClient: { getTurfs: jest.fn() },
+  apiClient: { getTurfs: jest.fn(), getLiveMatches: jest.fn().mockResolvedValue({ results: [] }) },
 }));
 
 const mockPush = jest.fn();

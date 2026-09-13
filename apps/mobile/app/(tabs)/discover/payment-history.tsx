@@ -4,12 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Payment } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
 import { colors } from '../../../src/theme/tokens';
+import { StatusBadge, type StatusVariant } from '../../../src/components/StatusBadge';
 
-const STATUS_STYLES: Record<string, string> = {
-  PENDING: 'text-text-secondary',
-  SUCCESS: 'text-brand-red',
-  FAILED: 'text-text-tertiary',
-  REFUNDED: 'text-text-tertiary',
+const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
+  PENDING: { label: 'Pending', variant: 'warning' },
+  SUCCESS: { label: 'Success', variant: 'success' },
+  FAILED: { label: 'Failed', variant: 'danger' },
+  REFUNDED: { label: 'Refunded', variant: 'info' },
 };
 
 // Payment History (module 2.4, requirement 6): mode, status, collected_by
@@ -51,11 +52,11 @@ export default function PaymentHistoryScreen() {
                   <Text className="font-ui font-bold text-text-primary text-button">
                     {item.payment_method.replace('_', ' ')}
                   </Text>
-                  <Text
-                    className={`text-micro uppercase ${STATUS_STYLES[item.payment_status] ?? 'text-text-secondary'}`}
-                  >
-                    {item.payment_status}
-                  </Text>
+                  <StatusBadge
+                    label={STATUS_META[item.payment_status]?.label ?? item.payment_status}
+                    variant={STATUS_META[item.payment_status]?.variant ?? 'neutral'}
+                    testID={`payment-status-${item.payment_id}`}
+                  />
                 </View>
                 <Text className="text-text-secondary text-body mt-1">₹{item.amount}</Text>
                 {item.collected_by && (
