@@ -181,6 +181,42 @@ export async function getTeamDetails(teamId: string) {
   return { ...team, members };
 }
 
+// Backlog G-20: lets matchService check "is this player on this team"
+// without duplicating fetchMembership's query, and without matchService
+// needing team_members internals.
+export async function isActiveTeamMember(teamId: string, playerId: string): Promise<boolean> {
+  const member = await fetchMembership(teamId, playerId);
+  return Boolean(member && member.membership_status === 'ACTIVE');
+}
+
+// Backlog G-20: every active member of a team, for the bulk-invite step
+// when a match is created directly from two real teams.
+export async function listActiveTeamMemberPlayerIds(teamId: string): Promise<string[]> {
+  const rows = await sequelize.query<{ player_id: string }>(
+    "SELECT player_id FROM team_members WHERE team_id = :teamId AND membership_status = 'ACTIVE'",
+    { type: QueryTypes.SELECT, replacements: { teamId } },
+  );
+  return rows.map((r) => r.player_id);
+}
+
+// Backlog G-20: the Opponent Team picker in Create Match needs to search
+// across every team by name, not just ones open for new players (you can
+// challenge a closed team) — a separate query from listOpenTeams rather
+// than another optional filter on it, since the eligibility rules differ.
+export async function searchTeamsByName(query: string) {
+  const q = query.trim();
+  if (!q) return [];
+  return sequelize.query<TeamRow & { active_member_count: number }>(
+    `SELECT t.*,
+       (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.team_id AND tm.membership_status = 'ACTIVE') AS active_member_count
+     FROM teams t
+     WHERE t.team_status = 'ACTIVE' AND t.deleted_at IS NULL AND t.team_name LIKE :q
+     ORDER BY t.team_name ASC
+     LIMIT 20`,
+    { type: QueryTypes.SELECT, replacements: { q: `%${q}%` } },
+  );
+}
+
 // My Teams: every team the caller has an ACTIVE membership on.
 export async function listMyTeams(userId: string) {
   const playerId = await resolvePlayerId(userId);
@@ -222,7 +258,7 @@ export async function listOpenTeams(filters: OpenTeamFilters) {
   >(
     `SELECT t.*,
        (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.team_id AND tm.membership_status = 'ACTIVE') AS active_member_count,
-       (SELECT AVG(p.reliability_score) FROM team_members tm
+       (SELECT AVG(p.fair_play_rating) FROM team_members tm
           JOIN players p ON p.player_id = tm.player_id
           WHERE tm.team_id = t.team_id AND tm.membership_status = 'ACTIVE') AS fair_play_score
      FROM teams t
@@ -231,6 +267,8 @@ export async function listOpenTeams(filters: OpenTeamFilters) {
     { type: QueryTypes.SELECT, replacements },
   );
 
+  // Backlog G-01: this used to (mis)read reliability_score — now reads the
+  // real fair_play_rating column split out from it.
   // Backlog B-5: MySQL's AVG() over a DECIMAL column returns a string via
   // raw sequelize.query (same quirk documented elsewhere in this codebase
   // for other DECIMAL reads) — round to a whole number for display, or

@@ -6,8 +6,28 @@
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { UserRole } from './authService';
-import { PlayerNotFoundError } from '../domain/errors';
+import { PlayerNotFoundError, UnderMinimumAgeError } from '../domain/errors';
 import { getFollowSummary, type FollowSummary } from './followService';
+
+// Backlog G-04 (PRD §32.7): a minimum age enforced when date_of_birth is
+// set — below it, the update is rejected outright rather than silently
+// accepted; 13-17 is allowed but flagged via users.is_minor for whatever UI
+// gating a parent/guardian-consent step ends up needing (out of scope
+// here — this only computes and stores the flag).
+export const MINIMUM_AGE_YEARS = 13;
+const MINOR_UNTIL_AGE_YEARS = 18;
+
+// Pure so it's trivially testable without faking the system clock inside a
+// bigger update flow — `today` defaults to now but can be overridden.
+export function calculateAge(dateOfBirth: string, today: Date = new Date()): number {
+  const dob = new Date(dateOfBirth);
+  let age = today.getFullYear() - dob.getFullYear();
+  const hasHadBirthdayThisYear =
+    today.getMonth() > dob.getMonth() ||
+    (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
+  if (!hasHadBirthdayThisYear) age -= 1;
+  return age;
+}
 
 export interface MyProfile {
   user_id: string;
@@ -21,6 +41,9 @@ export interface MyProfile {
   profile_photo_url: string | null;
   city: string | null;
   preferred_language: string | null;
+  // Backlog G-04 — true once a stored date_of_birth implies age 13-17;
+  // false for an adult or an account with no date of birth on file yet.
+  is_minor: boolean;
   // Player-only fields — null for TURF_OWNER/TURF_STAFF/ADMIN.
   playing_role: string | null;
   batting_style: string | null;
@@ -30,6 +53,11 @@ export interface MyProfile {
   gender: string | null;
   skill_rating: number | null;
   reliability_score: string | null;
+  // Backlog G-01 — participation fairness, split out from reliability_score.
+  fair_play_rating: string | null;
+  // Backlog G-03 — peer-rated "how was this player to play with" average;
+  // null until at least one teammate has rated them.
+  community_rating: string | null;
   favorite_cricketer_name: string | null;
   favorite_cricketer_external_id: string | null;
   // Backlog A-9 — shown in place of the BFAM ID everywhere a player is
@@ -40,6 +68,10 @@ export interface MyProfile {
   // `players` row to hold it), never null for an actual player (defaults
   // to 0).
   coin_balance: number | null;
+  // Backlog B-9 follow-up: the same follower/following counts shown when
+  // viewing another player's profile, now also shown on your own; null for
+  // non-PLAYER roles.
+  follow_summary: FollowSummary | null;
 }
 
 export async function getMyProfile(userId: string): Promise<MyProfile | null> {
@@ -53,8 +85,9 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
     profile_photo_url: string | null;
     city: string | null;
     preferred_language: string | null;
+    is_minor: boolean;
   }>(
-    'SELECT user_id, bfam_id, role, phone_number, email, email_verified_at, profile_photo_url, city, preferred_language FROM users WHERE user_id = :userId AND deleted_at IS NULL LIMIT 1',
+    'SELECT user_id, bfam_id, role, phone_number, email, email_verified_at, profile_photo_url, city, preferred_language, is_minor FROM users WHERE user_id = :userId AND deleted_at IS NULL LIMIT 1',
     { type: QueryTypes.SELECT, replacements: { userId } },
   );
   if (!user) return null;
@@ -70,14 +103,18 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       gender: null,
       skill_rating: null,
       reliability_score: null,
+      fair_play_rating: null,
+      community_rating: null,
       favorite_cricketer_name: null,
       favorite_cricketer_external_id: null,
       full_name: null,
       coin_balance: null,
+      follow_summary: null,
     };
   }
 
   const [player] = await sequelize.query<{
+    player_id: string;
     playing_role: string | null;
     batting_style: string | null;
     bowling_style: string | null;
@@ -86,14 +123,22 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
     gender: string | null;
     skill_rating: number | null;
     reliability_score: string | null;
+    fair_play_rating: string | null;
+    community_rating: string | null;
     favorite_cricketer_name: string | null;
     favorite_cricketer_external_id: string | null;
     full_name: string | null;
     coin_balance: number | null;
   }>(
-    'SELECT playing_role, batting_style, bowling_style, experience_level, date_of_birth, gender, skill_rating, reliability_score, favorite_cricketer_name, favorite_cricketer_external_id, full_name, coin_balance FROM players WHERE user_id = :userId LIMIT 1',
+    'SELECT player_id, playing_role, batting_style, bowling_style, experience_level, date_of_birth, gender, skill_rating, reliability_score, fair_play_rating, community_rating, favorite_cricketer_name, favorite_cricketer_external_id, full_name, coin_balance FROM players WHERE user_id = :userId LIMIT 1',
     { type: QueryTypes.SELECT, replacements: { userId } },
   );
+
+  // Backlog B-9 follow-up: a player's own profile shows the same
+  // followers/following counts already shown when viewing someone else's
+  // (getPublicProfile) — no "am I following myself" question here, so
+  // `is_following` is always false and simply unused by the mobile screen.
+  const follow_summary = player ? await getFollowSummary(player.player_id) : null;
 
   return {
     ...user,
@@ -106,11 +151,14 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       gender: null,
       skill_rating: null,
       reliability_score: null,
+      fair_play_rating: null,
+      community_rating: null,
       favorite_cricketer_name: null,
       favorite_cricketer_external_id: null,
       full_name: null,
       coin_balance: null,
     }),
+    follow_summary,
   };
 }
 
@@ -134,6 +182,8 @@ export interface PublicPlayerProfile {
   experience_level: string | null;
   skill_rating: number;
   reliability_score: string;
+  fair_play_rating: string;
+  community_rating: string | null;
   favorite_cricketer_name: string | null;
   // Backlog B-9 — follower/following counts, plus whether the viewer
   // (if any) currently follows this player.
@@ -147,7 +197,8 @@ export async function getPublicProfile(
   const [row] = await sequelize.query<Omit<PublicPlayerProfile, 'follow_summary'>>(
     `SELECT p.player_id, p.bfam_id, p.full_name, u.profile_photo_url, u.city,
             p.playing_role, p.batting_style, p.bowling_style, p.experience_level,
-            p.skill_rating, p.reliability_score, p.favorite_cricketer_name
+            p.skill_rating, p.reliability_score, p.fair_play_rating, p.community_rating,
+            p.favorite_cricketer_name
      FROM players p
      JOIN users u ON u.user_id = p.user_id
      WHERE p.player_id = :playerId AND u.deleted_at IS NULL`,
@@ -195,6 +246,18 @@ export async function updateMyProfile(
   if ('profile_photo_url' in input) userFields.profile_photo_url = input.profile_photo_url;
   if ('city' in input) userFields.city = input.city;
   if ('preferred_language' in input) userFields.preferred_language = input.preferred_language;
+
+  // Backlog G-04: date_of_birth lives on `players`, but is_minor lives on
+  // `users` — computed here so both land in the same transaction below.
+  if ('date_of_birth' in input) {
+    if (input.date_of_birth) {
+      const age = calculateAge(input.date_of_birth);
+      if (age < MINIMUM_AGE_YEARS) throw new UnderMinimumAgeError(MINIMUM_AGE_YEARS);
+      userFields.is_minor = age < MINOR_UNTIL_AGE_YEARS;
+    } else {
+      userFields.is_minor = false;
+    }
+  }
 
   await sequelize.transaction(async (transaction) => {
     if (Object.keys(userFields).length > 0) {

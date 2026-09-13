@@ -82,7 +82,7 @@ jest.mock('../config/sequelize', () => {
           const user = usersTable.find((u) => u.user_id === r.userId && !u.deleted_at);
           return user ? [user] : [];
         }
-        if (sql.startsWith('SELECT playing_role, batting_style')) {
+        if (sql.startsWith('SELECT player_id, playing_role, batting_style')) {
           return [];
         }
         if (sql.startsWith('UPDATE users SET email = :email, email_verified_at')) {

@@ -61,9 +61,11 @@ async function fetchIntro(matchId: string): Promise<MatchIntroRow | null> {
   return row ?? null;
 }
 
-// Playing XI (PRD §12.61 requirement 3): derived live from match_players
-// where invitation_status = 'CONFIRMED' — never hardcoded/separately
-// stored, so it's always exactly whoever is actually confirmed right now.
+// Playing XI (PRD §12.61 requirement 3): derived live from match_players,
+// never hardcoded/separately stored. Feedback: gating this on who has
+// tapped Confirm in the app blocked scoring for players who showed up but
+// never responded — everyone except a player who explicitly said they
+// can't play is included (PENDING/MAYBE/NO_RESPONSE all still show up).
 // side_label is null until assignPlayerSides (backlog A-10) has been run
 // for a player — the mobile reveal screen falls back to a single unified
 // list when it's still null for everyone (e.g. an older match, or before
@@ -74,7 +76,7 @@ async function getPlayingXi(matchId: string): Promise<PlayingXiPlayer[]> {
      FROM match_players mp
      JOIN players p ON p.player_id = mp.player_id
      LEFT JOIN match_teams mt ON mt.match_team_id = mp.match_team_id
-     WHERE mp.match_id = :matchId AND mp.invitation_status = 'CONFIRMED'
+     WHERE mp.match_id = :matchId AND mp.invitation_status != 'CANT_PLAY'
      ORDER BY mp.participant_role ASC, mp.added_at ASC`,
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
@@ -211,22 +213,24 @@ export async function assignPlayerSides(
   if (!match) throw new MatchNotFoundError(matchId);
   await assertCanManage(match, actorUserId);
 
-  const [matchTeams, confirmedPlayers] = await Promise.all([
+  const [matchTeams, eligiblePlayers] = await Promise.all([
     getMatchTeams(matchId),
     sequelize.query<{ player_id: string }>(
-      `SELECT player_id FROM match_players WHERE match_id = :matchId AND invitation_status = 'CONFIRMED'`,
+      `SELECT player_id FROM match_players WHERE match_id = :matchId AND invitation_status != 'CANT_PLAY'`,
       { type: QueryTypes.SELECT, replacements: { matchId } },
     ),
   ]);
   const validTeamIds = new Set(matchTeams.map((t) => t.match_team_id));
-  const confirmedPlayerIds = new Set(confirmedPlayers.map((p) => p.player_id));
+  const eligiblePlayerIds = new Set(eligiblePlayers.map((p) => p.player_id));
 
   for (const a of assignments) {
     if (!validTeamIds.has(a.match_team_id)) {
       throw new InvalidMatchStateError('One of the selected sides does not belong to this match.');
     }
-    if (!confirmedPlayerIds.has(a.player_id)) {
-      throw new InvalidMatchStateError('Only a confirmed roster player can be assigned to a side.');
+    if (!eligiblePlayerIds.has(a.player_id)) {
+      throw new InvalidMatchStateError(
+        "Only a player who hasn't said they can't play can be assigned to a side.",
+      );
     }
   }
 

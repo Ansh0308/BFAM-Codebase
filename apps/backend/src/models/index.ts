@@ -133,6 +133,8 @@ export const tableModelDefinitions: TableModelDefinition[] = [
       experience_level: enumCol(EXPERIENCE_LEVELS, false, 'BEGINNER'),
       skill_rating: int(false, 500),
       reliability_score: dec(5, 2, false, 100),
+      fair_play_rating: dec(5, 2, false, 100),
+      community_rating: dec(3, 2, true),
       bio: text(true),
       date_of_birth: dateOnly(true),
       favorite_cricketer_name: str(100, true),

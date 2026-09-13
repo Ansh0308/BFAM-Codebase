@@ -11,6 +11,7 @@ import {
   recordTossSchema,
   respondToMatchInvitationSchema,
   sendChatMessageSchema,
+  submitPlayerRatingSchema,
   submitReviewSchema,
   updateAttendanceSchema,
 } from '../validation/schemas';
@@ -33,6 +34,7 @@ import {
   inviteReplacement,
   inviteToMatch,
   joinMatchViaLink,
+  listLiveMatches,
   listMyMatches,
   respondToMatchInvitation,
   respondToMatchInvitationByMatch,
@@ -42,6 +44,7 @@ import {
   vacateSpot,
 } from '../services/matchService';
 import { submitReview } from '../services/reviewService';
+import { listRateableTeammates, submitPlayerRating } from '../services/playerRatingService';
 import { getMessages, sendMessage } from '../services/chatService';
 import {
   ForbiddenActionError,
@@ -53,7 +56,9 @@ import {
   MatchNotCompletedError,
   MatchNotFoundError,
   MatchNotYetCompletedError,
+  PlayerAlreadyRatedError,
   PlayerProfileNotFoundError,
+  PlayerRatingNotEligibleError,
   ReplacementNotFoundError,
   ReviewAlreadySubmittedError,
   StaffNotVerifiedError,
@@ -82,9 +87,13 @@ function handleMatchError(error: unknown, res: Response) {
     error instanceof InvalidCheckInCodeError ||
     error instanceof MatchNotCompletedError ||
     error instanceof MatchNotYetCompletedError ||
-    error instanceof ReviewAlreadySubmittedError
+    error instanceof ReviewAlreadySubmittedError ||
+    error instanceof PlayerAlreadyRatedError
   ) {
     return res.status(409).json({ error: { message: error.message, status: 409 } });
+  }
+  if (error instanceof PlayerRatingNotEligibleError) {
+    return res.status(403).json({ error: { message: error.message, status: 403 } });
   }
   return null;
 }
@@ -117,6 +126,19 @@ router.get(
   authenticateJwt,
   asyncHandler(async (req: Request, res: Response) => {
     const matches = await listMyMatches(req.auth!.sub);
+    return res.status(200).json({ results: matches });
+  }),
+);
+
+// GET /matches/live — backlog G-20 "Live Now" discovery (Discover tab):
+// every PUBLIC match currently in progress, for anyone to spectate.
+// Registered ahead of the /:matchId catch-all below so "live" is never
+// mistaken for a matchId.
+router.get(
+  '/live',
+  authenticateJwt,
+  asyncHandler(async (_req: Request, res: Response) => {
+    const matches = await listLiveMatches();
     return res.status(200).json({ results: matches });
   }),
 );
@@ -572,6 +594,50 @@ router.post(
     }
     try {
       const result = await submitReview(req.auth!.sub, parsed.data);
+      return res.status(201).json(result);
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// GET /matches/:matchId/rateable-teammates (backlog G-03): every confirmed
+// teammate from this match the caller hasn't rated yet — drives the "Rate
+// Your Teammates" prompt shown alongside the existing post-match review.
+router.get(
+  '/:matchId/rateable-teammates',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const results = await listRateableTeammates(req.auth!.sub, req.params.matchId);
+      return res.status(200).json({ results });
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /matches/:matchId/players/:playerId/rating (backlog G-03, PRD
+// §12.31): rate a confirmed teammate from this match — one per (match,
+// rater, ratee), feeds the ratee's Community Rating.
+router.post(
+  '/:matchId/players/:playerId/rating',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = submitPlayerRatingSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid rating payload', status: 400 } });
+    }
+    try {
+      const result = await submitPlayerRating(req.auth!.sub, {
+        match_id: req.params.matchId,
+        ratee_player_id: req.params.playerId,
+        rating: parsed.data.rating,
+      });
       return res.status(201).json(result);
     } catch (error) {
       const handled = handleMatchError(error, res);

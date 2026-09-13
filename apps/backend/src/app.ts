@@ -53,7 +53,7 @@ import {
   updateBannerSchema,
 } from './validation/schemas';
 import { createBanner, deleteBanner, listAllBanners, updateBanner } from './services/bannerService';
-import { BannerNotFoundError } from './domain/errors';
+import { BannerNotFoundError, UnderMinimumAgeError } from './domain/errors';
 import bannersRouter from './routes/banners';
 import {
   getMyProfile,
@@ -751,6 +751,9 @@ app.patch('/profile/me', authenticateJwt, async (req: Request, res: Response) =>
   } catch (error) {
     if (error instanceof DuplicateEmailError) {
       return res.status(409).json({ error: { message: error.message, status: 409 } });
+    }
+    if (error instanceof UnderMinimumAgeError) {
+      return res.status(422).json({ error: { message: error.message, status: 422 } });
     }
     return res.status(500).json({ error: { message: 'Failed to update profile', status: 500 } });
   }

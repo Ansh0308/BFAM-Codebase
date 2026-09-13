@@ -96,6 +96,8 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
           experience_level: 'BEGINNER',
           skill_rating: 500,
           reliability_score: 100,
+          fair_play_rating: 100,
+          community_rating: null,
           bio: null,
           full_name: input.fullName ?? null,
           date_of_birth: null,

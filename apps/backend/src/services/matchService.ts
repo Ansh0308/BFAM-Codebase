@@ -6,6 +6,7 @@ import { getObligationsForBooking } from './paymentService';
 import { sendNotification } from './notificationService';
 import { assertStaffVerified } from './staffService';
 import { postSystemMessage } from './chatService';
+import { isActiveTeamMember, listActiveTeamMemberPlayerIds } from './teamService';
 import {
   ForbiddenActionError,
   InvalidCheckInCodeError,
@@ -145,12 +146,33 @@ export interface CreateMatchInput {
   overs_per_innings: number;
   scoring_mode: string;
   assigned_scorer_id?: string | null;
+  // Backlog G-20: an optional team-vs-team match. The organizer must be an
+  // active member of home_team_id ("Your Team"); away_team_id ("Opponent
+  // Team") can be any active team. Both or neither — a half-picked team
+  // match falls back to the ad-hoc Friends-match path unchanged.
+  home_team_id?: string | null;
+  away_team_id?: string | null;
+}
+
+async function assertTeamExists(teamId: string) {
+  const [row] = await sequelize.query<{ team_id: string }>(
+    "SELECT team_id FROM teams WHERE team_id = :teamId AND team_status = 'ACTIVE' AND deleted_at IS NULL",
+    { type: QueryTypes.SELECT, replacements: { teamId } },
+  );
+  if (!row) throw new InvalidMatchStateError('One of the selected teams does not exist.');
 }
 
 // Create Game (PRD §12.9): links to a confirmed booking, sets format/ball
 // type/scoring mode, optionally assigns a scorer. The organizer is added to
 // the roster as CAPTAIN + CONFIRMED atomically with match creation. One
 // match per booking (DB-enforced via uk_matches_booking_id).
+//
+// Backlog G-20: when home_team_id/away_team_id are both given, this is a
+// team-vs-team match — the two match_teams rows link to those real teams
+// instead of staying ad-hoc, the match defaults to PUBLIC (so it shows up
+// on Live Now for anyone, not just the roster), and every active member of
+// both rosters is invited in this same call rather than the organizer
+// inviting all 16 by hand.
 export async function createMatch(userId: string, input: CreateMatchInput) {
   const booking = await getBookingById(input.booking_id, { userId, role: 'PLAYER' });
   if (booking.booked_by !== userId) {
@@ -164,7 +186,24 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
   }
 
   const playerId = await resolvePlayerId(userId);
+  const isTeamMatch = Boolean(input.home_team_id && input.away_team_id);
+
+  if (isTeamMatch) {
+    if (input.home_team_id === input.away_team_id) {
+      throw new InvalidMatchStateError('Your Team and the Opponent Team must be different.');
+    }
+    await assertTeamExists(input.home_team_id!);
+    await assertTeamExists(input.away_team_id!);
+    if (!(await isActiveTeamMember(input.home_team_id!, playerId))) {
+      throw new ForbiddenActionError(
+        'You must be an active member of the team you pick as Your Team.',
+      );
+    }
+  }
+
   const matchId = randomUUID();
+  const teamAMatchTeamId = randomUUID();
+  const teamBMatchTeamId = randomUUID();
   const now = new Date();
   const scheduledStartTime = new Date(`${booking.booking_date}T${booking.start_time}`);
 
@@ -184,7 +223,7 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
             scoring_mode: input.scoring_mode,
             assigned_scorer_id: input.assigned_scorer_id ?? null,
             match_status: 'OPEN',
-            visibility: 'PRIVATE',
+            visibility: isTeamMatch ? 'PUBLIC' : 'PRIVATE',
             scheduled_start_time: scheduledStartTime,
             actual_start_time: null,
             actual_end_time: null,
@@ -196,23 +235,25 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
         { transaction },
       );
 
-      // Two ad-hoc sides so a Friends Match doesn't force a registered Team
-      // — player-to-side assignment happens later (Game Room roster), not
-      // at creation time.
+      // Two sides, always — ad-hoc (team_id: null) for a Friends Match, or
+      // linked to the two real teams picked above. Either way, player-to-
+      // side assignment for anyone other than the organizer happens as each
+      // invite is confirmed (team match) or later from the Game Room
+      // roster (ad-hoc match), not here.
       await sequelize.getQueryInterface().bulkInsert(
         'match_teams',
         [
           {
-            match_team_id: randomUUID(),
+            match_team_id: teamAMatchTeamId,
             match_id: matchId,
-            team_id: null,
+            team_id: input.home_team_id ?? null,
             side_label: 'TEAM_A',
             created_at: now,
           },
           {
-            match_team_id: randomUUID(),
+            match_team_id: teamBMatchTeamId,
             match_id: matchId,
-            team_id: null,
+            team_id: input.away_team_id ?? null,
             side_label: 'TEAM_B',
             created_at: now,
           },
@@ -227,7 +268,7 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
             match_player_id: randomUUID(),
             match_id: matchId,
             player_id: playerId,
-            match_team_id: null,
+            match_team_id: isTeamMatch ? teamAMatchTeamId : null,
             participant_role: 'CAPTAIN',
             invitation_status: 'CONFIRMED',
             attendance_status: 'PENDING',
@@ -245,6 +286,24 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
     throw error;
   }
 
+  if (isTeamMatch) {
+    const [homeMemberIds, awayMemberIds] = await Promise.all([
+      listActiveTeamMemberPlayerIds(input.home_team_id!),
+      listActiveTeamMemberPlayerIds(input.away_team_id!),
+    ]);
+    const toInvite = [...homeMemberIds, ...awayMemberIds].filter((id) => id !== playerId);
+    for (const invitedPlayerId of toInvite) {
+      try {
+        await inviteToMatch(matchId, userId, invitedPlayerId);
+      } catch (error) {
+        console.error(
+          `[matchService] Failed to auto-invite player ${invitedPlayerId} to team match ${matchId}:`,
+          error,
+        );
+      }
+    }
+  }
+
   return fetchMatchOrThrow(matchId);
 }
 
@@ -258,6 +317,35 @@ export async function listMyMatches(userId: string) {
      WHERE m.organizer_id = :userId OR m.assigned_scorer_id = :userId OR mp.player_id = :playerId
      ORDER BY m.scheduled_start_time DESC`,
     { type: QueryTypes.SELECT, replacements: { userId, playerId } },
+  );
+}
+
+export interface LiveMatchSummary extends MatchRow {
+  turf_name: string;
+  city: string;
+  home_team_name: string | null;
+  away_team_name: string | null;
+}
+
+// Backlog G-20: "Live Now" discovery (Discover tab) — every PUBLIC match
+// currently IN_PROGRESS, for anyone to spectate, not just its own roster.
+// GET /matches/:matchId/live already has no roster-membership check, so
+// this list is the only piece that was actually missing: a way to find a
+// match to watch in the first place.
+export async function listLiveMatches(): Promise<LiveMatchSummary[]> {
+  return sequelize.query<LiveMatchSummary>(
+    `SELECT m.*, t.turf_name, t.city,
+            ta.team_name AS home_team_name, tbb.team_name AS away_team_name
+     FROM matches m
+     JOIN bookings b ON b.booking_id = m.booking_id
+     JOIN turfs t ON t.turf_id = b.turf_id
+     LEFT JOIN match_teams mta ON mta.match_id = m.match_id AND mta.side_label = 'TEAM_A'
+     LEFT JOIN teams ta ON ta.team_id = mta.team_id
+     LEFT JOIN match_teams mtb ON mtb.match_id = m.match_id AND mtb.side_label = 'TEAM_B'
+     LEFT JOIN teams tbb ON tbb.team_id = mtb.team_id
+     WHERE m.match_status = 'IN_PROGRESS' AND m.visibility = 'PUBLIC'
+     ORDER BY m.actual_start_time DESC`,
+    { type: QueryTypes.SELECT },
   );
 }
 
@@ -428,6 +516,39 @@ export async function joinMatchViaLink(matchId: string, userId: string) {
   }
 }
 
+// Backlog G-20: once a player confirms for a team-vs-team match, put them
+// straight on the correct side — no organizer step, and none of the manual
+// "Assign Players to a Side" slog assignPlayerSides exists for the ad-hoc
+// Friends-match path. A no-op for a match whose two sides are both still
+// ad-hoc (team_id null on both), and best-effort like every other
+// side-effect in this file: never allowed to fail the confirmation itself.
+async function autoAssignSideForTeamMatch(matchId: string, playerId: string) {
+  try {
+    const matchTeams = await sequelize.query<{ match_team_id: string; team_id: string | null }>(
+      'SELECT match_team_id, team_id FROM match_teams WHERE match_id = :matchId',
+      { type: QueryTypes.SELECT, replacements: { matchId } },
+    );
+    for (const t of matchTeams) {
+      if (!t.team_id) continue;
+      if (await isActiveTeamMember(t.team_id, playerId)) {
+        await sequelize
+          .getQueryInterface()
+          .bulkUpdate(
+            'match_players',
+            { match_team_id: t.match_team_id },
+            { match_id: matchId, player_id: playerId },
+          );
+        return;
+      }
+    }
+  } catch (error) {
+    console.error(
+      `[matchService] Failed to auto-assign side for player ${playerId} in match ${matchId}:`,
+      error,
+    );
+  }
+}
+
 // Player Confirmation flow (PRD §12.12): the invited player picks
 // Confirmed / Maybe / Can't Play, which drives their line in the Game
 // Room roster directly (module 2.6 doesn't need a separate polling step —
@@ -497,6 +618,7 @@ export async function respondToMatchInvitation(
   });
 
   if (response === 'CONFIRMED') {
+    await autoAssignSideForTeamMatch(invitation.match_id, playerId);
     const match = await fetchMatch(invitation.match_id);
     const player = await resolvePlayerUserAndBfamId(playerId);
     if (match && player) {

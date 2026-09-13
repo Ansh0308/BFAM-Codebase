@@ -13,11 +13,13 @@ interface FakeUser {
   profile_photo_url: string | null;
   city: string | null;
   preferred_language: string | null;
+  is_minor: boolean;
   deleted_at: Date | null;
 }
 
 interface FakePlayer {
   user_id: string;
+  player_id: string;
   playing_role: string | null;
   batting_style: string | null;
   bowling_style: string | null;
@@ -39,16 +41,22 @@ jest.mock('../config/sequelize', () => {
 
         if (
           sql.startsWith(
-            'SELECT user_id, bfam_id, role, phone_number, email, email_verified_at, profile_photo_url, city, preferred_language FROM users',
+            'SELECT user_id, bfam_id, role, phone_number, email, email_verified_at, profile_photo_url, city, preferred_language, is_minor FROM users',
           )
         ) {
           const user = usersTable.find((u) => u.user_id === r.userId && !u.deleted_at);
           return user ? [user] : [];
         }
-        if (sql.startsWith('SELECT playing_role, batting_style, bowling_style, experience_level')) {
+        if (
+          sql.startsWith(
+            'SELECT player_id, playing_role, batting_style, bowling_style, experience_level',
+          )
+        ) {
           const player = playersTable.find((p) => p.user_id === r.userId);
           return player ? [player] : [];
         }
+        if (sql.includes('COUNT(*) AS followersCount')) return [{ followersCount: 0 }];
+        if (sql.includes('COUNT(*) AS followingCount')) return [{ followingCount: 0 }];
         if (sql.startsWith('UPDATE users SET')) {
           const user = usersTable.find((u) => u.user_id === r.userId);
           if (user) Object.assign(user, r);
@@ -101,10 +109,12 @@ describe('GET/PATCH /profile/me', () => {
       profile_photo_url: null,
       city: null,
       preferred_language: 'en',
+      is_minor: false,
       deleted_at: null,
     });
     playersTable.push({
       user_id: 'p1',
+      player_id: 'player-p1',
       playing_role: null,
       batting_style: null,
       bowling_style: null,
@@ -122,6 +132,11 @@ describe('GET/PATCH /profile/me', () => {
     expect(response.body.bfam_id).toBe('BF1000');
     expect(response.body.favorite_cricketer_name).toBe('MS Dhoni');
     expect(response.body.experience_level).toBe('BEGINNER');
+    expect(response.body.follow_summary).toEqual({
+      followers_count: 0,
+      following_count: 0,
+      is_following: false,
+    });
   });
 
   it('returns null player fields for a TURF_OWNER (no players row)', async () => {
@@ -135,6 +150,7 @@ describe('GET/PATCH /profile/me', () => {
       profile_photo_url: null,
       city: null,
       preferred_language: 'en',
+      is_minor: false,
       deleted_at: null,
     });
 
@@ -145,6 +161,7 @@ describe('GET/PATCH /profile/me', () => {
     expect(response.body.bfam_id).toBeNull();
     expect(response.body.playing_role).toBeNull();
     expect(response.body.experience_level).toBeNull();
+    expect(response.body.follow_summary).toBeNull();
   });
 
   it('rejects an unauthenticated request', async () => {
@@ -163,10 +180,12 @@ describe('GET/PATCH /profile/me', () => {
       profile_photo_url: null,
       city: null,
       preferred_language: 'en',
+      is_minor: false,
       deleted_at: null,
     });
     playersTable.push({
       user_id: 'p2',
+      player_id: 'player-p2',
       playing_role: null,
       batting_style: null,
       bowling_style: null,
@@ -206,6 +225,7 @@ describe('GET/PATCH /profile/me', () => {
       profile_photo_url: null,
       city: null,
       preferred_language: 'en',
+      is_minor: false,
       deleted_at: null,
     });
 
@@ -231,6 +251,79 @@ describe('GET/PATCH /profile/me', () => {
     expect(response.status).toBe(400);
   });
 
+  // Backlog G-04: age gate.
+  describe('age gate on date_of_birth', () => {
+    function isoDateYearsAgo(years: number): string {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() - years);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function pushPlayer(userId: string, bfamId: string) {
+      usersTable.push({
+        user_id: userId,
+        bfam_id: bfamId,
+        role: 'PLAYER',
+        phone_number: `+9198765${userId}`,
+        email: null,
+        email_verified_at: null,
+        profile_photo_url: null,
+        city: null,
+        preferred_language: 'en',
+        is_minor: false,
+        deleted_at: null,
+      });
+      playersTable.push({
+        user_id: userId,
+        player_id: `player-${userId}`,
+        playing_role: null,
+        batting_style: null,
+        bowling_style: null,
+        experience_level: 'BEGINNER',
+        skill_rating: 500,
+        reliability_score: '100.00',
+        favorite_cricketer_name: null,
+        favorite_cricketer_external_id: null,
+      });
+    }
+
+    it('rejects a date of birth implying an age under 13', async () => {
+      pushPlayer('p20', 'BF1020');
+      const token = issueJwt({ userId: 'p20', role: 'PLAYER', bfamId: 'BF1020' });
+      const response = await request(app)
+        .patch('/profile/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ date_of_birth: isoDateYearsAgo(10) });
+
+      expect(response.status).toBe(422);
+      expect(usersTable.find((u) => u.user_id === 'p20')?.is_minor).toBe(false);
+    });
+
+    it('accepts an age of 13-17 and flags the account as a minor', async () => {
+      pushPlayer('p21', 'BF1021');
+      const token = issueJwt({ userId: 'p21', role: 'PLAYER', bfamId: 'BF1021' });
+      const response = await request(app)
+        .patch('/profile/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ date_of_birth: isoDateYearsAgo(15) });
+
+      expect(response.status).toBe(200);
+      expect(response.body.is_minor).toBe(true);
+    });
+
+    it('accepts an adult date of birth and leaves is_minor false', async () => {
+      pushPlayer('p22', 'BF1022');
+      const token = issueJwt({ userId: 'p22', role: 'PLAYER', bfamId: 'BF1022' });
+      const response = await request(app)
+        .patch('/profile/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ date_of_birth: isoDateYearsAgo(25) });
+
+      expect(response.status).toBe(200);
+      expect(response.body.is_minor).toBe(false);
+    });
+  });
+
   it('silently ignores a plain "email" field — it can only be set via the verified-email flow', async () => {
     usersTable.push({
       user_id: 'p8',
@@ -242,6 +335,7 @@ describe('GET/PATCH /profile/me', () => {
       profile_photo_url: null,
       city: null,
       preferred_language: 'en',
+      is_minor: false,
       deleted_at: null,
     });
 
@@ -267,6 +361,7 @@ describe('GET/PATCH /profile/me', () => {
       profile_photo_url: null,
       city: null,
       preferred_language: 'en',
+      is_minor: false,
       deleted_at: null,
     });
 
@@ -301,10 +396,12 @@ describe('GET/PATCH /profile/me', () => {
       profile_photo_url: null,
       city: null,
       preferred_language: 'en',
+      is_minor: false,
       deleted_at: null,
     });
     playersTable.push({
       user_id: 'p14',
+      player_id: 'player-p14',
       playing_role: null,
       batting_style: null,
       bowling_style: null,
@@ -336,10 +433,12 @@ describe('GET/PATCH /profile/me', () => {
       profile_photo_url: null,
       city: null,
       preferred_language: 'en',
+      is_minor: false,
       deleted_at: null,
     });
     playersTable.push({
       user_id: 'p15',
+      player_id: 'player-p15',
       playing_role: null,
       batting_style: null,
       bowling_style: null,
@@ -416,6 +515,7 @@ describe('POST /profile/photo', () => {
       profile_photo_url: null,
       city: null,
       preferred_language: 'en',
+      is_minor: false,
       deleted_at: null,
     });
 
