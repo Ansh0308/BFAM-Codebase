@@ -6,6 +6,7 @@ import type { TeamDetails } from '@bfam/shared-types';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
+import { StatusBadge } from '../../../../src/components/StatusBadge';
 import { Button } from '../../../../src/components/Button';
 import { Avatar } from '../../../../src/components/Avatar';
 import { useAuthStore } from '../../../../src/store/authStore';
@@ -73,11 +74,7 @@ export default function TeamDetailsScreen() {
               <Avatar size={36} />
               <Text className="text-text-primary text-body ml-3">{member.bfam_id}</Text>
             </View>
-            {member.role_in_team === 'CAPTAIN' && (
-              <View className="rounded-full border border-brand-red px-2 py-0.5">
-                <Text className="font-ui text-micro font-bold text-brand-red">Captain</Text>
-              </View>
-            )}
+            {member.role_in_team === 'CAPTAIN' && <StatusBadge label="Captain" variant="warning" />}
           </View>
         ))}
 

@@ -22,6 +22,7 @@ import {
   resolvePlayerIdByBfamId,
   respondToInvitation,
   respondToJoinRequest,
+  searchTeamsByName,
 } from '../services/teamService';
 import {
   AlreadyTeamMemberError,
@@ -110,6 +111,20 @@ router.get(
       return res.status(400).json({ error: { message: 'Invalid filter parameters', status: 400 } });
     }
     const teams = await listOpenTeams(parsed.data);
+    return res.status(200).json({ results: teams });
+  }),
+);
+
+// GET /teams/search?q= — backlog G-20: the Opponent Team picker in Create
+// Match, searching every active team by name (not just ones open for new
+// players — you can challenge a closed team). A blank/missing query
+// returns no results rather than the whole table.
+router.get(
+  '/search',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const teams = await searchTeamsByName(q);
     return res.status(200).json({ results: teams });
   }),
 );

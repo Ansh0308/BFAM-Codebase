@@ -89,7 +89,10 @@ export const RATING_EVENT_TYPES = [
   'FAIR_PLAY',
   'ADMIN_ADJUSTMENT',
 ] as const;
-export const RATING_DIMENSIONS = ['SKILL', 'RELIABILITY'] as const;
+// Backlog G-01: FAIR_PLAY split out from RELIABILITY — participation
+// fairness (a property of how a match was run) is no longer conflated with
+// attendance/no-show behavior (a property of the individual player).
+export const RATING_DIMENSIONS = ['SKILL', 'RELIABILITY', 'FAIR_PLAY'] as const;
 
 // Module 2.11 (Notifications, PRD §12.45) expanded this from the Phase 1
 // starter set (MATCH_REMINDER/BOOKING_UPDATE/PAYMENT_UPDATE/TEAM_INVITE) to

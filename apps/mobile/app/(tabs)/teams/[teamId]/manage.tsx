@@ -11,6 +11,7 @@ import { Button } from '../../../../src/components/Button';
 import { TextField } from '../../../../src/components/TextField';
 import { Avatar } from '../../../../src/components/Avatar';
 import { ContactsInviteSection } from '../../../../src/components/ContactsInviteSection';
+import { StatusBadge } from '../../../../src/components/StatusBadge';
 
 // Team Management (PRD §12.3): invite/remove players, change captain, and
 // respond to Join Team Requests (PRD §12.4). Captain-only — the backend
@@ -137,8 +138,8 @@ export default function ManageTeamScreen() {
                 {member.full_name || member.bfam_id}
               </Text>
               {member.role_in_team === 'CAPTAIN' && (
-                <View className="rounded-full border border-brand-red px-2 py-0.5 mt-1 self-start">
-                  <Text className="font-ui text-micro font-bold text-brand-red">Captain</Text>
+                <View className="mt-1 self-start">
+                  <StatusBadge label="Captain" variant="warning" />
                 </View>
               )}
             </View>

@@ -408,3 +408,32 @@ export class RoomFullError extends Error {
     this.name = 'RoomFullError';
   }
 }
+
+// ---- Backlog G-04: Age Gate ----
+
+// Thrown when a date_of_birth implies an age below the minimum — the
+// update is rejected outright rather than silently accepted or merely
+// flagged, per PRD §32.7's "block registration below a minimum age with a
+// clear message."
+export class UnderMinimumAgeError extends Error {
+  constructor(minimumAge: number) {
+    super(`You must be at least ${minimumAge} years old to use BFAM.`);
+    this.name = 'UnderMinimumAgeError';
+  }
+}
+
+// ---- Backlog G-03: Community Rating ----
+
+export class PlayerRatingNotEligibleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PlayerRatingNotEligibleError';
+  }
+}
+
+export class PlayerAlreadyRatedError extends Error {
+  constructor() {
+    super('You have already rated this player for this match.');
+    this.name = 'PlayerAlreadyRatedError';
+  }
+}

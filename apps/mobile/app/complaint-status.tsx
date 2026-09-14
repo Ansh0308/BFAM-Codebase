@@ -6,12 +6,13 @@ import type { SupportTicket } from '@bfam/shared-types';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { apiClient } from '../src/lib/apiClient';
 import { colors } from '../src/theme/tokens';
+import { StatusBadge, type StatusVariant } from '../src/components/StatusBadge';
 
-const STATUS_COLOR: Record<string, string> = {
-  OPEN: 'text-text-secondary',
-  IN_PROGRESS: 'text-brand-red',
-  RESOLVED: 'text-brand-red',
-  CLOSED: 'text-text-tertiary',
+const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
+  OPEN: { label: 'Open', variant: 'warning' },
+  IN_PROGRESS: { label: 'In Progress', variant: 'info' },
+  RESOLVED: { label: 'Resolved', variant: 'success' },
+  CLOSED: { label: 'Closed', variant: 'neutral' },
 };
 
 // Complaint Status (module 2.13, PRD §12.57) — every ticket the caller has
@@ -66,11 +67,13 @@ export default function ComplaintStatusScreen() {
                 <Text className="font-ui text-micro text-text-tertiary mt-1" numberOfLines={2}>
                   {item.description}
                 </Text>
-                <Text
-                  className={`font-ui font-bold text-micro uppercase mt-2 ${STATUS_COLOR[item.status]}`}
-                >
-                  {item.status.replace('_', ' ')}
-                </Text>
+                <View className="mt-2">
+                  <StatusBadge
+                    label={STATUS_META[item.status]?.label ?? item.status.replace('_', ' ')}
+                    variant={STATUS_META[item.status]?.variant ?? 'neutral'}
+                    testID={`ticket-status-${item.ticket_id}`}
+                  />
+                </View>
               </Pressable>
             )}
           />

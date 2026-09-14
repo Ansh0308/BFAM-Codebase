@@ -28,7 +28,7 @@ const TEAM_B = 'eeeeeeee-0000-4000-8000-000000000005';
 const OTHER_MATCH_TEAM = 'ffffffff-0000-4000-8000-000000000006';
 const PLAYER_1 = '11111111-0000-4000-8000-000000000007';
 const PLAYER_2 = '22222222-0000-4000-8000-000000000008';
-const UNCONFIRMED_PLAYER = '33333333-0000-4000-8000-000000000009';
+const CANT_PLAY_PLAYER = '33333333-0000-4000-8000-000000000009';
 
 const matches: MatchRow[] = [
   { match_id: MATCH_ID, organizer_id: ORGANIZER_USER, assigned_scorer_id: null },
@@ -52,11 +52,11 @@ jest.mock('../config/sequelize', () => {
           return matchTeams.filter((t) => t.match_id === r.matchId);
         }
         if (
-          sql.includes("invitation_status = 'CONFIRMED'") &&
+          sql.includes("invitation_status != 'CANT_PLAY'") &&
           sql.includes('SELECT player_id FROM')
         ) {
           return matchPlayers
-            .filter((p) => p.match_id === r.matchId && p.invitation_status === 'CONFIRMED')
+            .filter((p) => p.match_id === r.matchId && p.invitation_status !== 'CANT_PLAY')
             .map((p) => ({ player_id: p.player_id }));
         }
         if (sql.includes('mp.player_id, p.bfam_id')) {
@@ -109,8 +109,8 @@ describe('POST /matches/:matchId/intro/assign-sides (backlog A-10)', () => {
       },
       {
         match_id: MATCH_ID,
-        player_id: UNCONFIRMED_PLAYER,
-        invitation_status: 'PENDING',
+        player_id: CANT_PLAY_PLAYER,
+        invitation_status: 'CANT_PLAY',
         match_team_id: null,
       },
     ];
@@ -144,14 +144,32 @@ describe('POST /matches/:matchId/intro/assign-sides (backlog A-10)', () => {
     expect(matchPlayers.find((p) => p.player_id === PLAYER_1)?.match_team_id).toBeNull();
   });
 
-  it('rejects assigning a player who is not a confirmed roster member', async () => {
+  it('rejects assigning a player who has said they cannot play', async () => {
     const token = await tokenFor(ORGANIZER_USER);
     const res = await request(app)
       .post(`/matches/${MATCH_ID}/intro/assign-sides`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ assignments: [{ player_id: UNCONFIRMED_PLAYER, match_team_id: TEAM_A }] });
+      .send({ assignments: [{ player_id: CANT_PLAY_PLAYER, match_team_id: TEAM_A }] });
 
     expect(res.status).toBe(409);
+  });
+
+  it('allows assigning a player who has not confirmed yet (PENDING/MAYBE) — only CANT_PLAY is excluded', async () => {
+    const PENDING_PLAYER = '44444444-0000-4000-8000-000000000010';
+    matchPlayers.push({
+      match_id: MATCH_ID,
+      player_id: PENDING_PLAYER,
+      invitation_status: 'PENDING',
+      match_team_id: null,
+    });
+    const token = await tokenFor(ORGANIZER_USER);
+    const res = await request(app)
+      .post(`/matches/${MATCH_ID}/intro/assign-sides`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ assignments: [{ player_id: PENDING_PLAYER, match_team_id: TEAM_A }] });
+
+    expect(res.status).toBe(200);
+    expect(matchPlayers.find((p) => p.player_id === PENDING_PLAYER)?.match_team_id).toBe(TEAM_A);
   });
 
   it('rejects a non-organizer, non-scorer caller', async () => {

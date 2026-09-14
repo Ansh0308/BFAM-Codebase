@@ -32,6 +32,21 @@ const colors = {
   available: '#D80000',
   'rating-star': '#CE0002',
 
+  // Status badges — a real semantic palette (distinct from the brand red
+  // used for CTAs/live) so a status flag's color actually carries meaning:
+  // green for a good/settled state, amber for waiting, red for a bad
+  // outcome, blue for informational, grey for a closed/inactive one.
+  'status-success': '#1E7B4D',
+  'status-success-bg': '#E7F5EE',
+  'status-warning': '#9A6B00',
+  'status-warning-bg': '#FBF1DC',
+  'status-danger': '#A80000',
+  'status-danger-bg': '#FDECEC',
+  'status-info': '#1D5DAD',
+  'status-info-bg': '#EAF1FB',
+  'status-neutral': '#767676',
+  'status-neutral-bg': '#F0F0F0',
+
   // Tailwind defaults for fallback
   transparent: 'transparent',
   current: 'currentColor',

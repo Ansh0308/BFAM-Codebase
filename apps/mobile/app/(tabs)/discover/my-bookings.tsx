@@ -5,12 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Booking } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
 import { colors } from '../../../src/theme/tokens';
+import { StatusBadge, type StatusVariant } from '../../../src/components/StatusBadge';
 
-const STATUS_STYLES: Record<string, string> = {
-  PENDING: 'text-text-secondary',
-  CONFIRMED: 'text-brand-red',
-  CANCELLED: 'text-text-tertiary',
-  COMPLETED: 'text-text-secondary',
+const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
+  PENDING: { label: 'Pending', variant: 'warning' },
+  CONFIRMED: { label: 'Confirmed', variant: 'success' },
+  CANCELLED: { label: 'Cancelled', variant: 'danger' },
+  COMPLETED: { label: 'Completed', variant: 'neutral' },
 };
 
 export default function MyBookingsScreen() {
@@ -63,11 +64,13 @@ export default function MyBookingsScreen() {
                 <Text className="text-text-secondary text-body mt-1">
                   {item.booking_date} · {item.start_time.slice(0, 5)}–{item.end_time.slice(0, 5)}
                 </Text>
-                <Text
-                  className={`text-micro uppercase mt-2 ${STATUS_STYLES[item.booking_status] ?? 'text-text-secondary'}`}
-                >
-                  {item.booking_status}
-                </Text>
+                <View className="mt-2">
+                  <StatusBadge
+                    label={STATUS_META[item.booking_status]?.label ?? item.booking_status}
+                    variant={STATUS_META[item.booking_status]?.variant ?? 'neutral'}
+                    testID={`booking-status-${item.booking_id}`}
+                  />
+                </View>
               </Pressable>
             )}
           />

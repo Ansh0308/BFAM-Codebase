@@ -169,16 +169,36 @@ describe('ManageTeamScreen (module 2.5)', () => {
       expect(mockMatchContacts).not.toHaveBeenCalled();
     });
 
-    it('shows a message when none of the contacts are registered', async () => {
+    it('offers an invite-via-link fallback for a contact not registered on BFAM', async () => {
       mockGetContactsAsync.mockResolvedValue({
-        data: [{ phoneNumbers: [{ number: '+911111111111' }] }],
+        data: [{ id: 'c-1', name: 'Not On App', phoneNumbers: [{ number: '+911111111111' }] }],
       });
       mockMatchContacts.mockResolvedValueOnce({ results: [] });
 
       const { findByTestId, findByText } = await render(<ManageTeamScreen />);
       await fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
 
-      await findByText(/none of your contacts are on bfam yet/i);
+      await findByText('Not On App');
+      expect(await findByTestId('team-invite-invite-link-button-c-1')).toBeTruthy();
+    });
+
+    it('lets the captain search their contacts by name', async () => {
+      mockGetContactsAsync.mockResolvedValue({
+        data: [
+          { id: 'c-1', name: 'Aditya Rathod', phoneNumbers: [{ number: '+911111111111' }] },
+          { id: 'c-2', name: 'Rohan Mehta', phoneNumbers: [{ number: '+912222222222' }] },
+        ],
+      });
+      mockMatchContacts.mockResolvedValueOnce({ results: [] });
+
+      const { findByTestId, findByText, queryByText } = await render(<ManageTeamScreen />);
+      await fireEvent.press(await findByTestId('team-invite-check-contacts-button'));
+      await findByText('Aditya Rathod');
+
+      fireEvent.changeText(await findByTestId('team-invite-contact-search-input'), 'rohan');
+
+      expect(await findByText('Rohan Mehta')).toBeTruthy();
+      expect(queryByText('Aditya Rathod')).toBeNull();
     });
   });
 });

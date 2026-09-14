@@ -630,6 +630,9 @@ export const createMatchSchema = z.object({
   overs_per_innings: z.number().int().min(1).max(50),
   scoring_mode: z.enum(SCORING_MODES),
   assigned_scorer_id: uuid.nullable().optional(),
+  // Backlog G-20 — optional team-vs-team match; both or neither.
+  home_team_id: uuid.nullable().optional(),
+  away_team_id: uuid.nullable().optional(),
 });
 
 export const inviteToMatchSchema = z.object({
@@ -859,6 +862,12 @@ export const submitReviewSchema = z.object({
   match_id: uuid,
   rating: z.number().int().min(1).max(5),
   review_text: z.string().max(2000).nullable().optional(),
+});
+
+// ---- Backlog G-03: Community Rating ----
+
+export const submitPlayerRatingSchema = z.object({
+  rating: z.number().int().min(1).max(5),
 });
 
 // ---- Backlog B-6: Home Page Carousel / Admin CMS ----

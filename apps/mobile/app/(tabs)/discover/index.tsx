@@ -1,13 +1,23 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
-import type { TurfListItem } from '@bfam/shared-types';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import type { LiveMatchSummary, TurfListItem } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
 import { colors } from '../../../src/theme/tokens';
 import { TurfCard } from '../../../src/components/TurfCard';
 import { VenueCard } from '../../../src/components/VenueCard';
 import { ScreenContainer } from '../../../src/components/ScreenContainer';
+import { StatusBadge } from '../../../src/components/StatusBadge';
 
 interface Coords {
   lat: number;
@@ -84,6 +94,7 @@ export default function TurfListing() {
   const [error, setError] = useState<string | null>(null);
   const [coords, setCoords] = useState<Coords | null>(null);
   const coordsRef = useRef<Coords | null>(null);
+  const [liveMatches, setLiveMatches] = useState<LiveMatchSummary[]>([]);
 
   const fetchTurfs = useCallback(async (searchTerm: string) => {
     setLoading(true);
@@ -139,6 +150,17 @@ export default function TurfListing() {
     }, [fetchTurfs, query, coords]),
   );
 
+  // Backlog G-20: "Live Now" — every PUBLIC match currently in progress,
+  // so someone who isn't on the roster can still find one to watch.
+  useFocusEffect(
+    useCallback(() => {
+      apiClient
+        .getLiveMatches()
+        .then((res) => setLiveMatches(res.results))
+        .catch(() => setLiveMatches([]));
+    }, []),
+  );
+
   const openDetails = (turfId: string) => router.push(`/(tabs)/discover/turf/${turfId}`);
   const openVenue = (venueId: string) => router.push(`/(tabs)/discover/venue/${venueId}`);
 
@@ -177,6 +199,45 @@ export default function TurfListing() {
         testID="turf-search-input"
         returnKeyType="search"
       />
+
+      {liveMatches.length > 0 && (
+        <View className="mb-6" testID="live-now-section">
+          <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-3">
+            Live Now
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 12 }}
+          >
+            {liveMatches.map((match) => (
+              <Pressable
+                key={match.match_id}
+                onPress={() => router.push(`/(tabs)/matches/${match.match_id}`)}
+                className="bg-surface rounded-lg border border-border-subtle p-4"
+                style={{ width: 220 }}
+                testID={`live-match-card-${match.match_id}`}
+              >
+                <StatusBadge label="Live" variant="live" />
+                <View className="flex-row items-center mt-3">
+                  <MaterialCommunityIcons name="cricket" size={18} color="#D80000" />
+                  <Text
+                    className="font-ui font-bold text-body text-ink-black ml-2 flex-1"
+                    numberOfLines={1}
+                  >
+                    {match.home_team_name && match.away_team_name
+                      ? `${match.home_team_name} vs ${match.away_team_name}`
+                      : (match.match_name ?? 'Live Match')}
+                  </Text>
+                </View>
+                <Text className="font-ui text-micro text-text-tertiary mt-1" numberOfLines={1}>
+                  {match.turf_name} · {match.city}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {loading && (
         <View className="py-10 items-center">

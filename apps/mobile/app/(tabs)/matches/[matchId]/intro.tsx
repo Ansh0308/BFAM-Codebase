@@ -20,6 +20,12 @@ type Stage = 'COUNTDOWN' | 'XI_REVEAL' | 'TOSS' | 'DONE';
 const COUNTDOWN_SECONDS = 10;
 const XI_REVEAL_MS = 4000;
 
+// Backlog A-9: not everyone playing together knows each other's BFAM ID —
+// show the real name where one's been set, falling back to the ID.
+function displayName(p: { full_name?: string | null; bfam_id?: string }): string {
+  return p.full_name || p.bfam_id || '';
+}
+
 // Cinematic Match Countdown Intro (module 2.7, PRD §12.61). Design
 // Document §5 calls this out as "the strongest expression of the brand-
 // red/black/white system" — full black stage, oversized diagonal red
@@ -210,19 +216,46 @@ export default function MatchIntroScreen() {
             </Text>
           ))}
 
-        {stage === 'XI_REVEAL' && (
-          <View style={styles.xiContainer} testID="intro-xi-reveal">
-            <Text style={styles.stageHeader}>PLAYING XI</Text>
-            <View style={styles.xiColumn}>
-              {players.map((p) => (
-                <View key={p.player_id} style={styles.xiRow} testID={`xi-player-${p.player_id}`}>
-                  <Text style={styles.xiPlayerText}>{p.bfam_id}</Text>
-                  {p.participant_role === 'CAPTAIN' && <Text style={styles.captainBadge}>C</Text>}
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
+        {stage === 'XI_REVEAL' &&
+          (() => {
+            // Feedback: the reveal is only useful split by side, and only
+            // by name — nobody recognizes a teammate by BFAM ID. Falls
+            // back to one unified list when sides haven't been assigned
+            // yet (side_label null for everyone), same as before.
+            const teamA = players.filter((p) => p.side_label === 'TEAM_A');
+            const teamB = players.filter((p) => p.side_label === 'TEAM_B');
+            const unassigned = players.filter((p) => !p.side_label);
+            const hasSides = teamA.length > 0 || teamB.length > 0;
+
+            const renderPlayer = (p: PlayingXiPlayer) => (
+              <View key={p.player_id} style={styles.xiRow} testID={`xi-player-${p.player_id}`}>
+                <Text style={styles.xiPlayerText} numberOfLines={1}>
+                  {displayName(p)}
+                </Text>
+                {p.participant_role === 'CAPTAIN' && <Text style={styles.captainBadge}>C</Text>}
+              </View>
+            );
+
+            return (
+              <View style={styles.xiContainer} testID="intro-xi-reveal">
+                <Text style={styles.stageHeader}>PLAYING XI</Text>
+                {hasSides ? (
+                  <View style={styles.xiTeamsRow}>
+                    <View style={styles.xiTeamColumn}>
+                      <Text style={styles.xiTeamHeader}>TEAM A</Text>
+                      {teamA.map(renderPlayer)}
+                    </View>
+                    <View style={styles.xiTeamColumn}>
+                      <Text style={styles.xiTeamHeader}>TEAM B</Text>
+                      {teamB.map(renderPlayer)}
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.xiColumn}>{unassigned.map(renderPlayer)}</View>
+                )}
+              </View>
+            );
+          })()}
 
         {stage === 'TOSS' && (
           <View style={styles.tossContainer} testID="intro-toss">
@@ -466,6 +499,16 @@ const styles = StyleSheet.create({
   },
   xiContainer: { width: '100%', alignItems: 'center' },
   xiColumn: { width: '100%', paddingHorizontal: 8 },
+  xiTeamsRow: { flexDirection: 'row', width: '100%' },
+  xiTeamColumn: { flex: 1, paddingHorizontal: 8 },
+  xiTeamHeader: {
+    fontFamily: 'Inter-Bold',
+    fontSize: 12,
+    color: '#9A9A9A',
+    letterSpacing: 1,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
   xiRow: {
     flexDirection: 'row',
     alignItems: 'center',

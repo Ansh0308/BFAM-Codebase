@@ -9,11 +9,12 @@ import { TextField } from '../src/components/TextField';
 import { Button } from '../src/components/Button';
 import { apiClient } from '../src/lib/apiClient';
 import { colors } from '../src/theme/tokens';
+import { StatusBadge, type StatusVariant } from '../src/components/StatusBadge';
 
-const STATUS_COLOR: Record<string, string> = {
-  APPROVED: 'text-brand-red',
-  PENDING: 'text-text-secondary',
-  REJECTED: 'text-text-tertiary',
+const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
+  APPROVED: { label: 'Approved', variant: 'success' },
+  PENDING: { label: 'Pending', variant: 'warning' },
+  REJECTED: { label: 'Rejected', variant: 'danger' },
 };
 
 // Staff Management (module 2.12, PRD §8.3/§9.2), incl. Staff Verification
@@ -140,11 +141,13 @@ export default function OwnerStaffScreen() {
               <Text className="font-ui font-bold text-body text-text-primary">
                 {s.phone_number ?? s.staff_user_id}
               </Text>
-              <Text
-                className={`font-ui text-micro uppercase mt-1 ${STATUS_COLOR[s.verification_status]}`}
-              >
-                {s.verification_status}
-              </Text>
+              <View className="mt-1">
+                <StatusBadge
+                  label={STATUS_META[s.verification_status]?.label ?? s.verification_status}
+                  variant={STATUS_META[s.verification_status]?.variant ?? 'neutral'}
+                  testID={`staff-status-${s.assignment_id}`}
+                />
+              </View>
               {s.verification_status === 'PENDING' && s.verification_document_url && (
                 <View className="flex-row mt-3">
                   <View className="mr-2">

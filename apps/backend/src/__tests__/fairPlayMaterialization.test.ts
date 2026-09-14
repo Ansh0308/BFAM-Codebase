@@ -95,11 +95,11 @@ const scoreEvents = [
 ];
 
 const playerRatingEvents: Record<string, unknown>[] = [];
-const playersTable: Record<string, { reliability_score: number; skill_rating: number }> = {
-  [P1]: { reliability_score: 100, skill_rating: 500 },
-  [P2]: { reliability_score: 100, skill_rating: 500 },
-  [P3]: { reliability_score: 100, skill_rating: 500 },
-  [P4]: { reliability_score: 100, skill_rating: 500 },
+const playersTable: Record<string, { fair_play_rating: number; skill_rating: number }> = {
+  [P1]: { fair_play_rating: 100, skill_rating: 500 },
+  [P2]: { fair_play_rating: 100, skill_rating: 500 },
+  [P3]: { fair_play_rating: 100, skill_rating: 500 },
+  [P4]: { fair_play_rating: 100, skill_rating: 500 },
 };
 
 jest.mock('../config/sequelize', () => {
@@ -142,16 +142,22 @@ jest.mock('../config/sequelize', () => {
             (p) => p.match_id === r.matchId && p.invitation_status === 'CONFIRMED',
           );
         }
-        if (sql.includes("event_type = 'FAIR_PLAY' AND rating_dimension = 'RELIABILITY'")) {
+        if (sql.includes("event_type = 'FAIR_PLAY' AND rating_dimension = 'FAIR_PLAY'")) {
           return [];
         }
-        if (sql.includes("rating_dimension = 'RELIABILITY'")) {
+        if (sql.includes("rating_dimension = 'FAIR_PLAY'")) {
           const playerId = r.playerId as string;
           return [
             {
-              resulting_value: playersTable[playerId]?.reliability_score ?? 100,
+              resulting_value: playersTable[playerId]?.fair_play_rating ?? 100,
             },
           ];
+        }
+        if (
+          sql.includes('SELECT player_id FROM match_players') &&
+          sql.includes("attendance_status = 'NO_SHOW'")
+        ) {
+          return [];
         }
         throw new Error(`Unexpected query in test fake: ${sql}`);
       },
@@ -181,10 +187,10 @@ import { materializeMatchStatistics } from '../services/statisticsService';
 describe('materializeMatchStatistics — Fair Play events (backlog B-5)', () => {
   beforeEach(() => {
     playerRatingEvents.length = 0;
-    playersTable[P1].reliability_score = 100;
-    playersTable[P2].reliability_score = 100;
-    playersTable[P3].reliability_score = 100;
-    playersTable[P4].reliability_score = 100;
+    playersTable[P1].fair_play_rating = 100;
+    playersTable[P2].fair_play_rating = 100;
+    playersTable[P3].fair_play_rating = 100;
+    playersTable[P4].fair_play_rating = 100;
   });
 
   it('penalizes every player on the side that shared its chances unfairly, equally', async () => {
@@ -196,13 +202,14 @@ describe('materializeMatchStatistics — Fair Play events (backlog B-5)', () => 
 
     expect(p1Event).toBeDefined();
     expect(p2Event).toBeDefined();
+    expect(p1Event!.rating_dimension).toBe('FAIR_PLAY');
     // Team A's batting fairness is minimally unfair (2 players, all balls to
     // one) — both P1 and P2 get the identical penalty, since fairness is a
     // property of the side, not the individual.
     expect(p1Event!.rating_delta).toBe(p2Event!.rating_delta);
     expect(p1Event!.rating_delta as number).toBeLessThan(0);
-    expect(playersTable[P1].reliability_score).toBeLessThan(100);
-    expect(playersTable[P2].reliability_score).toBe(playersTable[P1].reliability_score);
+    expect(playersTable[P1].fair_play_rating).toBeLessThan(100);
+    expect(playersTable[P2].fair_play_rating).toBe(playersTable[P1].fair_play_rating);
   });
 
   it('does not penalize the side that shared its chances perfectly evenly', async () => {
@@ -214,7 +221,7 @@ describe('materializeMatchStatistics — Fair Play events (backlog B-5)', () => 
 
     expect(p3Event!.rating_delta).toBe(0);
     expect(p4Event!.rating_delta).toBe(0);
-    expect(playersTable[P3].reliability_score).toBe(100);
-    expect(playersTable[P4].reliability_score).toBe(100);
+    expect(playersTable[P3].fair_play_rating).toBe(100);
+    expect(playersTable[P4].fair_play_rating).toBe(100);
   });
 });

@@ -5,16 +5,23 @@ import { apiClient } from '../lib/apiClient';
 
 export type ContactsMatchStatus = 'idle' | 'loading' | 'denied' | 'error' | 'ready';
 
-// Contacts-Based Invites (backlog B-2): requests the device Contacts
-// permission, reads only phone numbers (never names, photos, or any other
-// contact field) off the device, and sends that batch to
-// POST /players/contacts-lookup to find out which of them are already on
-// BFAM. The device contact list itself never leaves this function — only
-// the phone numbers do, and only the ones that come back matched are ever
-// shown or held onto.
+export interface MatchedContact {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  match: ContactMatch | null;
+}
+
+// Contacts-Based Invites (backlog B-2, extended): requests the device
+// Contacts permission, reads names + phone numbers off the device, and
+// sends only the phone numbers to POST /players/contacts-lookup to find
+// out which of them are already on BFAM. Contact names never leave the
+// device — they're only ever kept in this hook's own local state, which
+// is what lets the invite list be searched by name and lets a contact who
+// isn't on BFAM yet still be identified for an "invite via link" fallback.
 export function useContactsMatch() {
   const [status, setStatus] = useState<ContactsMatchStatus>('idle');
-  const [matches, setMatches] = useState<ContactMatch[]>([]);
+  const [contacts, setContacts] = useState<MatchedContact[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -30,17 +37,28 @@ export function useContactsMatch() {
       const { data } = await Contacts.getContactsAsync({
         fields: [Contacts.Fields.PhoneNumbers],
       });
-      const phoneNumbers = data.flatMap((contact) =>
-        (contact.phoneNumbers ?? []).map((p) => p.number).filter((n): n is string => Boolean(n)),
-      );
-      if (phoneNumbers.length === 0) {
-        setMatches([]);
+      // One row per contact that has at least one phone number — takes the
+      // first number for a contact with several, which is enough to
+      // identify them for an invite.
+      const withNumbers = data
+        .map((contact, index) => ({
+          id: contact.id ?? String(index),
+          name: contact.name || 'Unknown',
+          phoneNumber: contact.phoneNumbers?.[0]?.number,
+        }))
+        .filter((c): c is { id: string; name: string; phoneNumber: string } =>
+          Boolean(c.phoneNumber),
+        );
+
+      if (withNumbers.length === 0) {
+        setContacts([]);
         setStatus('ready');
         return;
       }
 
-      const { results } = await apiClient.matchContacts(phoneNumbers);
-      setMatches(results);
+      const { results } = await apiClient.matchContacts(withNumbers.map((c) => c.phoneNumber));
+      const byNumber = new Map(results.map((m) => [m.phone_number, m]));
+      setContacts(withNumbers.map((c) => ({ ...c, match: byNumber.get(c.phoneNumber) ?? null })));
       setStatus('ready');
     } catch {
       setError('Could not check your contacts. Please try again.');
@@ -48,5 +66,5 @@ export function useContactsMatch() {
     }
   }, []);
 
-  return { status, matches, error, load };
+  return { status, contacts, error, load };
 }

@@ -108,6 +108,10 @@ export function computeFairPlayRatingDelta(matchFairness: number): number {
   return -Math.round((1 - matchFairness) * MAX_FAIR_PLAY_PENALTY) || 0;
 }
 
+// Shared 0-100 clamp math — used for both the FAIR_PLAY dimension above and
+// the RELIABILITY dimension below (backlog G-01 split them into separate
+// player_rating_events dimensions and separate players columns, but they're
+// still the same "baseline 100, only move it in bounded amounts" shape).
 export function applyReliabilityDelta(previousScore: number, delta: number): number {
   return Math.max(MIN_RELIABILITY_SCORE, Math.min(MAX_RELIABILITY_SCORE, previousScore + delta));
 }
@@ -118,3 +122,13 @@ export function computeReliabilityScore(ratingDeltas: number[]): number {
     BASELINE_RELIABILITY_SCORE,
   );
 }
+
+// Reliability Score (backlog G-02, RELIABILITY dimension, PRD §12.30) — a
+// real calculation instead of a static default, but deliberately narrow for
+// this pass: the one attendance signal that's unambiguous and available at
+// match-finalization time without a scheduled job is a confirmed player who
+// never showed up at all. A no-show is worse than the worst possible Fair
+// Play match (one player hogging every ball) — showing up is the whole
+// premise of committing to a match — so it's a fixed, larger penalty rather
+// than a graduated one.
+export const NO_SHOW_RATING_DELTA = -15;

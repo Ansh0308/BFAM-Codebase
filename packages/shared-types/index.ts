@@ -64,6 +64,9 @@ export interface MyProfile {
   full_name: string | null;
   // Backlog B-1/B-4 — BFAM Coins balance; null for non-PLAYER roles.
   coin_balance: number | null;
+  // Backlog B-9 follow-up: the same counts shown on another player's
+  // public profile, now also shown on your own; null for non-PLAYER roles.
+  follow_summary: FollowSummary | null;
 }
 
 // Backlog B-10: another player's profile, viewed from a roster/team row.
@@ -510,6 +513,19 @@ export interface CreateMatchInput {
   overs_per_innings: number;
   scoring_mode: MatchScoringMode;
   assigned_scorer_id?: string | null;
+  // Backlog G-20 — optional team-vs-team match; both or neither.
+  home_team_id?: string | null;
+  away_team_id?: string | null;
+}
+
+// Backlog G-20: a "Live Now" discovery row — a PUBLIC, IN_PROGRESS match
+// with the turf and (for a team-vs-team match) both team names resolved,
+// so it can be shown without a second round trip per match.
+export interface LiveMatchSummary extends Match {
+  turf_name: string;
+  city: string;
+  home_team_name: string | null;
+  away_team_name: string | null;
 }
 
 export interface ReplacementSuggestion {

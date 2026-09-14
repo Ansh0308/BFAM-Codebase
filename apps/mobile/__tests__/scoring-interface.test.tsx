@@ -176,4 +176,54 @@ describe('Scoring Interface (backlog A-7: fewer taps; UI rebuild per reference s
     expect(within(getByTestId('over-dot-0')).getByText('4')).toBeTruthy();
     expect(within(getByTestId('over-dot-1')).getByText('-')).toBeTruthy();
   });
+
+  // Feedback: scoring shouldn't be gated on who tapped Confirm in the app.
+  it('offers a PENDING player as a striker/bowler pick, but not a CANT_PLAY player', async () => {
+    mockGetGameRoom.mockResolvedValue({
+      ...ROOM,
+      players: [
+        ...ROOM.players,
+        { player_id: 'p4', bfam_id: 'BF1004', invitation_status: 'PENDING' },
+        { player_id: 'p5', bfam_id: 'BF1005', invitation_status: 'CANT_PLAY' },
+      ],
+    });
+    const utils = await render(<ScoringInterfaceScreen />);
+    await waitFor(() => expect(utils.getByTestId('scoring-interface-screen')).toBeTruthy());
+    await fireEvent.press(utils.getByTestId('striker-select'));
+
+    expect(utils.queryByTestId('striker-select-options-p4')).toBeTruthy();
+    expect(utils.queryByTestId('striker-select-options-p5')).toBeNull();
+  });
+});
+
+describe('Scoring Interface — toss auto-fill (feedback: do not re-ask after the toss)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetGameRoom.mockResolvedValue(ROOM);
+    mockGetLiveScore.mockResolvedValue({ match_id: 'match-1', innings: null });
+    mockGetScorecard.mockResolvedValue(null);
+  });
+
+  it('pre-selects Batting/Bowling Side from the recorded toss result', async () => {
+    mockGetMatchIntro.mockResolvedValue({
+      intro: {
+        toss_winner_match_team_id: 'mt-b',
+        toss_decision: 'BOWL',
+      },
+      matchTeams: [
+        { match_team_id: 'mt-a', side_label: 'TEAM_A' },
+        { match_team_id: 'mt-b', side_label: 'TEAM_B' },
+      ],
+      players: [],
+    });
+
+    const { getByTestId } = await render(<ScoringInterfaceScreen />);
+    await waitFor(() => expect(getByTestId('start-innings-screen')).toBeTruthy());
+
+    // Toss winner (Team B) chose to bowl, so Team A bats — pre-selected
+    // without the organizer touching the Batting Side picker at all.
+    await waitFor(() =>
+      expect(getByTestId('batting-side-mt-a').props.accessibilityState.selected).toBe(true),
+    );
+  });
 });

@@ -6,6 +6,7 @@ import type { RoomDetails, RoomPlayerSide, TurfListItem } from '@bfam/shared-typ
 import { apiClient } from '../../../../../src/lib/apiClient';
 import { colors } from '../../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../../src/components/ScreenContainer';
+import { StatusBadge } from '../../../../../src/components/StatusBadge';
 import { Button } from '../../../../../src/components/Button';
 import { TextField } from '../../../../../src/components/TextField';
 import { ChipSelect } from '../../../../../src/components/ChipSelect';
@@ -172,8 +173,8 @@ export default function RoomLobbyScreen() {
                 {p.full_name ?? p.bfam_id}
               </Text>
               {Boolean(p.is_captain) && (
-                <View className="rounded-full border border-brand-red px-2 py-0.5 mr-2">
-                  <Text className="font-ui text-micro font-bold text-brand-red">Captain</Text>
+                <View className="mr-2">
+                  <StatusBadge label="Captain" variant="warning" />
                 </View>
               )}
             </View>

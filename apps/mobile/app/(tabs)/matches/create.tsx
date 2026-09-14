@@ -1,8 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import type { Booking, MatchBallType, MatchScoringMode, MatchType } from '@bfam/shared-types';
+import type {
+  Booking,
+  MatchBallType,
+  MatchScoringMode,
+  MatchType,
+  MyTeam,
+  OpenTeam,
+} from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../src/lib/apiClient';
 import { colors } from '../../../src/theme/tokens';
@@ -10,6 +17,7 @@ import { ScreenContainer } from '../../../src/components/ScreenContainer';
 import { Button } from '../../../src/components/Button';
 import { TextField } from '../../../src/components/TextField';
 import { ChipSelect } from '../../../src/components/ChipSelect';
+import { ToggleRow } from '../../../src/components/ToggleRow';
 import { useRebookStore } from '../../../src/store/rebookStore';
 
 const MATCH_TYPES: { value: MatchType; label: string }[] = [
@@ -60,6 +68,50 @@ export default function CreateMatchScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Backlog G-20: an optional team-vs-team match — skipped entirely for a
+  // casual Friends match, which keeps working exactly as it does today.
+  const [isTeamMatch, setIsTeamMatch] = useState(false);
+  const [myTeams, setMyTeams] = useState<MyTeam[]>([]);
+  const [loadingMyTeams, setLoadingMyTeams] = useState(false);
+  const [homeTeamId, setHomeTeamId] = useState<string | null>(null);
+  const [opponentQuery, setOpponentQuery] = useState('');
+  const [opponentResults, setOpponentResults] = useState<OpenTeam[]>([]);
+  const [searchingOpponents, setSearchingOpponents] = useState(false);
+  const [awayTeamId, setAwayTeamId] = useState<string | null>(null);
+  const [awayTeamName, setAwayTeamName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isTeamMatch || myTeams.length > 0 || loadingMyTeams) return;
+    setLoadingMyTeams(true);
+    apiClient
+      .getMyTeams()
+      .then((res) => {
+        setMyTeams(res.results);
+        if (res.results.length === 1) setHomeTeamId(res.results[0].team_id);
+      })
+      .catch(() => setMyTeams([]))
+      .finally(() => setLoadingMyTeams(false));
+  }, [isTeamMatch, myTeams.length, loadingMyTeams]);
+
+  const searchOpponents = useCallback(
+    (query: string) => {
+      setOpponentQuery(query);
+      setAwayTeamId(null);
+      setAwayTeamName(null);
+      if (!query.trim()) {
+        setOpponentResults([]);
+        return;
+      }
+      setSearchingOpponents(true);
+      apiClient
+        .searchTeams(query.trim())
+        .then((res) => setOpponentResults(res.results.filter((t) => t.team_id !== homeTeamId)))
+        .catch(() => setOpponentResults([]))
+        .finally(() => setSearchingOpponents(false));
+    },
+    [homeTeamId],
+  );
+
   useEffect(() => {
     if (params.bookingId) return;
     apiClient
@@ -78,6 +130,10 @@ export default function CreateMatchScreen() {
       setError('Turf-staff-managed scoring needs an assigned scorer.');
       return;
     }
+    if (isTeamMatch && (!homeTeamId || !awayTeamId)) {
+      setError('Pick both Your Team and the Opponent Team, or turn off Team Match.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -89,6 +145,8 @@ export default function CreateMatchScreen() {
         overs_per_innings: Number(oversPerInnings),
         scoring_mode: scoringMode,
         assigned_scorer_id: scoringMode === 'TURF_STAFF_MANAGED' ? assignedScorerId.trim() : null,
+        home_team_id: isTeamMatch ? homeTeamId : null,
+        away_team_id: isTeamMatch ? awayTeamId : null,
       });
 
       // Rebook Same Players (PRD §12.44): re-invite the prior match's
@@ -184,6 +242,111 @@ export default function CreateMatchScreen() {
           onChangeText={setMatchName}
           placeholder="e.g. Sunday Evening Bash"
         />
+
+        <View className="bg-surface-alt rounded-md px-4 mb-4">
+          <ToggleRow
+            label="Team Match"
+            description="Pick two real teams — everyone on both rosters is invited at once, and sides are assigned automatically as they confirm."
+            value={isTeamMatch}
+            onValueChange={setIsTeamMatch}
+            testID="team-match-toggle"
+          />
+        </View>
+
+        {isTeamMatch && (
+          <View className="mb-4">
+            <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-2">
+              Your Team
+            </Text>
+            {loadingMyTeams ? (
+              <ActivityIndicator color={colors.brandRed} testID="my-teams-loading" />
+            ) : myTeams.length === 0 ? (
+              <Text className="font-ui text-body text-text-secondary mb-2">
+                You&apos;re not an active member of any team yet.
+              </Text>
+            ) : (
+              myTeams.map((team) => {
+                const selected = homeTeamId === team.team_id;
+                return (
+                  <Pressable
+                    key={team.team_id}
+                    onPress={() => setHomeTeamId(team.team_id)}
+                    className={[
+                      'flex-row items-center rounded-md border p-3 mb-2',
+                      selected ? 'border-brand-red bg-surface' : 'border-border-strong bg-surface',
+                    ].join(' ')}
+                    testID={`home-team-option-${team.team_id}`}
+                  >
+                    <Feather
+                      name={selected ? 'check-circle' : 'circle'}
+                      size={18}
+                      color={selected ? '#D80000' : '#9A9A9A'}
+                    />
+                    <Text className="font-ui font-semibold text-body text-text-primary ml-3">
+                      {team.team_name}
+                    </Text>
+                  </Pressable>
+                );
+              })
+            )}
+
+            <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-2 mt-3">
+              Opponent Team
+            </Text>
+            <TextField
+              label=""
+              value={opponentQuery}
+              onChangeText={searchOpponents}
+              placeholder="Search teams by name"
+              iconLeft={<Feather name="search" size={16} color="#767676" />}
+              testID="opponent-team-search-input"
+            />
+            {awayTeamName ? (
+              <View
+                className="flex-row items-center justify-between rounded-md border border-brand-red bg-surface p-3 mt-2"
+                testID="opponent-team-selected"
+              >
+                <View className="flex-row items-center">
+                  <Feather name="check-circle" size={18} color="#D80000" />
+                  <Text className="font-ui font-semibold text-body text-text-primary ml-3">
+                    {awayTeamName}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    setAwayTeamId(null);
+                    setAwayTeamName(null);
+                  }}
+                  hitSlop={8}
+                  testID="opponent-team-clear"
+                >
+                  <Feather name="x" size={16} color="#767676" />
+                </Pressable>
+              </View>
+            ) : searchingOpponents ? (
+              <ActivityIndicator
+                color={colors.brandRed}
+                style={{ marginTop: 8 }}
+                testID="opponent-teams-loading"
+              />
+            ) : (
+              opponentResults.map((team) => (
+                <Pressable
+                  key={team.team_id}
+                  onPress={() => {
+                    setAwayTeamId(team.team_id);
+                    setAwayTeamName(team.team_name);
+                  }}
+                  className="flex-row items-center rounded-md border border-border-strong bg-surface p-3 mt-2"
+                  testID={`opponent-team-option-${team.team_id}`}
+                >
+                  <Feather name="shield" size={16} color="#9A9A9A" />
+                  <Text className="font-ui text-body text-text-primary ml-3">{team.team_name}</Text>
+                </Pressable>
+              ))
+            )}
+          </View>
+        )}
 
         <ChipSelect
           label="Format"
