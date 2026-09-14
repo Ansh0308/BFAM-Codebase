@@ -1,0 +1,225 @@
+# BFAM — Gap Analysis & Prioritized TODO
+
+**Source documents cross-referenced:** `BFAM_PRD_v2.2.md` (§12, the 63-item feature catalog), `BFAM_Feedback_Backlog_v1.md`, `v2.md`, `v3.md`, and the "BFAM_issues" Google Sheet your brother is keeping (login/signup bugs, `reported by: Vaibhav`).
+
+**How this was built:** every status below is checked against the actual code as it stands right now (`main` at commit `5ea7d09`) — not assumed from a document, and not assumed from memory of what was asked for. A backend `Agent` did a systematic pass matching every PRD §12.N item to backend services/routes/mobile screens with file-path evidence; I independently re-verified every feedback-backlog item and every spreadsheet item myself, since I did (or watched) most of that work directly this session.
+
+**How to read status:**
+
+- **DONE** — built and working, confirmed in code.
+- **PARTIAL** — some of it exists; the gap is stated explicitly.
+- **NOT STARTED** — no real implementation exists yet.
+- **RESOLVED (needs re-confirm)** — I investigated a reported bug and could not find one in the code; likely a stale-build observation (this has happened twice already this cycle — the coin-toss and Scoring UI feedback both turned out to be pre-pull builds). Flagged for you to re-check on the current build rather than silently dropped.
+
+---
+
+## Part 1 — PRD §12 Feature Coverage (all 63 items)
+
+39 of 63 are fully built, 9 partial, 15 not started. Full item-by-item table:
+
+| #     | Feature                             | Status      | Gap (if not DONE)                                                                                                                                                     |
+| ----- | ----------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 12.1  | Authentication & Role Management    | DONE        | —                                                                                                                                                                     |
+| 12.2  | Player Profile                      | DONE        | No XP/level/badges/streak fields (see 12.35/12.37/12.38)                                                                                                              |
+| 12.3  | Team Management                     | DONE        | —                                                                                                                                                                     |
+| 12.4  | Join Open Teams                     | DONE        | —                                                                                                                                                                     |
+| 12.5  | Find Players                        | DONE        | —                                                                                                                                                                     |
+| 12.6  | Team vs Team Matchmaking            | PARTIAL     | `createMatch` supports picking two real teams and auto-inviting both rosters, but there's no send→accept/reject challenge handshake anywhere — this is v3's **B-13**. |
+| 12.7  | Turf Discovery                      | DONE        | —                                                                                                                                                                     |
+| 12.8  | Turf Booking                        | DONE        | —                                                                                                                                                                     |
+| 12.9  | Game/Match Creation                 | DONE        | —                                                                                                                                                                     |
+| 12.10 | Game Room/Match Room                | DONE        | —                                                                                                                                                                     |
+| 12.11 | Player Invitation & Confirmation    | DONE        | —                                                                                                                                                                     |
+| 12.12 | Smart Match Coordination            | DONE        | —                                                                                                                                                                     |
+| 12.13 | Smart Reminders                     | DONE        | —                                                                                                                                                                     |
+| 12.14 | Attendance & Running-Late Status    | DONE        | (The Running Late _button_ was intentionally hidden per backlog A-4 — the status/data model is untouched.)                                                            |
+| 12.15 | Smart Auto Replacement              | DONE        | —                                                                                                                                                                     |
+| 12.16 | Payment System                      | DONE        | —                                                                                                                                                                     |
+| 12.17 | Cancellation & Refund               | DONE        | —                                                                                                                                                                     |
+| 12.18 | Live Scoring                        | DONE        | —                                                                                                                                                                     |
+| 12.19 | Player or Turf Staff Scoring        | DONE        | —                                                                                                                                                                     |
+| 12.20 | Digital Scoreboard                  | PARTIAL     | Mobile-only; no web scoreboard view, no physical LCD/TV integration (PRD flags both as P1/future anyway).                                                             |
+| 12.21 | Match Statistics                    | DONE        | —                                                                                                                                                                     |
+| 12.22 | Fair Play System                    | PARTIAL     | Only a post-match aggregate fairness number exists; no in-match rotation tracking, no mode-specific behavior.                                                         |
+| 12.23 | Fair Batting Rotation               | NOT STARTED | No live batting-opportunity tracking anywhere.                                                                                                                        |
+| 12.24 | Fair Bowling Rotation               | NOT STARTED | Same — no bowling-opportunity tracking.                                                                                                                               |
+| 12.25 | New Player Protection               | NOT STARTED | No first-timer identification/inclusion logic.                                                                                                                        |
+| 12.26 | Fair Play Alerts                    | NOT STARTED | No in-match alerting for uneven participation.                                                                                                                        |
+| 12.27 | Post-Match Fair Play Summary        | PARTIAL     | The score is computed and stored but never shown on the Result screen.                                                                                                |
+| 12.28 | Smart Team Balancing                | NOT STARTED | Room's random-split (B-11) is pure random, not skill/role-aware balancing.                                                                                            |
+| 12.29 | Player Rating System (Skill Rating) | DONE        | —                                                                                                                                                                     |
+| 12.30 | Reliability Score                   | DONE        | —                                                                                                                                                                     |
+| 12.31 | Community Rating                    | DONE        | —                                                                                                                                                                     |
+| 12.32 | Player Statistics                   | DONE        | —                                                                                                                                                                     |
+| 12.33 | Rankings & Leaderboards             | NOT STARTED | No leaderboard endpoint or screen exists.                                                                                                                             |
+| 12.34 | BFAM Coins (BC)                     | DONE        | Earning is currently limited to reviews only — winning a match, POTM, referrals, streaks, on-time arrival don't earn coins yet (PRD lists all of these as sources).   |
+| 12.35 | XP & Player Levels                  | NOT STARTED | No XP/level system at all.                                                                                                                                            |
+| 12.36 | Rewards                             | PARTIAL     | Coins can only be redeemed as a booking discount — no merchandise, priority booking, badges, or a rewards catalog.                                                    |
+| 12.37 | Achievements & Badges               | NOT STARTED | Not built.                                                                                                                                                            |
+| 12.38 | Match Streaks                       | NOT STARTED | Not built.                                                                                                                                                            |
+| 12.39 | Special Recognition                 | NOT STARTED | No Player-of-the-Month/Hall-of-Fame logic.                                                                                                                            |
+| 12.40 | Tournaments & Leagues               | NOT STARTED | `TOURNAMENT` exists only as a label on the match-type dropdown — no tournament entity, fixtures, or bracket logic.                                                    |
+| 12.41 | Tournament Points Table             | NOT STARTED | Depends entirely on 12.40.                                                                                                                                            |
+| 12.42 | Match Recording & Highlights        | NOT STARTED | No video/highlight capability anywhere.                                                                                                                               |
+| 12.43 | Match Chat & Communication          | DONE        | —                                                                                                                                                                     |
+| 12.44 | Rebook Same Players                 | DONE        | —                                                                                                                                                                     |
+| 12.45 | Notifications                       | DONE        | —                                                                                                                                                                     |
+| 12.46 | Turf Owner Management               | DONE        | No revenue/occupancy analytics surfaced (see 12.49).                                                                                                                  |
+| 12.47 | Staff Management                    | DONE        | —                                                                                                                                                                     |
+| 12.48 | Check-in                            | DONE        | —                                                                                                                                                                     |
+| 12.49 | Business Analytics                  | NOT STARTED | No analytics/aggregation endpoint exists — this is v1's **E-6**.                                                                                                      |
+| 12.50 | Cancellation/No-Show Analytics      | NOT STARTED | Same — raw data exists, nothing aggregates it.                                                                                                                        |
+| 12.51 | Memberships                         | NOT STARTED | Not built.                                                                                                                                                            |
+| 12.52 | Offers & Coupons                    | PARTIAL     | Generic promo codes exist; PRD's specific categories (first-booking, weekend, membership, referral) don't.                                                            |
+| 12.53 | Referral System                     | NOT STARTED | Zero references anywhere in the codebase.                                                                                                                             |
+| 12.54 | Café                                | NOT STARTED | Not built.                                                                                                                                                            |
+| 12.55 | Maintenance                         | PARTIAL     | Only a "maintenance" reason on an availability block — not the PRD's task tracker (equipment/electrical/cleaning with status).                                        |
+| 12.56 | Reviews & Feedback                  | DONE        | —                                                                                                                                                                     |
+| 12.57 | Support                             | DONE        | —                                                                                                                                                                     |
+| 12.58 | Location                            | PARTIAL     | Distance-sorted search exists; no map view or turn-by-turn navigation (PRD itself notes this is out of scope for now).                                                |
+| 12.59 | BFAM ID System                      | DONE        | —                                                                                                                                                                     |
+| 12.60 | Favorite Cricketer                  | DONE        | —                                                                                                                                                                     |
+| 12.61 | Cinematic Match Countdown Intro     | DONE        | Has the bugs in Part 2 (A-25/A-26) though.                                                                                                                            |
+| 12.62 | Live Match Viewer Count             | DONE        | Has the A-23 request (remove the active count) in Part 2.                                                                                                             |
+| 12.63 | Stadium Audio System                | DONE        | —                                                                                                                                                                     |
+
+**Admin Web** (§9, cuts across several §12 items): only Player directory (E-1) and a Home Banners CMS (part of E-7) exist. Turf/Match/Team/Reviews management and Reports (E-2 through E-6) are all unbuilt — the admin layout file's own code comment says as much.
+
+---
+
+## Part 2 — Feedback Backlog Status (v1 + v2 + v3)
+
+### v1 — Part A (Phase 2 Refinements)
+
+| ID   | Item                                                 | Status                                                                               |
+| ---- | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| A-1  | Multi-hour booking                                   | DONE                                                                                 |
+| A-2  | Multi-pitch venues                                   | DONE                                                                                 |
+| A-3  | Remove pricing from Turf Details                     | **Rejected by founder** — kept as-is, no action needed                               |
+| A-4  | Remove Running Late button                           | DONE                                                                                 |
+| A-5  | Remove Dispute Result entry points                   | DONE                                                                                 |
+| A-6  | Coin-toss presentation                               | DONE (confirmed working by founder)                                                  |
+| A-7  | Scoring Interface fewer taps                         | DONE                                                                                 |
+| A-8  | Extras count-toward-score toggle                     | DONE                                                                                 |
+| A-9  | Player names instead of BFAM ID (Scoring Interface)  | DONE — see **A-18** below for the screens beyond Scoring that still show raw BFAM ID |
+| A-10 | Restrict batter/bowler selection to the correct team | DONE                                                                                 |
+| A-11 | Copy an existing team                                | DONE                                                                                 |
+| A-12 | Temporarily hide Turf Discovery                      | DONE                                                                                 |
+
+### v1 — Part B (New Subsystems)
+
+| ID   | Item                                        | Status                                                                                                                                                                                                             |
+| ---- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| B-1  | Promo codes & BFAM Coins at checkout        | DONE (coin-earning sources still narrow — see PRD 12.34 above)                                                                                                                                                     |
+| B-2  | Contacts-based invites                      | DONE                                                                                                                                                                                                               |
+| B-3  | Team chat/activity room                     | DONE                                                                                                                                                                                                               |
+| B-4  | Turf/match review system with coin rewards  | DONE                                                                                                                                                                                                               |
+| B-5  | Fair Play Rating surfaced on Open Teams     | PARTIAL — the underlying score exists (12.22/12.27) but isn't displayed on the Open Teams list itself; worth a quick check whether this landed as part of the fair-play work or still needs the list-screen change |
+| B-6  | Home page carousel/slider for offers        | DONE                                                                                                                                                                                                               |
+| B-7  | Home page redesign                          | DONE                                                                                                                                                                                                               |
+| B-8  | Team join vacancy constrained by rating     | DONE                                                                                                                                                                                                               |
+| B-9  | Followers/Following with play notifications | DONE                                                                                                                                                                                                               |
+| B-10 | View another player's profile               | DONE                                                                                                                                                                                                               |
+
+### v1 — Part D (UI Animations) & Part E (Admin Panel)
+
+| ID          | Item                                                | Status                                                                |
+| ----------- | --------------------------------------------------- | --------------------------------------------------------------------- |
+| D-1/D-2/D-3 | Nav transitions, onboarding refresh, toss animation | DONE                                                                  |
+| E-1         | Admin: Player Management                            | DONE                                                                  |
+| E-2         | Admin: Match Management                             | NOT STARTED                                                           |
+| E-3         | Admin: Turf Management                              | NOT STARTED                                                           |
+| E-4         | Admin: Team Management                              | NOT STARTED                                                           |
+| E-5         | Admin: Reviews Management                           | NOT STARTED                                                           |
+| E-6         | Admin: Reports                                      | NOT STARTED                                                           |
+| E-7         | Admin: Home Content Management                      | PARTIAL — banners CMS exists; sliders/offers beyond banners not built |
+
+### v2
+
+| ID   | Item                                                 | Status                                                                                                                                                                         |
+| ---- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A-13 | General operating-hours default, per-day override    | NOT STARTED                                                                                                                                                                    |
+| A-14 | Copy a pitch's details onto another pitch            | NOT STARTED                                                                                                                                                                    |
+| A-15 | Split match/booking lists into Upcoming/Past         | NOT STARTED                                                                                                                                                                    |
+| A-16 | Captain-only management actions + Leave Team button  | NOT STARTED (the backend `leaveTeam` endpoint has existed, unused, since before v2 was even written)                                                                           |
+| A-17 | Real-time refresh after team actions                 | Mostly already fine — the two most likely culprits (join-request, accept-request) already self-refresh; needs the founder to name a specific still-stale screen if one remains |
+| A-19 | Auto-finalize match on target/all-out/overs-complete | NOT STARTED                                                                                                                                                                    |
+| B-11 | Pre-match Room (lobby) flow                          | DONE                                                                                                                                                                           |
+
+### v3
+
+| ID   | Item                                                                            | Status                                                                                                                                                                                                                                                             |
+| ---- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A-18 | Player names on the remaining BFAM-ID-only screens                              | PARTIAL — Match Intro's Playing XI reveal now uses `displayName()` (done since v3 was written); Invite, Live Score, Roster Check-in, Scorecard, and the Team member list still show raw BFAM ID                                                                    |
+| A-20 | Ask who's out/coming in on a wicket; block a dismissed batter from re-selection | NOT STARTED                                                                                                                                                                                                                                                        |
+| A-21 | Cap wickets at (assigned players − 1), auto all-out                             | NOT STARTED                                                                                                                                                                                                                                                        |
+| A-22 | Show run rate/economy/stats at match end                                        | NOT STARTED                                                                                                                                                                                                                                                        |
+| A-23 | Remove "Watching Live" active count, keep total views only                      | NOT STARTED                                                                                                                                                                                                                                                        |
+| A-24 | Auto-select Player of the Match                                                 | NOT STARTED                                                                                                                                                                                                                                                        |
+| A-25 | "Extras disappeared"                                                            | **RESOLVED (needs re-confirm)** — re-verified after the latest pull too; Extras UI, math, and Scorecard breakdown are all present and correct. Please re-check on the current build.                                                                               |
+| A-26 | "Start Match" resets state for everyone                                         | NOT STARTED — all three root causes (client always starts at COUNTDOWN, backend unconditionally rebroadcasts COUNTDOWN on every re-entry, `match_status` never transitions to its own already-defined `IN_PROGRESS` value) are still present after the latest pull |
+| B-12 | Player Search from Home top nav                                                 | NOT STARTED                                                                                                                                                                                                                                                        |
+| B-13 | Team vs Team Challenge Mode                                                     | NOT STARTED (confirmed independently by the PRD inventory pass too — this is the same gap as PRD §12.6)                                                                                                                                                            |
+
+---
+
+## Part 3 — Brother's Spreadsheet ("BFAM_issues"): Login & Sign Up
+
+The sheet has 7 real entries (the rest are empty placeholder rows), all `reported by: Vaibhav`, all status `Pending`, all `Unassigned`. Verified each against the current login/signup screens:
+
+| #   | Module  | Reported issue                                                                                       | Verified current state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --- | ------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S-1 | Login   | "Make a proper case for username and password label"                                                 | The fields are already labeled "Phone or Email" and "Password" (proper case) in `apps/mobile/app/login.tsx`. I can't find a casing bug here — likely a stale-build observation, same pattern as A-25. Needs a screenshot or a re-check on the current build to confirm what's actually being seen.                                                                                                                                                                                                                                                                                      |
+| S-2 | Login   | Wrong-password error should say "Invalid username or password", not "invalid identifier or password" | **Confirmed, real** — `login.tsx` line 97 literally sets `'Invalid identifier or password.'`. One-line text fix.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| S-3 | Login   | Move the Forgot Password link below the Password field                                               | **Confirmed, real** — it's currently the very last element on the screen, below the Sign Up prompt, several sections after Password.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| S-4 | Login   | Add a Back button on the Forgot Password screen                                                      | **Confirmed, real** — `forgot-password.tsx` uses a plain `ScreenContainer` with no header/back button, and the app's root navigation stack has `headerShown: false` globally, so there's currently no way back except a hardware/swipe gesture.                                                                                                                                                                                                                                                                                                                                         |
+| S-5 | Login   | Replace "Log In" heading with "Welcome" per a reference image                                        | The exact text to change is `login.tsx` line 116 — but the reference image wasn't attached to what reached me. Needs the image (or just confirm "Welcome" is the literal final wording wanted).                                                                                                                                                                                                                                                                                                                                                                                         |
+| S-6 | Sign Up | Block duplicate signup with the same mobile number; show a clear validation message                  | **Already implemented, but the timing may be why it reads as "missing"** — the backend (`POST /auth/otp/send`) already returns a clean 409 "An account already exists for this identifier" for a duplicate signup, and the mobile OTP-verification screen already displays that message. But the check only fires _after_ tapping Continue on Sign Up and landing on the OTP screen — not inline on the Sign Up form itself. If the expectation is an immediate inline error while still on the phone-number field, that's a real (smaller) gap: check earlier, before navigating away. |
+| S-7 | Sign Up | Proper case for username/password/confirm-password labels                                            | Same as S-1 — `signup.tsx` already labels these "Phone Number", "Password", "Confirm Password". Likely stale-build; flagging rather than guessing.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+---
+
+## Part 4 — Recommended Priority Order
+
+Grouped by urgency, not strictly by document. Reasoning: live-match-breaking bugs and anything touching match integrity first, then quick wins that are cheap and visible, then medium-scoped features, then the two subsystems that need real scoping before anyone builds them, then the long tail of PRD gaps that were never raised as explicit feedback (so they're lower priority by definition, but listed so nothing gets forgotten).
+
+### Priority 1 — Live-match integrity bugs (fix before more people test scoring)
+
+1. **A-26** — Start Match resetting state for everyone. This is the one actively capable of ruining an in-progress match for every viewer, not just annoying the one person who tapped it twice.
+2. **A-19** — Auto-finalize when target/overs/all-out is reached. Right now a chased target doesn't stop the innings.
+3. **A-21** — Wicket cap at (assigned players − 1). Same underlying fix as A-19, build together.
+4. **A-20** — Ask who's out / block a dismissed batter from being re-selected. Scoring-accuracy bug, not just UX.
+5. **S-2** — Fix the login error message text. Trivial, do it in the same pass as anything else touching auth.
+
+### Priority 2 — Quick, isolated wins (small diffs, high visible value)
+
+6. **A-23** — Remove the "Watching Live" active count.
+7. **S-3 / S-4** — Move Forgot Password, add its Back button.
+8. **A-16** — Captain-only management screen + a real Leave Team button (the backend already exists for this).
+9. **A-18** — Extend `displayName()` to the remaining 5 screens (mechanical, same pattern already proven in Scoring/Intro).
+10. **A-22** — Show run rate/economy on the Result screen (the numbers already exist server-side).
+11. **A-24** — Auto-select Player of the Match (points formula, pre-filled but overridable).
+12. **A-15** — Split match/booking lists into Upcoming/Past.
+13. **A-13** — General operating-hours default with per-day override.
+14. **A-14** — Copy a pitch's details onto another pitch.
+
+### Priority 3 — Needs a quick founder confirm before building
+
+15. **S-1 / S-7** — Ask Vaibhav for a screenshot of the casing issue he's seeing, since the code already looks correct.
+16. **S-5** — Get the "Welcome" reference image.
+17. **S-6** — Confirm whether the existing OTP-screen validation is actually sufficient, or whether it needs to move earlier (inline on the Sign Up form).
+18. **A-17** — Confirm whether a specific screen still needs a manual reload.
+19. **A-25** — Re-confirm extras are actually showing correctly on the current build.
+20. **B-12** — Confirm the "Turfs" meaning (available-to-book vs. play history) before scoping player search.
+
+### Priority 4 — New subsystems that need real scoping (not a quick build)
+
+21. **B-13 / PRD §12.6** — Team vs Team Challenge Mode. Genuinely new entity (challenges: pending/accepted/declined), plus an "open for challenge" flag and discovery surface.
+22. **B-12** — Player Search. New search endpoint + whatever the Part-3-confirmed "Turfs" meaning turns out to require.
+23. **E-2 through E-6** — the rest of the Admin Panel (Match/Turf/Team/Reviews Management, Reports). Turf Management (E-3) is the cheapest of these since Owner Web's turf-management UI already exists and mostly needs the ownership check relaxed to "any turf."
+
+### Priority 5 — Long tail from the PRD, not yet raised as explicit feedback (lowest priority, listed so it isn't lost)
+
+Rankings/Leaderboards (12.33), XP & Levels (12.35), Achievements & Badges (12.37), Match Streaks (12.38), Special Recognition (12.39), Tournaments & Leagues (12.40/41), Match Recording & Highlights (12.42), Business/Cancellation Analytics (12.49/50 — same as E-6), Memberships (12.51), a real Offers taxonomy beyond generic promo codes (12.52), Referral System (12.53), Café (12.54), a real Maintenance task tracker (12.55), in-match Fair Play rotation/alerts/new-player-protection (12.23–12.26), skill-aware team balancing (12.28), broader coin-earning sources and a rewards catalog (12.34/12.36), a web scoreboard view (12.20), and map/navigation (12.58).
+
+---
