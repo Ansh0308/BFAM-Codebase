@@ -13,16 +13,17 @@ jest.mock('expo-secure-store', () => ({
 
 import Onboarding from '../app/onboarding';
 
-// Backlog D-2: visual refresh of the 3 Get Started screens — these tests
-// lock in the underlying paging/finish behavior (including a bug fixed
-// while refreshing the screen: Next previously never scrolled the
-// carousel), independent of the visual treatment itself.
-describe('Onboarding (backlog D-2)', () => {
+// Backlog D-2 (+ four-chapter redesign): these tests lock in the
+// underlying paging/finish behavior across all 4 onboarding screens
+// (Book / Play / Compete / Identity), independent of each screen's own
+// bespoke visual treatment (photo hero, editorial split, scoreboard,
+// jersey-number identity).
+describe('Onboarding (four-chapter campaign)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('shows the first slide and a "Next" button initially', async () => {
+  it('shows the first slide (Book) and a "Next" button initially', async () => {
     const { findByText, findByTestId } = await render(<Onboarding />);
 
     await findByText('BOOK TURFS INSTANTLY');
@@ -30,7 +31,7 @@ describe('Onboarding (backlog D-2)', () => {
     expect(button).toBeTruthy();
   });
 
-  it('advances through all 3 slides via Next, then finishes onboarding', async () => {
+  it('advances through all 4 slides via Next, then finishes onboarding', async () => {
     const { findByText, findByTestId } = await render(<Onboarding />);
 
     await findByText('BOOK TURFS INSTANTLY');
@@ -38,10 +39,14 @@ describe('Onboarding (backlog D-2)', () => {
     // slideIndex advances on press (state update), independent of the
     // ScrollView's own native scrollTo, which jsdom/RN test renderer
     // doesn't actually animate.
-    await findByText('LIVE SCORING');
+    await findByText('FIND YOUR PLAYERS.');
 
     await fireEvent.press(await findByTestId('onboarding-next-button'));
-    await findByText('YOUR BFAM ID');
+    await findByText('PLAY. COMPETE. REPEAT.');
+
+    await fireEvent.press(await findByTestId('onboarding-next-button'));
+    await findByText('YOUR BFAM ID.');
+    await findByText('Get Started');
 
     await fireEvent.press(await findByTestId('onboarding-next-button'));
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/login'));
@@ -52,9 +57,11 @@ describe('Onboarding (backlog D-2)', () => {
     await findByText('BOOK TURFS INSTANTLY');
 
     await fireEvent.press(await findByTestId('onboarding-next-button'));
-    await findByText('LIVE SCORING');
+    await findByText('FIND YOUR PLAYERS.');
     await fireEvent.press(await findByTestId('onboarding-next-button'));
-    await findByText('YOUR BFAM ID');
+    await findByText('PLAY. COMPETE. REPEAT.');
+    await fireEvent.press(await findByTestId('onboarding-next-button'));
+    await findByText('YOUR BFAM ID.');
     await fireEvent.press(await findByTestId('onboarding-next-button'));
 
     await waitFor(() =>

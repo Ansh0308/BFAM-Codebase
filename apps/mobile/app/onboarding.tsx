@@ -1,42 +1,38 @@
 import React, { useRef, useState } from 'react';
-import { Animated, View, Text, ScrollView, Dimensions, Platform } from 'react-native';
+import { Animated, View, Text, ScrollView, Platform, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { Feather } from '@expo/vector-icons';
 import { ScreenContainer } from '../src/components/ScreenContainer';
 import { Button } from '../src/components/Button';
+import { Reveal } from '../src/components/Reveal';
+import { BookHero } from '../src/components/onboarding/BookHero';
+import { PlayHero } from '../src/components/onboarding/PlayHero';
+import { CompeteHero } from '../src/components/onboarding/CompeteHero';
+import { IdentityHero } from '../src/components/onboarding/IdentityHero';
 import { HAS_ONBOARDED_KEY } from './index';
 
-// Backlog D-2: visual refresh of the 3 Get Started screens — a large icon
-// badge per slide (matching the circular-badge language RoleCard already
-// uses elsewhere), a red accent divider under the title, and an animated
-// paging indicator, in place of the previous plain-text-only layout.
-const SLIDES: { title: string; body: string; icon: keyof typeof Feather.glyphMap }[] = [
-  {
-    title: 'BOOK TURFS INSTANTLY',
-    body: 'Find and book cricket turfs near you in seconds.',
-    icon: 'map-pin',
-  },
-  {
-    title: 'LIVE SCORING',
-    body: 'Score every ball and share it live with your team.',
-    icon: 'activity',
-  },
-  {
-    title: 'YOUR BFAM ID',
-    body: 'A permanent identity across every match you play.',
-    icon: 'award',
-  },
-];
-
-const { width } = Dimensions.get('window');
+// Four chapters of one premium BFAM campaign — each screen carries a
+// single dominant visual idea (turf photo / player photo / scoreboard
+// typography / jersey-number identity) rather than reusing one
+// icon+headline+body template four times. Shared chrome (header, skip,
+// progress, CTA) stays consistent; only the SLIDES metadata below and
+// each Hero component's own layout differ per screen.
+const SLIDE_KEYS = ['book', 'play', 'compete', 'identity'] as const;
 
 // A paging dot that grows and fills in as its slide becomes active,
 // driven by the same scroll-position value the slide content scrolls
 // with — so the indicator tracks the actual swipe, not just the
 // momentum-end index.
-function PagingDot({ index, scrollX }: { index: number; scrollX: Animated.Value }) {
-  const slideWidth = width - 40;
+function PagingDot({
+  index,
+  scrollX,
+  slideWidth,
+}: {
+  index: number;
+  scrollX: Animated.Value;
+  slideWidth: number;
+}) {
   const inputRange = [(index - 1) * slideWidth, index * slideWidth, (index + 1) * slideWidth];
   const dotWidth = scrollX.interpolate({
     inputRange,
@@ -58,6 +54,8 @@ function PagingDot({ index, scrollX }: { index: number; scrollX: Animated.Value 
 
 export default function Onboarding() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const SLIDE_WIDTH = width - 40;
   const [slideIndex, setSlideIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<ScrollView>(null);
@@ -73,9 +71,29 @@ export default function Onboarding() {
 
   return (
     <ScreenContainer>
-      <View className="flex-row justify-end pt-4">
-        <Button label="Skip" variant="secondary" fullWidth={false} onPress={finishOnboarding} />
+      {/* Very faint oversized wordmark behind the header/hero — same
+          restrained watermark language as the auth screens, kept here at
+          low opacity so it reads as texture, not decoration. */}
+      <View style={{ position: 'absolute', top: -6, right: -12 }} pointerEvents="none">
+        <Text
+          className="font-display text-ink-black"
+          style={{ fontSize: 90, opacity: 0.035, letterSpacing: -2 }}
+        >
+          BFAM
+        </Text>
       </View>
+
+      <Reveal delay={0}>
+        <View className="flex-row items-start justify-between pt-4 mb-1">
+          <View>
+            <Text className="font-display text-card-title text-brand-red">BFAM</Text>
+            <Text className="font-ui text-micro uppercase tracking-widest text-text-tertiary mt-0.5">
+              Play. Compete. Repeat.
+            </Text>
+          </View>
+          <Button label="Skip" variant="secondary" fullWidth={false} onPress={finishOnboarding} />
+        </View>
+      </Reveal>
 
       <Animated.ScrollView
         ref={scrollRef}
@@ -90,60 +108,61 @@ export default function Onboarding() {
           // Divided by the slide's own width (width - 40, matching the
           // ScreenContainer's horizontal padding) rather than the full
           // screen width, since that's the actual paging increment.
-          const index = Math.round(e.nativeEvent.contentOffset.x / (width - 40));
+          const index = Math.round(e.nativeEvent.contentOffset.x / SLIDE_WIDTH);
           setSlideIndex(index);
         }}
         className="flex-1"
       >
-        {SLIDES.map((slide) => (
-          <View
-            key={slide.title}
-            style={{ width: width - 40 }}
-            className="items-center justify-center"
-          >
-            <View
-              className="rounded-full bg-surface-alt items-center justify-center mb-8"
-              style={{ width: 128, height: 128 }}
-            >
-              <Feather name={slide.icon} size={56} color="#D80000" />
-            </View>
-            <Text className="font-ui font-bold text-title-xl text-ink-black text-center">
-              {slide.title}
-            </Text>
-            <View className="h-0.5 w-10 bg-brand-red my-3" />
-            <Text className="font-ui text-body text-text-secondary text-center px-4">
-              {slide.body}
-            </Text>
-          </View>
-        ))}
+        <View style={{ width: SLIDE_WIDTH, overflow: 'hidden' }} className="justify-center">
+          <BookHero />
+        </View>
+        <View style={{ width: SLIDE_WIDTH, overflow: 'hidden' }} className="justify-center">
+          <PlayHero active={slideIndex === 1} />
+        </View>
+        <View style={{ width: SLIDE_WIDTH, overflow: 'hidden' }} className="justify-center">
+          <CompeteHero active={slideIndex === 2} />
+        </View>
+        <View style={{ width: SLIDE_WIDTH, overflow: 'hidden' }} className="justify-center">
+          <IdentityHero active={slideIndex === 3} />
+        </View>
       </Animated.ScrollView>
 
-      <View className="flex-row justify-center items-center mb-6" testID="onboarding-dots">
-        {SLIDES.map((slide, index) => (
-          <PagingDot key={slide.title} index={index} scrollX={scrollX} />
-        ))}
-      </View>
+      <Reveal delay={260}>
+        <View className="items-center mb-6">
+          <View className="flex-row justify-center items-center" testID="onboarding-dots">
+            {SLIDE_KEYS.map((key, index) => (
+              <PagingDot key={key} index={index} scrollX={scrollX} slideWidth={SLIDE_WIDTH} />
+            ))}
+          </View>
+          <Text className="font-ui text-micro tracking-widest text-text-tertiary mt-2">
+            {String(slideIndex + 1).padStart(2, '0')} / {String(SLIDE_KEYS.length).padStart(2, '0')}
+          </Text>
+        </View>
+      </Reveal>
 
-      <View className="mb-6">
-        <Button
-          label={slideIndex === SLIDES.length - 1 ? 'Get Started' : 'Next'}
-          onPress={() => {
-            if (slideIndex === SLIDES.length - 1) {
-              finishOnboarding();
-              return;
-            }
-            // Fix (found while refreshing this screen for D-2): tapping
-            // Next only ever updated slideIndex — the carousel itself
-            // never actually moved unless the user swiped it, so the
-            // title/body/dots silently fell out of sync with the button's
-            // own label. Now scrolls the ScrollView to match.
-            const nextIndex = Math.min(slideIndex + 1, SLIDES.length - 1);
-            scrollRef.current?.scrollTo({ x: nextIndex * (width - 40), animated: true });
-            setSlideIndex(nextIndex);
-          }}
-          testID="onboarding-next-button"
-        />
-      </View>
+      <Reveal delay={300}>
+        <View className="mb-6">
+          <Button
+            label={slideIndex === SLIDE_KEYS.length - 1 ? 'Get Started' : 'Next'}
+            onPress={() => {
+              if (slideIndex === SLIDE_KEYS.length - 1) {
+                finishOnboarding();
+                return;
+              }
+              // Fix (found while refreshing this screen for D-2): tapping
+              // Next only ever updated slideIndex — the carousel itself
+              // never actually moved unless the user swiped it, so the
+              // title/body/dots silently fell out of sync with the button's
+              // own label. Now scrolls the ScrollView to match.
+              const nextIndex = Math.min(slideIndex + 1, SLIDE_KEYS.length - 1);
+              scrollRef.current?.scrollTo({ x: nextIndex * SLIDE_WIDTH, animated: true });
+              setSlideIndex(nextIndex);
+            }}
+            testID="onboarding-next-button"
+            iconRight={<Feather name="arrow-right" size={18} color="#FFFFFF" />}
+          />
+        </View>
+      </Reveal>
     </ScreenContainer>
   );
 }

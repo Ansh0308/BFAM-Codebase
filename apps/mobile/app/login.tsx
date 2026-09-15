@@ -3,8 +3,11 @@ import { View, Text, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather, FontAwesome } from '@expo/vector-icons';
 import { AuthScreenBackground } from '../src/components/AuthScreenBackground';
+import { LoginHero } from '../src/components/LoginHero';
 import { TextField } from '../src/components/TextField';
 import { Button } from '../src/components/Button';
+import { LoadingOverlay } from '../src/components/LoadingOverlay';
+import { Reveal } from '../src/components/Reveal';
 import { apiClient } from '../src/lib/apiClient';
 import { useAuthStore } from '../src/store/authStore';
 import { useSignupStore } from '../src/store/signupStore';
@@ -27,6 +30,7 @@ export default function Login() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
   const {
     request: googleRequest,
@@ -92,123 +96,144 @@ export default function Login() {
         bfam_id: body.bfam_id,
         role: body.role,
       });
-      router.replace('/session-active');
+      setLoading(false);
+      setLoginSuccess(true);
+      setTimeout(() => router.replace('/session-active'), 450);
     } catch {
       setError('Invalid identifier or password.');
-    } finally {
       setLoading(false);
     }
   }
 
   return (
-    <AuthScreenBackground scroll>
-      <View className="items-center mt-12 mb-6">
-        <Text className="font-display text-hero text-brand-red">BFAM</Text>
-        <Text className="font-ui text-micro uppercase tracking-widest text-text-secondary mt-1">
-          Play. Compete. Repeat.
-        </Text>
-        <View className="h-0.5 w-8 bg-brand-red mt-2" />
-      </View>
+    <View style={{ flex: 1 }}>
+      <AuthScreenBackground scroll avoidKeyboard>
+        <LoginHero />
 
-      <View className="flex-row items-center justify-center mb-8">
-        <View className="h-px w-8 bg-brand-red" />
-        <Text className="font-ui font-bold text-section-header text-ink-black uppercase tracking-wide mx-3">
-          Log In
-        </Text>
-        <View className="h-px w-8 bg-brand-red" />
-      </View>
+        <View className="mt-7">
+          <Reveal delay={130}>
+            <TextField
+              label="Phone or Email"
+              placeholder="Enter phone or email"
+              value={identifier}
+              onChangeText={setIdentifier}
+              autoCapitalize="none"
+              autoComplete="username"
+              testID="login-identifier"
+              iconLeft={<Feather name="user" size={18} />}
+            />
+          </Reveal>
+          <Reveal delay={170}>
+            <TextField
+              label="Password"
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!passwordVisible}
+              autoComplete="password"
+              textContentType="password"
+              testID="login-password"
+              iconLeft={<Feather name="lock" size={18} />}
+              rightAction={
+                <Pressable
+                  onPress={() => setPasswordVisible((v) => !v)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+                >
+                  <Feather name={passwordVisible ? 'eye-off' : 'eye'} size={18} color="#767676" />
+                </Pressable>
+              }
+            />
+          </Reveal>
 
-      <TextField
-        label="Phone or Email"
-        placeholder="Enter phone or email"
-        value={identifier}
-        onChangeText={setIdentifier}
-        autoCapitalize="none"
-        testID="login-identifier"
-        iconLeft={<Feather name="user" size={18} color="#D80000" />}
-      />
-      <TextField
-        label="Password"
-        placeholder="Enter your password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry={!passwordVisible}
-        testID="login-password"
-        iconLeft={<Feather name="lock" size={18} color="#D80000" />}
-        rightAction={
-          <Pressable
-            onPress={() => setPasswordVisible((v) => !v)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
-          >
-            <Feather name={passwordVisible ? 'eye-off' : 'eye'} size={18} color="#767676" />
-          </Pressable>
-        }
-      />
+          <Reveal delay={190}>
+            <View className="items-end mb-4" style={{ marginTop: -8 }}>
+              <Text
+                className="font-ui text-micro font-bold text-brand-red"
+                onPress={() => router.push('/forgot-password')}
+              >
+                Forgot password?
+              </Text>
+            </View>
+          </Reveal>
 
-      {error ? <Text className="font-ui text-body text-brand-red-dark mb-4">{error}</Text> : null}
+          {error ? (
+            <View className="flex-row items-center bg-status-danger-bg rounded-md px-3 py-2 mb-4">
+              <Feather name="alert-circle" size={14} color="#A80000" />
+              <Text className="font-ui text-micro text-status-danger ml-2 flex-1">{error}</Text>
+            </View>
+          ) : null}
 
-      <Button
-        label="Log In"
-        onPress={handleLogin}
-        loading={loading}
-        testID="login-submit"
-        iconRight={<Feather name="arrow-right" size={18} color="#FFFFFF" />}
-      />
+          <Reveal delay={220}>
+            <Button
+              label="Log In"
+              onPress={handleLogin}
+              loading={loading}
+              success={loginSuccess}
+              testID="login-submit"
+              iconRight={
+                loginSuccess ? undefined : <Feather name="arrow-right" size={18} color="#FFFFFF" />
+              }
+            />
+          </Reveal>
 
-      <View className="flex-row items-center my-6">
-        <View className="flex-1 h-px bg-border-strong" />
-        <Text className="font-ui text-micro uppercase tracking-widest text-text-tertiary mx-3">
-          Or
-        </Text>
-        <View className="flex-1 h-px bg-border-strong" />
-      </View>
+          <Reveal delay={260}>
+            <View className="flex-row items-center my-6">
+              <View className="flex-1 h-px bg-border-strong" />
+              <Text className="font-ui text-micro uppercase tracking-widest text-text-tertiary mx-3">
+                Or
+              </Text>
+              <View className="flex-1 h-px bg-border-strong" />
+            </View>
 
-      <Button
-        label="Log in with OTP instead"
-        variant="ghost"
-        onPress={() =>
-          router.push({ pathname: '/otp-verification', params: { mode: 'send', purpose: 'LOGIN' } })
-        }
-        iconLeft={<Feather name="smartphone" size={18} color="#D80000" />}
-      />
+            <Button
+              label="Log in with OTP instead"
+              variant="ghost"
+              onPress={() =>
+                router.push({
+                  pathname: '/otp-verification',
+                  params: { mode: 'send', purpose: 'LOGIN' },
+                })
+              }
+              iconLeft={<Feather name="smartphone" size={18} color="#D80000" />}
+            />
+          </Reveal>
 
-      <View className="mt-3">
-        <Button
-          label="Continue with Google"
-          variant="secondary"
-          disabled={!googleRequest}
-          onPress={() => googlePromptAsync()}
-          iconLeft={<FontAwesome name="google" size={18} color="#111111" />}
-        />
-      </View>
-      <View className="mt-3">
-        <Button
-          label="Continue with Apple"
-          variant="secondary"
-          onPress={handleAppleSignIn}
-          iconLeft={<FontAwesome name="apple" size={18} color="#0D0D0D" />}
-        />
-      </View>
+          <Reveal delay={300}>
+            <View className="mt-3">
+              <Button
+                label="Continue with Google"
+                variant="secondary"
+                disabled={!googleRequest}
+                onPress={() => googlePromptAsync()}
+                iconLeft={<FontAwesome name="google" size={18} color="#111111" />}
+              />
+            </View>
+            <View className="mt-3">
+              <Button
+                label="Continue with Apple"
+                variant="secondary"
+                onPress={handleAppleSignIn}
+                iconLeft={<FontAwesome name="apple" size={18} color="#0D0D0D" />}
+              />
+            </View>
+          </Reveal>
 
-      <View className="flex-row justify-center mt-8 mb-2">
-        <Text className="font-ui text-body text-text-secondary">New to BFAM? </Text>
-        <Text
-          className="font-ui text-body font-bold text-brand-red"
-          onPress={() => router.push('/signup')}
-        >
-          Sign up
-        </Text>
-      </View>
-      <View className="items-center mb-8">
-        <Text
-          className="font-ui text-body text-text-tertiary"
-          onPress={() => router.push('/forgot-password')}
-        >
-          Forgot password?
-        </Text>
-      </View>
-    </AuthScreenBackground>
+          <Reveal delay={340}>
+            <View className="flex-row justify-center mt-8 mb-8">
+              <Text className="font-ui text-body text-text-secondary">New to BFAM? </Text>
+              <Text
+                className="font-ui text-body font-bold text-brand-red"
+                onPress={() => router.push('/signup')}
+              >
+                Sign up
+              </Text>
+            </View>
+          </Reveal>
+        </View>
+      </AuthScreenBackground>
+      {loading ? <LoadingOverlay label="Logging in..." /> : null}
+    </View>
   );
 }

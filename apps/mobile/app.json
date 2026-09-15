@@ -53,7 +53,8 @@
       "expo-web-browser",
       "expo-asset",
       "expo-status-bar",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-image"
     ]
   }
 }

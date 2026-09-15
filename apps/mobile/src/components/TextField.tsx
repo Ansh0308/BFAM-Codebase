@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TextInputProps } from 'react-native';
+import { View, Text, TextInput, TextInputProps, Platform } from 'react-native';
+import { colors } from '../theme/tokens';
 
 interface TextFieldProps extends TextInputProps {
   label: string;
@@ -27,6 +28,12 @@ export function TextField({
 }: TextFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
 
+  const iconColor = error ? colors.brandRedDark : isFocused ? colors.brandRed : colors.textTertiary;
+  const styledIconLeft =
+    iconLeft && React.isValidElement(iconLeft)
+      ? React.cloneElement(iconLeft as React.ReactElement<{ color?: string }>, { color: iconColor })
+      : iconLeft;
+
   return (
     <View className="mb-4">
       <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-2">
@@ -37,9 +44,19 @@ export function TextField({
           'flex-row items-center bg-surface rounded-md border px-4',
           error ? 'border-brand-red-dark' : isFocused ? 'border-brand-red' : 'border-border-strong',
         ].join(' ')}
-        style={{ height: 48, borderWidth: isFocused || error ? 1.5 : 1 }}
+        style={[
+          { height: 48, borderWidth: isFocused || error ? 1.5 : 1 },
+          isFocused && Platform.OS === 'ios'
+            ? {
+                shadowColor: colors.brandRed,
+                shadowOpacity: 0.15,
+                shadowRadius: 6,
+                shadowOffset: { width: 0, height: 0 },
+              }
+            : null,
+        ]}
       >
-        {iconLeft ? <View className="mr-3">{iconLeft}</View> : null}
+        {styledIconLeft ? <View className="mr-3">{styledIconLeft}</View> : null}
         <TextInput
           className="flex-1 font-ui text-body"
           style={[{ color: '#111111', outlineStyle: 'none' } as object, style]}
