@@ -1,0 +1,19 @@
+No,Module name,Title,Attachment,status,reported by,assigned to
+1,Login,Make a proper case for username and password lable,,Pending,Vaibhav,Unassigned
+2,Login,"When username or password is entered incorrectly,
+validation message should be ""Invalid username or password
+instead of ""invalid identifier or password""",,Pending,Vaibhav,Unassigned
+3,Login,Move the Forgot Password link below the Password field.,,Pending,Vaibhav,Unassigned
+4,Login,"Add a Back button on the Forgot Password screen so users can 
+return to the Login screen.",,Pending,Vaibhav,Unassigned
+5,Login ,"Replace “Log In” with “Welcome”, as shown in the attached reference image.",,Pending,Vaibhav,Unassigned
+,Sign up,"When already one sign up is done with then it should not allow to enter details with same
+mobile number, currenty, show validation that already exist or ",,Pending,,Unassigned
+,Sign up,"Make a proper case for username,password and confirm password lable",,Pending,,Unassigned
+,,,,Pending,,Unassigned
+,,,,Pending,,Unassigned
+,,,,Pending,,Unassigned
+,,,,,,Unassigned
+,,,,,,Unassigned
+,,,,,,Unassigned
+,,,,,,Unassigned
