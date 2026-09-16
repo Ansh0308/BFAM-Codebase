@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '../src/components/ScreenContainer';
+import { ScreenHeader } from '../src/components/ScreenHeader';
 import { TextField } from '../src/components/TextField';
 import { Button } from '../src/components/Button';
 import { apiClient } from '../src/lib/apiClient';
@@ -44,9 +45,9 @@ export default function ForgotPassword() {
 
   return (
     <ScreenContainer scroll>
-      <View className="mt-10 mb-8">
-        <Text className="font-ui font-bold text-title-xl text-ink-black">Forgot Password</Text>
-        <Text className="font-ui text-body text-text-secondary mt-2">
+      <ScreenHeader title="Forgot Password" />
+      <View className="mt-6 mb-8">
+        <Text className="font-ui text-body text-text-secondary">
           We&apos;ll send a code to reset your password.
         </Text>
       </View>

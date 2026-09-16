@@ -6,9 +6,9 @@ import loginHeroImage from '../assets/images/login-hero.jpg';
 
 // Login's brand moment: a single pre-composited campaign photograph (BFAM
 // wordmark, tagline, red diagonal geometry and the athlete all baked into
-// one image) used as a full-width hero background, with only the "Log In"
-// headline + copy rendered as real UI text on top of it. The form below
-// stays on plain white, unchanged.
+// one image) used as a full-width hero background, with only the "Welcome
+// back" headline + copy rendered as real UI text on top of it. The form
+// below stays on plain white, unchanged.
 export function LoginHero() {
   const { height } = useWindowDimensions();
   const HERO_HEIGHT = Math.max(380, Math.min(480, height * 0.5));
@@ -28,10 +28,12 @@ export function LoginHero() {
 
       <View style={{ position: 'absolute', top: HERO_HEIGHT * 0.33, left: 20 }}>
         <Reveal delay={120}>
-          <Text className="font-display text-title-xl text-ink-black tracking-wide">Log In</Text>
+          <Text className="font-display text-title-xl text-ink-black tracking-wide">
+            Welcome back
+          </Text>
           <View className="h-1 w-10 rounded-full bg-brand-red mt-2" />
           <Text className="font-ui text-body text-text-secondary mt-3">
-            Access your game.{'\n'}Your turf. Your community.
+            Log in and get back into the game.
           </Text>
         </Reveal>
       </View>

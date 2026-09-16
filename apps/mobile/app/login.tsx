@@ -100,7 +100,7 @@ export default function Login() {
       setLoginSuccess(true);
       setTimeout(() => router.replace('/session-active'), 450);
     } catch {
-      setError('Invalid identifier or password.');
+      setError('Invalid username or password.');
       setLoading(false);
     }
   }
