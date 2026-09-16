@@ -74,6 +74,7 @@ import {
   StaffAssignment,
   OwnerBooking,
   OwnerMatch,
+  OwnerLiveMatch,
   OwnerPayment,
   SupportTicket,
   SupportCategory,
@@ -1037,6 +1038,12 @@ export class BFAMApiClient {
 
   async getOwnerMatches(): Promise<{ results: OwnerMatch[] }> {
     return this.request('/owner/matches');
+  }
+
+  // Digital Scoreboard (PRD §12.20) — matches currently being scored at
+  // this owner's turfs, for the LED/TV display picker.
+  async getOwnerLiveMatches(): Promise<{ results: OwnerLiveMatch[] }> {
+    return this.request('/owner/live-matches');
   }
 
   async getOwnerPayments(): Promise<{ results: OwnerPayment[] }> {

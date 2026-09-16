@@ -187,6 +187,16 @@ export async function startInnings(matchId: string, actorUserId: string, input: 
 
   const inningsId = randomUUID();
   const now = new Date();
+  // A new innings starting means whatever innings was previously in progress
+  // for this match is done — nothing else ever marks an innings COMPLETED,
+  // so without this every prior innings would stay "live" forever.
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate(
+      'innings',
+      { innings_status: 'COMPLETED', updated_at: now },
+      { match_id: matchId, innings_status: 'IN_PROGRESS' },
+    );
   await sequelize.getQueryInterface().bulkInsert('innings', [
     {
       innings_id: inningsId,
@@ -649,6 +659,16 @@ export async function finalizeMatch(
   await sequelize
     .getQueryInterface()
     .bulkUpdate('matches', { match_status: 'COMPLETED', updated_at: now }, { match_id: matchId });
+  // The last innings never gets closed out by startInnings (there's no next
+  // innings to trigger it), so finalizing the match has to do it here —
+  // otherwise that innings stays IN_PROGRESS forever.
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate(
+      'innings',
+      { innings_status: 'COMPLETED', updated_at: now },
+      { match_id: matchId, innings_status: 'IN_PROGRESS' },
+    );
 
   await materializeMatchStatistics(matchId);
   await notifyMatchResult(matchId, input).catch((error) => {

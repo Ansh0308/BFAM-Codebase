@@ -575,6 +575,28 @@ export async function listMatchesForOwner(ownerUserId: string) {
   );
 }
 
+// Digital Scoreboard for LED/TV displays (PRD §12.20) — an owner with
+// multiple pitches, possibly several matches live at once, needs to pick
+// which match's live score to put on which pitch's screen. "Live" here
+// means "has an innings currently being scored" (innings_status =
+// IN_PROGRESS) rather than matches.match_status, since match_status never
+// actually reaches IN_PROGRESS today (a known gap, backlog A-26) — an
+// active innings is the reliable signal regardless of that.
+export async function listLiveMatchesForOwner(ownerUserId: string) {
+  return sequelize.query(
+    `SELECT m.*, t.turf_id, t.turf_name, t.venue_id, v.venue_name,
+       i.innings_id, i.total_runs, i.total_wickets, i.overs_completed
+     FROM matches m
+     JOIN bookings b ON b.booking_id = m.booking_id
+     JOIN turfs t ON t.turf_id = b.turf_id
+     LEFT JOIN venues v ON v.venue_id = t.venue_id
+     JOIN innings i ON i.match_id = m.match_id AND i.innings_status = 'IN_PROGRESS'
+     WHERE t.owner_id = :ownerUserId
+     ORDER BY t.turf_name ASC, m.scheduled_start_time DESC`,
+    { type: QueryTypes.SELECT, replacements: { ownerUserId } },
+  );
+}
+
 // Payments incl. Cash Reconciliation (module 2.12, PRD §8.3/§9.2) — every
 // payment against a booking at any turf this owner runs, across all modes.
 export async function listPaymentsForOwner(ownerUserId: string) {

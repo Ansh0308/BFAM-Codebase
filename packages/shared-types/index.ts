@@ -920,6 +920,19 @@ export interface OwnerMatch extends Match {
   turf_name: string;
 }
 
+// Digital Scoreboard (PRD §12.20) — a match currently being scored at one
+// of the owner's turfs, with a score snapshot so the picker screen can
+// show "142/3 (14.2 ov)" without a second round trip per match.
+export interface OwnerLiveMatch extends OwnerMatch {
+  turf_id: string;
+  venue_id: string | null;
+  venue_name: string | null;
+  innings_id: string;
+  total_runs: number;
+  total_wickets: number;
+  overs_completed: number;
+}
+
 export interface OwnerPayment extends Payment {
   turf_name: string;
 }

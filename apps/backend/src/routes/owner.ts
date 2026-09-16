@@ -23,6 +23,7 @@ import {
   getTurfForOwner,
   getVenueForOwner,
   listAvailabilityBlocks,
+  listLiveMatchesForOwner,
   listMatchesForOwner,
   listMyTurfs,
   listMyVenues,
@@ -347,6 +348,17 @@ router.get(
   '/matches',
   asyncHandler(async (req: Request, res: Response) => {
     const matches = await listMatchesForOwner(req.auth!.sub);
+    return res.status(200).json({ results: matches });
+  }),
+);
+
+// GET /owner/live-matches — Digital Scoreboard (PRD §12.20): every match
+// at any of this owner's turfs that currently has an innings being
+// scored, so the owner can pick which one to put on a given pitch's LED.
+router.get(
+  '/live-matches',
+  asyncHandler(async (req: Request, res: Response) => {
+    const matches = await listLiveMatchesForOwner(req.auth!.sub);
     return res.status(200).json({ results: matches });
   }),
 );
