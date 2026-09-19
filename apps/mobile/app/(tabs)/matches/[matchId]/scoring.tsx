@@ -137,6 +137,16 @@ export default function ScoringInterfaceScreen() {
   const [pendingExtra, setPendingExtra] = useState<ExtraKind | null>(null);
   const [pendingWicket, setPendingWicket] = useState(false);
   const [wicketType, setWicketType] = useState<WicketType | null>(null);
+  // A-20: only a RUN_OUT can dismiss either end — every other wicket type
+  // is always the striker, so this only needs asking for RUN_OUT.
+  const [runOutDismissedId, setRunOutDismissedId] = useState<string | null>(null);
+  // A-20: who's already out this innings, so they can't be picked again as
+  // striker/non-striker. Derived from the scorecard's own `out` flag (the
+  // same batting.out the backend already computes from score_events) on
+  // every load rather than tracked separately client-side — that way it's
+  // also correct if this screen is closed and reopened mid-innings, not
+  // just for wickets taken in this session.
+  const [dismissedPlayerIds, setDismissedPlayerIds] = useState<Set<string>>(new Set());
 
   const [battingSide, setBattingSide] = useState<string | null>(null);
   const [bowlingSide, setBowlingSide] = useState<string | null>(null);
@@ -194,6 +204,14 @@ export default function ScoringInterfaceScreen() {
         setBowlingSide((prev) => prev ?? bowlingId);
       }
       if (scorecard) setExtrasCountTowardScore(scorecard.extras_count_toward_score);
+      const currentInningsScorecard = scorecard?.innings.find(
+        (i) => i.innings_id === liveScore.innings?.innings_id,
+      );
+      setDismissedPlayerIds(
+        new Set(
+          currentInningsScorecard?.batting.filter((b) => b.out).map((b) => b.player_id) ?? [],
+        ),
+      );
       setSideAssignments((prev) => {
         const next = { ...prev };
         for (const p of gameRoom.players) {
@@ -234,9 +252,11 @@ export default function ScoringInterfaceScreen() {
       .map((p) => ({ value: p.player_id, label: displayName(p) }));
   }
 
-  const battingOptions = live?.innings
-    ? optionsForSide(live.innings.batting_match_team_id)
-    : eligiblePlayers.map((p) => ({ value: p.player_id, label: displayName(p) }));
+  const battingOptions = (
+    live?.innings
+      ? optionsForSide(live.innings.batting_match_team_id)
+      : eligiblePlayers.map((p) => ({ value: p.player_id, label: displayName(p) }))
+  ).filter((o) => !dismissedPlayerIds.has(o.value));
   const bowlingOptions = live?.innings
     ? optionsForSide(live.innings.bowling_match_team_id)
     : eligiblePlayers.map((p) => ({ value: p.player_id, label: displayName(p) }));
@@ -333,8 +353,9 @@ export default function ScoringInterfaceScreen() {
       extra_runs: number;
       is_wicket: boolean;
       wicket_type?: WicketType | null;
+      dismissed_player_id?: string | null;
     },
-    options?: { rotateStrike?: boolean; clearStriker?: boolean },
+    options?: { rotateStrike?: boolean },
   ) {
     if (!live?.innings || !strikerId || !bowlerId) return;
     setBusy(true);
@@ -355,11 +376,14 @@ export default function ScoringInterfaceScreen() {
       // Real-cricket strike rotation, done automatically instead of asking
       // the organizer to tap Swap after every odd-run ball — the single
       // biggest tap-count win in this screen since it fires on ~1 in 3
-      // deliveries. A wicket instead clears the striker slot: the outgoing
-      // batter can't just stay selected, and guessing the incoming one
-      // would risk recording the next ball against the wrong player.
-      if (options?.clearStriker) {
-        setStrikerId(null);
+      // deliveries. A wicket instead clears whichever end was actually
+      // dismissed (striker, or — on a RUN_OUT — whichever end the
+      // organizer picked below): that batter can't just stay selected, and
+      // guessing the incoming one would risk recording the next ball
+      // against the wrong player.
+      if (input.is_wicket && input.dismissed_player_id) {
+        if (input.dismissed_player_id === strikerId) setStrikerId(null);
+        if (input.dismissed_player_id === nonStrikerId) setNonStrikerId(null);
       } else if (options?.rotateStrike) {
         swapStrike();
       }
@@ -367,6 +391,7 @@ export default function ScoringInterfaceScreen() {
       setPendingExtra(null);
       setPendingWicket(false);
       setWicketType(null);
+      setRunOutDismissedId(null);
       await load();
     } catch (err) {
       setError(err instanceof BFAMApiError ? err.message : 'Could not record that ball.');
@@ -401,18 +426,21 @@ export default function ScoringInterfaceScreen() {
     );
   }
 
+  // A-20: for every wicket type except RUN_OUT the striker is always the
+  // one out — a run-out is the only case where the non-striker could be
+  // the one dismissed instead, so that's the only type that asks.
   function confirmWicket() {
     if (!wicketType) return;
-    submitBall(
-      {
-        runs_scored: 0,
-        extra_type: 'NONE',
-        extra_runs: 0,
-        is_wicket: true,
-        wicket_type: wicketType,
-      },
-      { clearStriker: true },
-    );
+    const dismissedId = wicketType === 'RUN_OUT' ? runOutDismissedId : strikerId;
+    if (!dismissedId) return;
+    submitBall({
+      runs_scored: 0,
+      extra_type: 'NONE',
+      extra_runs: 0,
+      is_wicket: true,
+      wicket_type: wicketType,
+      dismissed_player_id: dismissedId,
+    });
   }
 
   async function undo() {
@@ -782,7 +810,10 @@ export default function ScoringInterfaceScreen() {
                 {WICKET_TYPES.map((wt) => (
                   <Pressable
                     key={wt}
-                    onPress={() => setWicketType(wt)}
+                    onPress={() => {
+                      setWicketType(wt);
+                      setRunOutDismissedId(null);
+                    }}
                     className={`rounded-md border px-3 py-2 m-1 ${wicketType === wt ? 'bg-brand-red border-brand-red' : 'bg-surface border-border-strong'}`}
                     testID={`wicket-type-${wt}`}
                   >
@@ -794,12 +825,28 @@ export default function ScoringInterfaceScreen() {
                   </Pressable>
                 ))}
               </View>
+
+              {wicketType === 'RUN_OUT' && (
+                <ChipSelect
+                  label="Who's Out?"
+                  options={[strikerId, nonStrikerId]
+                    .filter((id): id is string => Boolean(id))
+                    .map((id) => ({
+                      value: id,
+                      label: displayName(room?.players.find((p) => p.player_id === id) ?? {}),
+                    }))}
+                  value={runOutDismissedId}
+                  onChange={setRunOutDismissedId}
+                  testID="run-out-dismissed-select"
+                />
+              )}
+
               <View className="flex-row mt-3">
                 <View className="flex-1 mr-2">
                   <Button
                     label="Confirm Wicket"
                     onPress={confirmWicket}
-                    disabled={!wicketType}
+                    disabled={!wicketType || (wicketType === 'RUN_OUT' && !runOutDismissedId)}
                     loading={busy}
                     testID="confirm-wicket"
                   />
@@ -811,6 +858,7 @@ export default function ScoringInterfaceScreen() {
                     onPress={() => {
                       setPendingWicket(false);
                       setWicketType(null);
+                      setRunOutDismissedId(null);
                     }}
                     testID="cancel-wicket"
                   />

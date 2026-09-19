@@ -157,7 +157,92 @@ describe('Scoring Interface (backlog A-7: fewer taps; UI rebuild per reference s
     });
 
     await waitFor(() => expect(mockRecordBall).toHaveBeenCalled());
+    expect(mockRecordBall).toHaveBeenCalledWith(
+      'innings-1',
+      expect.objectContaining({ dismissed_player_id: 'p1' }),
+    );
     expect(within(getByTestId('striker-select')).getByText('Not Selected')).toBeTruthy();
+  });
+
+  // A-20: every wicket type except RUN_OUT always dismisses the striker —
+  // no extra question needed.
+  it('does not ask who is out for a non-run-out wicket', async () => {
+    const { getByTestId, queryByTestId } = await renderReady();
+
+    await fireEvent.press(getByTestId('wicket-button'));
+    await fireEvent.press(getByTestId('wicket-type-CAUGHT'));
+
+    expect(queryByTestId('run-out-dismissed-select')).toBeNull();
+    expect(getByTestId('confirm-wicket').props.accessibilityState?.disabled).not.toBe(true);
+  });
+
+  // A-20: "the system should ask which batter is getting out" for a
+  // run-out, since either end could be the one dismissed.
+  it('asks which end was run out and clears that end, not always the striker', async () => {
+    const { getByTestId } = await renderReady();
+
+    await fireEvent.press(getByTestId('wicket-button'));
+    await fireEvent.press(getByTestId('wicket-type-RUN_OUT'));
+
+    // Can't confirm yet — nobody's been picked as the dismissed batter.
+    expect(getByTestId('confirm-wicket').props.accessibilityState?.disabled).toBe(true);
+
+    await fireEvent.press(getByTestId('run-out-dismissed-select-p2'));
+    await act(async () => {
+      await fireEvent.press(getByTestId('confirm-wicket'));
+    });
+
+    await waitFor(() => expect(mockRecordBall).toHaveBeenCalled());
+    expect(mockRecordBall).toHaveBeenCalledWith(
+      'innings-1',
+      expect.objectContaining({ wicket_type: 'RUN_OUT', dismissed_player_id: 'p2' }),
+    );
+    // The non-striker (p2) was run out, so the striker slot (p1) stays put
+    // and the non-striker slot is the one cleared for a fresh pick.
+    expect(within(getByTestId('striker-select')).getByText('BF1001')).toBeTruthy();
+    expect(within(getByTestId('non-striker-select')).getByText('Not Selected')).toBeTruthy();
+  });
+
+  // A-20: "The batter who gets out must not be allowed to bat again."
+  it('blocks a dismissed batter from being reselected as striker or non-striker', async () => {
+    mockGetScorecard.mockResolvedValue({
+      match_id: 'match-1',
+      extras_count_toward_score: true,
+      innings: [
+        {
+          innings_id: 'innings-1',
+          batting: [
+            {
+              player_id: 'p1',
+              bfam_id: 'BF1001',
+              runs: 10,
+              balls: 8,
+              fours: 1,
+              sixes: 0,
+              out: true,
+            },
+            {
+              player_id: 'p2',
+              bfam_id: 'BF1002',
+              runs: 5,
+              balls: 6,
+              fours: 0,
+              sixes: 0,
+              out: false,
+            },
+          ],
+        },
+      ],
+    });
+    const utils = await render(<ScoringInterfaceScreen />);
+    await waitFor(() => expect(utils.getByTestId('scoring-interface-screen')).toBeTruthy());
+
+    await fireEvent.press(utils.getByTestId('striker-select'));
+    expect(utils.queryByTestId('striker-select-options-p1')).toBeNull();
+    expect(utils.queryByTestId('striker-select-options-p2')).toBeTruthy();
+
+    await fireEvent.press(utils.getByTestId('non-striker-select'));
+    expect(utils.queryByTestId('non-striker-select-options-p1')).toBeNull();
   });
 
   it('shows the current-over dots and fills one in after each legal ball', async () => {
