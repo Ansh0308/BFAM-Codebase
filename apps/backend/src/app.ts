@@ -144,7 +144,18 @@ if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
 const app = express();
 
 // Standard middlewares
-app.use(helmet());
+app.use(
+  helmet({
+    // Helmet's default same-origin CORP header blocks the browser from
+    // using a response at all once it's cross-origin, regardless of what
+    // the CORS headers below allow — this API is deliberately called
+    // cross-origin (mobile web build, Owner/Staff/Admin web portal, all on
+    // different ports/origins than the API in dev and often in prod), so
+    // the default breaks every browser fetch with an opaque "Failed to
+    // fetch" and no CORS error to explain why.
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }),
+);
 app.use(
   cors({
     // CORS_ORIGIN is a comma-separated allowlist (e.g.
