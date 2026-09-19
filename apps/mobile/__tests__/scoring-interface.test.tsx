@@ -312,3 +312,32 @@ describe('Scoring Interface — toss auto-fill (feedback: do not re-ask after th
     );
   });
 });
+
+// A-21: the backend auto-completes an innings once wickets hit the cap —
+// the screen should make that obvious instead of leaving the run/wicket
+// buttons up as if scoring could continue.
+describe('Scoring Interface — all-out banner (backlog A-21)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetGameRoom.mockResolvedValue(ROOM);
+    mockGetMatchIntro.mockResolvedValue(null);
+    mockGetLiveScore.mockResolvedValue({
+      match_id: 'match-1',
+      innings: { ...LIVE_SCORE.innings, total_wickets: 7, innings_status: 'COMPLETED' },
+    });
+    mockGetScorecard.mockResolvedValue({
+      match_id: 'match-1',
+      extras_count_toward_score: true,
+      innings: [],
+    });
+  });
+
+  it('shows an all-out banner and hides the run/wicket controls once the innings is auto-completed', async () => {
+    const { getByTestId, queryByTestId } = await render(<ScoringInterfaceScreen />);
+    await waitFor(() => expect(getByTestId('scoring-interface-screen')).toBeTruthy());
+
+    expect(within(getByTestId('innings-all-out-banner')).getByText(/All out/)).toBeTruthy();
+    expect(queryByTestId('wicket-button')).toBeNull();
+    expect(queryByTestId('run-1')).toBeNull();
+  });
+});

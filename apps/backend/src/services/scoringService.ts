@@ -132,6 +132,32 @@ function toTotals(innings: InningsRow): InningsTotals {
   };
 }
 
+// A-21: "team size" is however many players are actually assigned to a
+// batting side for this match (match_players.match_team_id, set by
+// backlog A-10's Assign Sides step), not a separate fixed setting — an
+// 8-a-side match with only 7 assigned auto-ends at 6 wickets, not 7.
+// Guarded at >= 2 assigned so an unassigned/malformed side (cap would be
+// <= 0) never auto-ends an innings before a ball is even bowled.
+async function isAllOut(
+  matchId: string,
+  battingTeamId: string,
+  totalWickets: number,
+  transaction: unknown,
+): Promise<boolean> {
+  const [{ count }] = await sequelize.query<{ count: string | number }>(
+    `SELECT COUNT(*) AS count FROM match_players
+     WHERE match_id = :matchId AND match_team_id = :battingTeamId
+       AND invitation_status != 'CANT_PLAY'`,
+    {
+      type: QueryTypes.SELECT,
+      replacements: { matchId, battingTeamId },
+      transaction: transaction as never,
+    },
+  );
+  const assignedBattingCount = Number(count);
+  return assignedBattingCount >= 2 && totalWickets >= assignedBattingCount - 1;
+}
+
 function broadcastScoreUpdate(matchId: string, payload: unknown) {
   getIo()
     ?.to(matchRoom(matchId))
@@ -290,6 +316,12 @@ export async function recordBall(inningsId: string, actorUserId: string, input: 
     const totalsBefore = toTotals(innings);
     const position = positionForNextBall(totalsBefore.legal_balls);
     const totalsAfter = applyBall(totalsBefore, input, match.extras_count_toward_score);
+    const allOut = await isAllOut(
+      match.match_id,
+      innings.batting_match_team_id,
+      totalsAfter.total_wickets,
+      transaction,
+    );
 
     const { strikerRunsBeforeBall, bowlerConsecutiveWickets } = await getAudioContext(
       inningsId,
@@ -343,6 +375,7 @@ export async function recordBall(inningsId: string, actorUserId: string, input: 
         total_runs: totalsAfter.total_runs,
         total_wickets: totalsAfter.total_wickets,
         overs_completed: legalBallsToOversNotation(totalsAfter.legal_balls),
+        ...(allOut ? { innings_status: 'COMPLETED' } : {}),
         updated_at: now,
       },
       { innings_id: inningsId },
@@ -367,6 +400,7 @@ export async function recordBall(inningsId: string, actorUserId: string, input: 
       ...innings,
       ...totalsAfter,
       overs_completed: legalBallsToOversNotation(totalsAfter.legal_balls),
+      innings_status: allOut ? 'COMPLETED' : innings.innings_status,
     };
   });
 
@@ -414,6 +448,17 @@ export async function undoLastBall(inningsId: string, actorUserId: string) {
       lastEvent as unknown as BallInput,
       match.extras_count_toward_score,
     );
+    // A-21: undoing the wicket that auto-completed the innings (see
+    // recordBall) must reopen it for scoring — otherwise it stays stuck
+    // COMPLETED with no wicket left to blame it on.
+    const reopens =
+      innings.innings_status === 'COMPLETED' &&
+      !(await isAllOut(
+        match.match_id,
+        innings.batting_match_team_id,
+        totalsAfter.total_wickets,
+        transaction,
+      ));
 
     await sequelize
       .getQueryInterface()
@@ -429,6 +474,7 @@ export async function undoLastBall(inningsId: string, actorUserId: string) {
         total_runs: totalsAfter.total_runs,
         total_wickets: totalsAfter.total_wickets,
         overs_completed: legalBallsToOversNotation(totalsAfter.legal_balls),
+        ...(reopens ? { innings_status: 'IN_PROGRESS' } : {}),
         updated_at: new Date(),
       },
       { innings_id: inningsId },
@@ -440,6 +486,7 @@ export async function undoLastBall(inningsId: string, actorUserId: string) {
       ...innings,
       ...totalsAfter,
       overs_completed: legalBallsToOversNotation(totalsAfter.legal_balls),
+      innings_status: reopens ? 'IN_PROGRESS' : innings.innings_status,
     };
   });
 

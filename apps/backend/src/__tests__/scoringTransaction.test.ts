@@ -47,9 +47,16 @@ interface ScoreEventRow {
   is_corrected: boolean;
 }
 
+interface MatchPlayerRow {
+  match_id: string;
+  match_team_id: string | null;
+  invitation_status: string;
+}
+
 let matches: MatchRow[] = [];
 let innings: InningsRow[] = [];
 let scoreEvents: ScoreEventRow[] = [];
+let matchPlayers: MatchPlayerRow[] = [];
 
 const rowLocks = new Map<string, Promise<void>>();
 async function acquireLock(key: string): Promise<() => void> {
@@ -99,6 +106,15 @@ jest.mock('../config/sequelize', () => {
         ) {
           const i = innings.find((x) => x.innings_id === r.inningsId);
           return i ? [i] : [];
+        }
+        if (sql.includes('FROM match_players')) {
+          const count = matchPlayers.filter(
+            (p) =>
+              p.match_id === r.matchId &&
+              p.match_team_id === r.battingTeamId &&
+              p.invitation_status !== 'CANT_PLAY',
+          ).length;
+          return [{ count }];
         }
         if (sql.includes('MAX(sequence_number)')) {
           const rows = scoreEvents.filter((e) => e.innings_id === r.inningsId);
@@ -183,6 +199,20 @@ function normalBall(runs: number) {
   };
 }
 
+function wicketBall() {
+  return {
+    striker_player_id: STRIKER,
+    non_striker_player_id: NON_STRIKER,
+    bowler_player_id: BOWLER,
+    runs_scored: 0,
+    extra_type: 'NONE' as const,
+    extra_runs: 0,
+    is_wicket: true,
+    wicket_type: 'BOWLED' as const,
+    dismissed_player_id: STRIKER,
+  };
+}
+
 describe('Live Scoring transaction atomicity under concurrency (module 2.8)', () => {
   beforeEach(() => {
     matches = [
@@ -209,6 +239,7 @@ describe('Live Scoring transaction atomicity under concurrency (module 2.8)', ()
       },
     ];
     scoreEvents = [];
+    matchPlayers = [];
     rowLocks.clear();
   });
 
@@ -278,5 +309,92 @@ describe('Live Scoring transaction atomicity under concurrency (module 2.8)', ()
     await expect(recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(4))).rejects.toThrow(
       'Only the assigned scorer can record balls for this match.',
     );
+  });
+});
+
+describe('A-21: wicket cap at (assigned batting players - 1), auto all-out', () => {
+  beforeEach(() => {
+    matches = [
+      {
+        match_id: MATCH_ID,
+        organizer_id: ORGANIZER_USER,
+        assigned_scorer_id: null,
+        scoring_mode: 'PLAYER_MANAGED',
+        match_status: 'IN_PROGRESS',
+      },
+    ];
+    innings = [
+      {
+        innings_id: INNINGS_ID,
+        match_id: MATCH_ID,
+        innings_number: 1,
+        batting_match_team_id: 'mt-a',
+        bowling_match_team_id: 'mt-b',
+        total_runs: 0,
+        total_wickets: 0,
+        overs_completed: 0,
+        innings_status: 'IN_PROGRESS',
+        target_runs: null,
+      },
+    ];
+    scoreEvents = [];
+    // 3 players assigned to the batting side -> cap is 3 - 1 = 2 wickets.
+    matchPlayers = [
+      { match_id: MATCH_ID, match_team_id: 'mt-a', invitation_status: 'CONFIRMED' },
+      { match_id: MATCH_ID, match_team_id: 'mt-a', invitation_status: 'CONFIRMED' },
+      { match_id: MATCH_ID, match_team_id: 'mt-a', invitation_status: 'CONFIRMED' },
+      // A CANT_PLAY player on the same side doesn't count toward the cap.
+      { match_id: MATCH_ID, match_team_id: 'mt-a', invitation_status: 'CANT_PLAY' },
+    ];
+    rowLocks.clear();
+  });
+
+  it('auto-completes the innings once wickets hit assigned batting players - 1', async () => {
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    let finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.total_wickets).toBe(1);
+    expect(finalInnings.innings_status).toBe('IN_PROGRESS');
+
+    const result = await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.total_wickets).toBe(2);
+    expect(finalInnings.innings_status).toBe('COMPLETED');
+    expect(result.innings.innings_status).toBe('COMPLETED');
+  });
+
+  it('rejects any further ball once the innings has auto-completed', async () => {
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+
+    await expect(recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(1))).rejects.toThrow(
+      'This innings is not in progress.',
+    );
+  });
+
+  it('reopens the innings when undoing the wicket that caused the auto-completion', async () => {
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    expect(innings.find((i) => i.innings_id === INNINGS_ID)!.innings_status).toBe('COMPLETED');
+
+    const result = await undoLastBall(INNINGS_ID, ORGANIZER_USER);
+
+    const finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.total_wickets).toBe(1);
+    expect(finalInnings.innings_status).toBe('IN_PROGRESS');
+    expect(result.innings.innings_status).toBe('IN_PROGRESS');
+
+    // And scoring can resume normally.
+    await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(4));
+    expect(innings.find((i) => i.innings_id === INNINGS_ID)!.total_runs).toBe(4);
+  });
+
+  it('does not auto-complete when fewer than 2 players are assigned to the batting side (incomplete data)', async () => {
+    matchPlayers = [{ match_id: MATCH_ID, match_team_id: 'mt-a', invitation_status: 'CONFIRMED' }];
+
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+
+    const finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.total_wickets).toBe(1);
+    expect(finalInnings.innings_status).toBe('IN_PROGRESS');
   });
 });

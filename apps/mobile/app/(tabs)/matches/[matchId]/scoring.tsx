@@ -801,7 +801,26 @@ export default function ScoringInterfaceScreen() {
 
           {error && <Text className="text-brand-red text-body mb-3">{error}</Text>}
 
-          {pendingWicket ? (
+          {live.innings.innings_status === 'COMPLETED' ? (
+            // A-21: the backend auto-completes an innings once wickets hit
+            // (assigned batting side size - 1) — no more balls can be
+            // recorded for it, so the run/extra/wicket controls give way to
+            // this instead of failing silently on the next tap.
+            <View
+              className="mt-2 rounded-lg p-4"
+              style={{ backgroundColor: '#FDEAEA' }}
+              testID="innings-all-out-banner"
+            >
+              <Text className="font-ui font-bold text-body text-brand-red-dark">
+                All out — {live.innings.total_wickets} wickets down
+              </Text>
+              <Text className="font-ui text-micro text-text-secondary mt-1">
+                {live.innings.innings_number === 1
+                  ? 'This innings is over. Tap "End Innings" below to start the next one.'
+                  : 'This innings is over. Tap "Finish Match" below.'}
+              </Text>
+            </View>
+          ) : pendingWicket ? (
             <View className="mt-2">
               <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
                 Wicket Type
