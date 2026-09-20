@@ -11,6 +11,10 @@ jest.mock('../src/lib/apiClient', () => ({
     removeTeamMember: jest.fn(),
     respondToJoinRequest: jest.fn(),
     matchContacts: jest.fn(),
+    getMyChallenges: jest.fn(),
+    setOpenForChallenge: jest.fn(),
+    respondToChallenge: jest.fn(),
+    cancelChallenge: jest.fn(),
   },
 }));
 
@@ -56,6 +60,7 @@ const TEAM = {
   skill_level: null,
   home_city: 'Rajkot',
   is_open_for_players: true,
+  is_open_for_challenge: false,
   team_status: 'ACTIVE',
   created_by: 'captain-user',
   created_at: '',
@@ -91,6 +96,7 @@ describe('ManageTeamScreen (module 2.5)', () => {
     mockInviteToTeam.mockReset();
     mockChangeCaptain.mockReset();
     mockMatchContacts.mockReset();
+    (apiClient.getMyChallenges as jest.Mock).mockReset().mockResolvedValue({ results: [] });
     mockRequestPermissionsAsync.mockReset().mockResolvedValue({ status: 'granted' });
     mockGetContactsAsync.mockReset().mockResolvedValue({ data: [] });
   });

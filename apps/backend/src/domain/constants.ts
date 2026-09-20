@@ -118,6 +118,10 @@ export const NOTIFICATION_TYPES = [
   'TOURNAMENT_UPDATE',
   'NEW_MESSAGE',
   'PLAYER_PLAYING',
+  // Backlog B-13: Team vs Team Challenge Mode.
+  'CHALLENGE_RECEIVED',
+  'CHALLENGE_ACCEPTED',
+  'CHALLENGE_DECLINED',
 ] as const;
 export const DELIVERY_CHANNELS = ['PUSH', 'EMAIL', 'SMS', 'IN_APP'] as const;
 export const DELIVERY_STATUSES = ['PENDING', 'DELIVERED', 'FAILED', 'READ'] as const;

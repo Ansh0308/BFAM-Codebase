@@ -215,6 +215,15 @@ export default function Home() {
               </View>
             )}
             <Pressable
+              onPress={() => router.push('/player-search')}
+              hitSlop={8}
+              accessibilityLabel="Find a player"
+              testID="home-search-button"
+              className="mr-4"
+            >
+              <Feather name="search" size={22} color={colors.inkBlack} />
+            </Pressable>
+            <Pressable
               onPress={() => router.push('/notifications')}
               hitSlop={8}
               accessibilityLabel="Notifications"

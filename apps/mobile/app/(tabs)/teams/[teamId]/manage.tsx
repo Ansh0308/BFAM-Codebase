@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import type { JoinRequest, TeamDetails } from '@bfam/shared-types';
+import type { JoinRequest, TeamChallenge, TeamDetails } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
@@ -12,6 +12,8 @@ import { TextField } from '../../../../src/components/TextField';
 import { Avatar } from '../../../../src/components/Avatar';
 import { ContactsInviteSection } from '../../../../src/components/ContactsInviteSection';
 import { StatusBadge } from '../../../../src/components/StatusBadge';
+import { ToggleRow } from '../../../../src/components/ToggleRow';
+import { useChallengeMatchStore } from '../../../../src/store/challengeMatchStore';
 
 // Team Management (PRD §12.3): invite/remove players, change captain, and
 // respond to Join Team Requests (PRD §12.4). Captain-only — the backend
@@ -21,8 +23,10 @@ import { StatusBadge } from '../../../../src/components/StatusBadge';
 export default function ManageTeamScreen() {
   const { teamId } = useLocalSearchParams<{ teamId: string }>();
   const router = useRouter();
+  const setChallengeMatchPlan = useChallengeMatchStore((s) => s.setPlan);
   const [team, setTeam] = useState<TeamDetails | null>(null);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [challenges, setChallenges] = useState<TeamChallenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [invitePlayerId, setInvitePlayerId] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -36,12 +40,20 @@ export default function ManageTeamScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [teamDetails, requests] = await Promise.all([
+      const [teamDetails, requests, myChallenges] = await Promise.all([
         apiClient.getTeamDetails(teamId),
         apiClient.getJoinRequests(teamId),
+        apiClient.getMyChallenges(),
       ]);
       setTeam(teamDetails);
       setJoinRequests(requests.results);
+      // Backlog B-13: getMyChallenges returns every challenge involving any
+      // team this captain runs — narrow to this specific team.
+      setChallenges(
+        myChallenges.results.filter(
+          (c) => c.challenging_team_id === teamId || c.challenged_team_id === teamId,
+        ),
+      );
     } catch {
       setError('Could not load team management data.');
     } finally {
@@ -84,6 +96,10 @@ export default function ManageTeamScreen() {
     });
   }
 
+  async function toggleOpenForChallenge(nextValue: boolean) {
+    await withBusy(() => apiClient.setOpenForChallenge(teamId, nextValue).then(() => undefined));
+  }
+
   if (loading || !team) {
     return (
       <ScreenContainer>
@@ -118,7 +134,122 @@ export default function ManageTeamScreen() {
         testIDPrefix="team-invite"
       />
 
-      <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
+      {/* Backlog B-13: Team vs Team Challenge Mode. */}
+      <ToggleRow
+        label="Open for Challenge"
+        description="Let other teams challenge this team to a match."
+        value={team.is_open_for_challenge}
+        onValueChange={toggleOpenForChallenge}
+        disabled={busy}
+        testID="open-for-challenge-toggle"
+      />
+
+      <Text className="font-ui font-bold text-text-secondary text-micro uppercase mt-6 mb-2">
+        Challenges ({challenges.length})
+      </Text>
+      {challenges.length === 0 ? (
+        <Text className="text-text-secondary text-body mb-8">No challenges yet.</Text>
+      ) : (
+        challenges.map((challenge) => {
+          const incoming = challenge.challenged_team_id === teamId;
+          const otherTeamName = incoming
+            ? challenge.challenging_team_name
+            : challenge.challenged_team_name;
+          return (
+            <View
+              key={challenge.challenge_id}
+              className="flex-row items-center justify-between py-3 border-b border-border-subtle mb-2"
+              testID={`challenge-row-${challenge.challenge_id}`}
+            >
+              <View className="flex-1 pr-3">
+                <Text className="text-text-primary text-body">
+                  {incoming ? `Challenge from ${otherTeamName}` : `Challenged ${otherTeamName}`}
+                </Text>
+                <StatusBadge
+                  label={challenge.status}
+                  variant={
+                    challenge.status === 'ACCEPTED'
+                      ? 'success'
+                      : challenge.status === 'DECLINED' || challenge.status === 'CANCELLED'
+                        ? 'danger'
+                        : 'warning'
+                  }
+                />
+              </View>
+              {challenge.status === 'PENDING' && incoming && (
+                <View className="flex-row items-center">
+                  <Pressable
+                    onPress={() =>
+                      withBusy(() =>
+                        apiClient
+                          .respondToChallenge(challenge.challenge_id, true)
+                          .then(() => undefined),
+                      )
+                    }
+                    className="mr-3 rounded-full bg-brand-red items-center justify-center"
+                    style={{ width: 34, height: 34 }}
+                    testID={`accept-challenge-${challenge.challenge_id}`}
+                    accessibilityLabel="Accept challenge"
+                  >
+                    <Feather name="check" size={16} color="#FFFFFF" />
+                  </Pressable>
+                  <Pressable
+                    onPress={() =>
+                      withBusy(() =>
+                        apiClient
+                          .respondToChallenge(challenge.challenge_id, false)
+                          .then(() => undefined),
+                      )
+                    }
+                    className="rounded-full bg-surface-alt items-center justify-center"
+                    style={{ width: 34, height: 34 }}
+                    testID={`decline-challenge-${challenge.challenge_id}`}
+                    accessibilityLabel="Decline challenge"
+                  >
+                    <Feather name="x" size={16} color="#767676" />
+                  </Pressable>
+                </View>
+              )}
+              {challenge.status === 'PENDING' && !incoming && (
+                <Pressable
+                  onPress={() =>
+                    withBusy(() =>
+                      apiClient.cancelChallenge(challenge.challenge_id).then(() => undefined),
+                    )
+                  }
+                  className="rounded-full bg-surface-alt items-center justify-center"
+                  style={{ width: 34, height: 34 }}
+                  testID={`cancel-challenge-${challenge.challenge_id}`}
+                  accessibilityLabel="Cancel challenge"
+                >
+                  <Feather name="x" size={16} color="#767676" />
+                </Pressable>
+              )}
+              {challenge.status === 'ACCEPTED' && (
+                <Pressable
+                  onPress={() => {
+                    setChallengeMatchPlan({
+                      home_team_id: challenge.challenging_team_id,
+                      home_team_name: challenge.challenging_team_name,
+                      away_team_id: challenge.challenged_team_id,
+                      away_team_name: challenge.challenged_team_name,
+                    });
+                    router.push('/(tabs)/matches/create');
+                  }}
+                  className="rounded-md bg-brand-red px-3 py-2"
+                  testID={`create-match-from-challenge-${challenge.challenge_id}`}
+                >
+                  <Text className="font-ui font-bold text-micro text-white uppercase">
+                    Create Match
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          );
+        })
+      )}
+
+      <Text className="font-ui font-bold text-text-secondary text-micro uppercase mt-6 mb-2">
         Members ({team.members.length})
       </Text>
       {team.members.map((member) => (

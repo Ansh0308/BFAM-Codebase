@@ -81,3 +81,25 @@ describe('Home — Book Turf quick action with Discover hidden (backlog A-12)', 
     expect(mockPush).not.toHaveBeenCalled();
   });
 });
+
+// Backlog B-12: Player Search entry point.
+describe('Home — Player Search top nav button (backlog B-12)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
+    mockGetHomeBanners.mockResolvedValue({ results: [] });
+    mockGetTurfs.mockResolvedValue({ page: 1, page_size: 20, results: [] });
+    mockGetMyProfile.mockResolvedValue({ bfam_id: 'BF1000', full_name: null, coin_balance: null });
+    mockGetPlayerStatistics.mockResolvedValue(null);
+    mockGetMyMatches.mockResolvedValue({ results: [] });
+    mockGetNotifications.mockResolvedValue({ results: [] });
+  });
+
+  it('navigates to the Player Search screen', async () => {
+    const { getByTestId } = await render(<Home />);
+
+    await fireEvent.press(getByTestId('home-search-button'));
+
+    expect(mockPush).toHaveBeenCalledWith('/player-search');
+  });
+});

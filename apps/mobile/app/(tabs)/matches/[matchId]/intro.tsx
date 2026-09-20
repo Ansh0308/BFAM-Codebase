@@ -17,7 +17,7 @@ import { playTriggerSound } from '../../../../src/lib/sounds';
 import { useAuthStore } from '../../../../src/store/authStore';
 
 type Stage = 'COUNTDOWN' | 'XI_REVEAL' | 'TOSS' | 'DONE';
-const COUNTDOWN_SECONDS = 10;
+const COUNTDOWN_SECONDS = 3;
 const XI_REVEAL_MS = 4000;
 
 // Backlog A-9: not everyone playing together knows each other's BFAM ID —
@@ -154,7 +154,7 @@ export default function MatchIntroScreen() {
     };
   }, [matchId]);
 
-  // COUNTDOWN: 10 -> 0, presenter-only (a passive viewer just sees a
+  // COUNTDOWN: 3 -> 0, presenter-only (a passive viewer just sees a
   // holding state until the XI_REVEAL broadcast arrives — there's no
   // per-tick sync, only per-stage). Plain interval drives the logic/timing
   // (testable, deterministic); Reanimated only drives the decorative pop

@@ -33,7 +33,14 @@ export type PrdNotificationEvent = (typeof PRD_NOTIFICATION_EVENTS)[number];
 // added the same way TEAM_INVITE/BOOKING_UPDATE were — the full set
 // notificationService can send.
 export type NotificationEventType =
-  PrdNotificationEvent | 'TEAM_INVITE' | 'BOOKING_UPDATE' | 'NEW_MESSAGE' | 'PLAYER_PLAYING';
+  | PrdNotificationEvent
+  | 'TEAM_INVITE'
+  | 'BOOKING_UPDATE'
+  | 'NEW_MESSAGE'
+  | 'PLAYER_PLAYING'
+  | 'CHALLENGE_RECEIVED'
+  | 'CHALLENGE_ACCEPTED'
+  | 'CHALLENGE_DECLINED';
 
 export type NotificationPreferenceCategory =
   'match_updates' | 'booking_reminders' | 'team_invites' | 'promotions';
@@ -149,5 +156,22 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationEventType, NotificationT
     title: (p: { playerName: string }) => `${p.playerName} is playing`,
     body: (p: { playerName: string; matchName: string }) =>
       `${p.playerName} just started playing in ${p.matchName}.`,
+  },
+  // Backlog B-13: Team vs Team Challenge Mode.
+  CHALLENGE_RECEIVED: {
+    category: 'team_invites',
+    title: (p: { teamName: string }) => `Challenge from ${p.teamName}`,
+    body: (p: { teamName: string }) => `${p.teamName} has challenged your team to a match.`,
+  },
+  CHALLENGE_ACCEPTED: {
+    category: 'team_invites',
+    title: (p: { teamName: string }) => `${p.teamName} accepted your challenge`,
+    body: (p: { teamName: string }) =>
+      `${p.teamName} accepted your challenge. Time to book a turf.`,
+  },
+  CHALLENGE_DECLINED: {
+    category: 'team_invites',
+    title: (p: { teamName: string }) => `${p.teamName} declined your challenge`,
+    body: (p: { teamName: string }) => `${p.teamName} declined your challenge.`,
   },
 };

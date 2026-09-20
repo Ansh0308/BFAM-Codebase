@@ -1,21 +1,27 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
+const mockPush = jest.fn();
+const mockBack = jest.fn();
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ playerId: 'p1' }),
-  useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
+  useRouter: () => ({ push: mockPush, back: mockBack }),
 }));
 
 const mockGetPlayerProfile = jest.fn();
 const mockFollowPlayer = jest.fn();
 const mockUnfollowPlayer = jest.fn();
+const mockGetTurfs = jest.fn();
 jest.mock('../src/lib/apiClient', () => ({
   apiClient: {
     getPlayerProfile: (...args: unknown[]) => mockGetPlayerProfile(...args),
     followPlayer: (...args: unknown[]) => mockFollowPlayer(...args),
     unfollowPlayer: (...args: unknown[]) => mockUnfollowPlayer(...args),
+    getTurfs: (...args: unknown[]) => mockGetTurfs(...args),
   },
 }));
+
+jest.mock('../src/config/featureFlags', () => ({ DISCOVERY_ENABLED: false }));
 
 jest.mock('../src/store/authStore', () => ({
   useAuthStore: (selector: (s: { user: { bfam_id: string } }) => unknown) =>
@@ -46,6 +52,8 @@ describe('Player Profile screen (backlog B-10)', () => {
     mockGetPlayerProfile.mockReset();
     mockFollowPlayer.mockReset();
     mockUnfollowPlayer.mockReset();
+    mockGetTurfs.mockReset();
+    mockPush.mockReset();
   });
 
   it('loads and shows the player for the id in route params', async () => {
@@ -133,6 +141,40 @@ describe('Player Profile screen (backlog B-10)', () => {
 
       await findByTestId('follow-error');
       expect(await findByText('Asha Patel')).toBeTruthy();
+    });
+  });
+
+  // Backlog B-12: reached via player search, a viewer can book a turf
+  // straight from this profile.
+  describe('Book a Turf', () => {
+    it('routes to the one available turf while Discover stays hidden (backlog A-12)', async () => {
+      mockGetPlayerProfile.mockResolvedValueOnce(PROFILE);
+      mockGetTurfs.mockResolvedValueOnce({
+        page: 1,
+        page_size: 20,
+        results: [{ turf_id: 'turf-1', turf_name: 'BFAM Ground' }],
+      });
+
+      const { findByTestId } = await render(<PlayerProfileScreen />);
+      await fireEvent.press(await findByTestId('player-profile-book-turf-button'));
+
+      await waitFor(() => expect(mockGetTurfs).toHaveBeenCalledWith({}));
+      await waitFor(() =>
+        expect(mockPush).toHaveBeenCalledWith(
+          '/(tabs)/discover/turf/turf-1/availability?turfName=BFAM%20Ground',
+        ),
+      );
+    });
+
+    it('shows an error if there is no turf to book yet', async () => {
+      mockGetPlayerProfile.mockResolvedValueOnce(PROFILE);
+      mockGetTurfs.mockResolvedValueOnce({ page: 1, page_size: 20, results: [] });
+
+      const { findByTestId, findByText } = await render(<PlayerProfileScreen />);
+      await fireEvent.press(await findByTestId('player-profile-book-turf-button'));
+
+      await findByText(/no turf is available/i);
+      expect(mockPush).not.toHaveBeenCalled();
     });
   });
 });

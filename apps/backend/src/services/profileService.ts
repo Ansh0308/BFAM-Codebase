@@ -209,6 +209,35 @@ export async function getPublicProfile(
   return { ...row, follow_summary };
 }
 
+// Backlog B-12: Player Search from the Home top nav. A lighter row shape
+// than PublicPlayerProfile — just enough to render a result row without
+// pulling ratings/follow counts per match, mirroring teamService's
+// searchTeamsByName (trim, empty query -> [], bounded LIKE, capped list,
+// alphabetical). Matches on full_name OR bfam_id since a searcher might
+// know either.
+export interface PlayerSearchResult {
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+  profile_photo_url: string | null;
+  city: string | null;
+  playing_role: string | null;
+}
+
+export async function searchPlayers(query: string): Promise<PlayerSearchResult[]> {
+  const q = query.trim();
+  if (!q) return [];
+  return sequelize.query<PlayerSearchResult>(
+    `SELECT p.player_id, p.bfam_id, p.full_name, u.profile_photo_url, u.city, p.playing_role
+     FROM players p
+     JOIN users u ON u.user_id = p.user_id
+     WHERE u.deleted_at IS NULL AND (p.full_name LIKE :q OR p.bfam_id LIKE :q)
+     ORDER BY p.full_name ASC
+     LIMIT 20`,
+    { type: QueryTypes.SELECT, replacements: { q: `%${q}%` } },
+  );
+}
+
 // Note: `email` is deliberately NOT part of this generic update — it can
 // only be set via the verified-email flow (POST /profile/email/send-otp +
 // verify-otp, see setVerifiedEmail below), so an unverified email can never

@@ -96,6 +96,17 @@ export interface PublicPlayerProfile {
   follow_summary: FollowSummary;
 }
 
+// Backlog B-12: Player Search from the Home top nav — a lighter row shape
+// than PublicPlayerProfile, enough to render a search result row.
+export interface PlayerSearchResult {
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+  profile_photo_url: string | null;
+  city: string | null;
+  playing_role: string | null;
+}
+
 // `email` is deliberately not part of this payload — it can only be set via
 // the verified-email flow (sendEmailOtp / verifyEmailOtp below), never a
 // plain PATCH, so an unverified email can never reach a profile.
@@ -372,12 +383,31 @@ export interface Team {
   skill_level: TeamSkillLevel | null;
   home_city: string | null;
   is_open_for_players: boolean;
+  // Backlog B-13: discoverable for a Team vs Team challenge, separate flag
+  // from is_open_for_players (that one's about individual players joining).
+  is_open_for_challenge: boolean;
   team_status: TeamStatus;
   created_by: string;
   created_at: string;
   updated_at: string;
   // Backlog B-8: minimum Basic Skill Rating required to join; null = no constraint.
   min_skill_rating: number | null;
+}
+
+// Backlog B-13: Team vs Team Challenge Mode.
+export type TeamChallengeStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
+
+export interface TeamChallenge {
+  challenge_id: string;
+  challenging_team_id: string;
+  challenged_team_id: string;
+  status: TeamChallengeStatus;
+  initiated_by: string;
+  responded_by: string | null;
+  created_at: string;
+  responded_at: string | null;
+  challenging_team_name: string;
+  challenged_team_name: string;
 }
 
 export interface TeamMember {

@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { apiClient } from './apiClient';
 
 // Push delivery (module 2.11, PRD §12.45 — "push notifications are the
@@ -14,7 +15,18 @@ import { apiClient } from './apiClient';
 // crash this module's importers — including the root layout — before this
 // function is ever called. A dynamic import turns that throw into a
 // rejected promise this try/catch can actually catch.
+//
+// That's not enough on its own, though: on Android, expo-notifications'
+// own getExpoPushTokenAsync() internally wires up a native token-refresh
+// listener whose Expo-Go-unsupported check throws from inside that
+// internal setup, not from the promise chain this function awaits — so it
+// surfaces as an uncaught error/red screen even with the try/catch here.
+// The only real fix is to never call it in Expo Go at all, detected via
+// Constants.executionEnvironment (StoreClient = running inside Expo Go
+// itself, as opposed to a standalone/dev-client build).
 export async function registerForPushNotifications(): Promise<void> {
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return;
+
   try {
     const Notifications = await import('expo-notifications');
 

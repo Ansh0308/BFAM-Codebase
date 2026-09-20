@@ -19,6 +19,7 @@ import { TextField } from '../../../src/components/TextField';
 import { ChipSelect } from '../../../src/components/ChipSelect';
 import { ToggleRow } from '../../../src/components/ToggleRow';
 import { useRebookStore } from '../../../src/store/rebookStore';
+import { useChallengeMatchStore } from '../../../src/store/challengeMatchStore';
 
 const MATCH_TYPES: { value: MatchType; label: string }[] = [
   { value: 'FRIENDS', label: 'Friends' },
@@ -47,6 +48,12 @@ export default function CreateMatchScreen() {
   const rebookPlan = useRebookStore((s) => s.plan);
   const clearRebookPlan = useRebookStore((s) => s.clear);
 
+  // Backlog B-13: reached via "Create Match" on an ACCEPTED challenge —
+  // prefills both real teams instead of the usual pick-your-team-then-
+  // search-an-opponent flow.
+  const challengeMatchPlan = useChallengeMatchStore((s) => s.plan);
+  const clearChallengeMatchPlan = useChallengeMatchStore((s) => s.clear);
+
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(!params.bookingId);
   const [bookingId, setBookingId] = useState<string | null>(params.bookingId ?? null);
@@ -70,15 +77,21 @@ export default function CreateMatchScreen() {
 
   // Backlog G-20: an optional team-vs-team match — skipped entirely for a
   // casual Friends match, which keeps working exactly as it does today.
-  const [isTeamMatch, setIsTeamMatch] = useState(false);
+  const [isTeamMatch, setIsTeamMatch] = useState(!!challengeMatchPlan);
   const [myTeams, setMyTeams] = useState<MyTeam[]>([]);
   const [loadingMyTeams, setLoadingMyTeams] = useState(false);
-  const [homeTeamId, setHomeTeamId] = useState<string | null>(null);
+  const [homeTeamId, setHomeTeamId] = useState<string | null>(
+    challengeMatchPlan?.home_team_id ?? null,
+  );
   const [opponentQuery, setOpponentQuery] = useState('');
   const [opponentResults, setOpponentResults] = useState<OpenTeam[]>([]);
   const [searchingOpponents, setSearchingOpponents] = useState(false);
-  const [awayTeamId, setAwayTeamId] = useState<string | null>(null);
-  const [awayTeamName, setAwayTeamName] = useState<string | null>(null);
+  const [awayTeamId, setAwayTeamId] = useState<string | null>(
+    challengeMatchPlan?.away_team_id ?? null,
+  );
+  const [awayTeamName, setAwayTeamName] = useState<string | null>(
+    challengeMatchPlan?.away_team_name ?? null,
+  );
 
   useEffect(() => {
     if (!isTeamMatch || myTeams.length > 0 || loadingMyTeams) return;
@@ -87,7 +100,7 @@ export default function CreateMatchScreen() {
       .getMyTeams()
       .then((res) => {
         setMyTeams(res.results);
-        if (res.results.length === 1) setHomeTeamId(res.results[0].team_id);
+        if (res.results.length === 1) setHomeTeamId((prev) => prev ?? res.results[0].team_id);
       })
       .catch(() => setMyTeams([]))
       .finally(() => setLoadingMyTeams(false));
@@ -162,6 +175,7 @@ export default function CreateMatchScreen() {
         );
         clearRebookPlan();
       }
+      if (challengeMatchPlan) clearChallengeMatchPlan();
 
       router.replace(`/(tabs)/matches/${match.match_id}`);
     } catch (err) {
@@ -185,6 +199,18 @@ export default function CreateMatchScreen() {
               Rebooking with {rebookPlan.roster.length} player
               {rebookPlan.roster.length === 1 ? '' : 's'} from your last match at{' '}
               {rebookPlan.turf_name}.
+            </Text>
+          </View>
+        )}
+        {challengeMatchPlan && (
+          <View
+            className="flex-row items-center bg-surface-alt rounded-md p-3 mb-4"
+            testID="challenge-match-banner"
+          >
+            <Feather name="shield" size={16} color="#D80000" />
+            <Text className="font-ui text-body text-text-primary ml-2">
+              {challengeMatchPlan.home_team_name} vs {challengeMatchPlan.away_team_name} — accepted
+              challenge, both rosters will be invited.
             </Text>
           </View>
         )}

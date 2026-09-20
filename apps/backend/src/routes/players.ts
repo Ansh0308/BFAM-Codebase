@@ -3,7 +3,7 @@ import { authenticateJwt } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { contactsLookupSchema } from '../validation/schemas';
 import { matchContactsToPlayers } from '../services/contactsService';
-import { getPublicProfile } from '../services/profileService';
+import { getPublicProfile, searchPlayers } from '../services/profileService';
 import { followPlayer, unfollowPlayer } from '../services/followService';
 import {
   CannotFollowSelfError,
@@ -25,6 +25,19 @@ function handleFollowError(error: unknown, res: Response) {
   }
   return null;
 }
+
+// GET /players/search?q= (backlog B-12): Player Search from the Home top
+// nav — matches by name or BFAM ID. Registered ahead of the /:playerId
+// catch-all below, or "search" would be parsed as a playerId.
+router.get(
+  '/search',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const results = await searchPlayers(q);
+    return res.status(200).json({ results });
+  }),
+);
 
 // GET /players/:playerId (backlog B-10): another player's public profile —
 // reachable from a roster/team-member row's avatar/name. See

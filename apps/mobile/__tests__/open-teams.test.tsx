@@ -3,7 +3,12 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { apiClient } from '../src/lib/apiClient';
 
 jest.mock('../src/lib/apiClient', () => ({
-  apiClient: { getOpenTeams: jest.fn(), requestToJoinTeam: jest.fn() },
+  apiClient: {
+    getOpenTeams: jest.fn(),
+    requestToJoinTeam: jest.fn(),
+    getMyTeams: jest.fn(),
+    sendChallenge: jest.fn(),
+  },
 }));
 
 // useFocusEffect (from expo-router, which implements it natively rather
@@ -20,6 +25,7 @@ jest.mock('expo-router', () => ({
 
 const mockGetOpenTeams = apiClient.getOpenTeams as jest.Mock;
 const mockRequestToJoinTeam = apiClient.requestToJoinTeam as jest.Mock;
+const mockGetMyTeams = apiClient.getMyTeams as jest.Mock;
 
 import OpenTeamsScreen from '../app/(tabs)/teams/open';
 
@@ -40,6 +46,8 @@ describe('OpenTeamsScreen (module 2.5)', () => {
   beforeEach(() => {
     mockGetOpenTeams.mockReset();
     mockRequestToJoinTeam.mockReset();
+    mockGetMyTeams.mockReset();
+    mockGetMyTeams.mockResolvedValue({ results: [] });
   });
 
   it('loads open teams on mount', async () => {
@@ -47,7 +55,7 @@ describe('OpenTeamsScreen (module 2.5)', () => {
     const { findByTestId } = await render(<OpenTeamsScreen />);
 
     await findByTestId('open-team-row-team-1');
-    expect(mockGetOpenTeams).toHaveBeenCalledWith({});
+    expect(mockGetOpenTeams).toHaveBeenCalledWith({ mode: 'players' });
   });
 
   // Backlog B-5: Fair Play score shown per team so players can factor it
@@ -114,7 +122,7 @@ describe('OpenTeamsScreen (module 2.5)', () => {
     // setup (there's no real navigation focus/blur to simulate here), so
     // this mainly guards against a regression back to a plain mount-once
     // useEffect that would only ever call once, full stop.
-    expect(mockGetOpenTeams).toHaveBeenCalledWith({});
+    expect(mockGetOpenTeams).toHaveBeenCalledWith({ mode: 'players' });
   });
 
   it('sends a join request and marks the team as requested', async () => {
@@ -132,11 +140,13 @@ describe('OpenTeamsScreen (module 2.5)', () => {
   it('re-fetches with the city filter when submitted', async () => {
     mockGetOpenTeams.mockResolvedValue({ results: [] });
     const { getByTestId } = await render(<OpenTeamsScreen />);
-    await waitFor(() => expect(mockGetOpenTeams).toHaveBeenCalledWith({}));
+    await waitFor(() => expect(mockGetOpenTeams).toHaveBeenCalledWith({ mode: 'players' }));
 
     await fireEvent.changeText(getByTestId('open-teams-city-filter'), 'Rajkot');
     fireEvent(getByTestId('open-teams-city-filter'), 'submitEditing');
 
-    await waitFor(() => expect(mockGetOpenTeams).toHaveBeenCalledWith({ city: 'Rajkot' }));
+    await waitFor(() =>
+      expect(mockGetOpenTeams).toHaveBeenCalledWith({ mode: 'players', city: 'Rajkot' }),
+    );
   });
 });

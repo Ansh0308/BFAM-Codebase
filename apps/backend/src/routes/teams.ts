@@ -7,25 +7,33 @@ import {
   inviteToTeamSchema,
   openTeamsQuerySchema,
   respondToInvitationSchema,
+  sendChallengeSchema,
+  setOpenForChallengeSchema,
 } from '../validation/schemas';
 import {
+  cancelChallenge,
   changeCaptain,
   createTeam,
   getTeamDetails,
   inviteToTeam,
   leaveTeam,
   listJoinRequests,
+  listMyChallenges,
   listMyTeams,
   listOpenTeams,
   removeMember,
   requestToJoinTeam,
   resolvePlayerIdByBfamId,
+  respondToChallenge,
   respondToInvitation,
   respondToJoinRequest,
   searchTeamsByName,
+  sendChallenge,
+  setOpenForChallenge,
 } from '../services/teamService';
 import {
   AlreadyTeamMemberError,
+  ChallengeNotFoundError,
   ForbiddenActionError,
   InvalidTeamStateError,
   JoinRequestNotFoundError,
@@ -38,7 +46,11 @@ import {
 const router = Router();
 
 function handleTeamError(error: unknown, res: Response) {
-  if (error instanceof TeamNotFoundError || error instanceof JoinRequestNotFoundError) {
+  if (
+    error instanceof TeamNotFoundError ||
+    error instanceof JoinRequestNotFoundError ||
+    error instanceof ChallengeNotFoundError
+  ) {
     return res.status(404).json({ error: { message: error.message, status: 404 } });
   }
   if (error instanceof ForbiddenActionError) {
@@ -126,6 +138,18 @@ router.get(
     const q = typeof req.query.q === 'string' ? req.query.q : '';
     const teams = await searchTeamsByName(q);
     return res.status(200).json({ results: teams });
+  }),
+);
+
+// GET /teams/challenges/mine — backlog B-13: every challenge involving a
+// team the caller captains, either side. A 2-segment literal path, so it
+// never collides with /:teamId regardless of registration order.
+router.get(
+  '/challenges/mine',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const challenges = await listMyChallenges(req.auth!.sub);
+    return res.status(200).json({ results: challenges });
   }),
 );
 
@@ -296,6 +320,98 @@ router.post(
         req.auth!.sub,
         parsed.data.accept,
       );
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = handleTeamError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /teams/:teamId/open-for-challenge — backlog B-13: captain toggles
+// whether other teams can challenge this one.
+router.post(
+  '/:teamId/open-for-challenge',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = setOpenForChallengeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid payload', status: 400 } });
+    }
+    try {
+      const result = await setOpenForChallenge(
+        req.params.teamId,
+        req.auth!.sub,
+        parsed.data.is_open_for_challenge,
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = handleTeamError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /teams/:teamId/challenges — backlog B-13: this team's captain
+// challenges another team (challenged_team_id in the body) to a match.
+router.post(
+  '/:teamId/challenges',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = sendChallengeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid challenge payload', status: 400 } });
+    }
+    try {
+      const result = await sendChallenge(
+        req.params.teamId,
+        req.auth!.sub,
+        parsed.data.challenged_team_id,
+      );
+      return res.status(201).json(result);
+    } catch (error) {
+      const handled = handleTeamError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /teams/challenges/:challengeId/respond — the challenged team's
+// captain accepts or declines.
+router.post(
+  '/challenges/:challengeId/respond',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = respondToInvitationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid response payload', status: 400 } });
+    }
+    try {
+      const result = await respondToChallenge(
+        req.params.challengeId,
+        req.auth!.sub,
+        parsed.data.accept,
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      const handled = handleTeamError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /teams/challenges/:challengeId/cancel — the challenger withdraws a
+// still-pending challenge.
+router.post(
+  '/challenges/:challengeId/cancel',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const result = await cancelChallenge(req.params.challengeId, req.auth!.sub);
       return res.status(200).json(result);
     } catch (error) {
       const handled = handleTeamError(error, res);

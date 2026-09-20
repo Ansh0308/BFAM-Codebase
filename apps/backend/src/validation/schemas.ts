@@ -618,6 +618,17 @@ export const changeCaptainSchema = z.object({
 export const openTeamsQuerySchema = z.object({
   skill_level: z.enum(TEAM_SKILL_LEVELS).optional(),
   city: z.string().max(100).optional(),
+  mode: z.enum(['players', 'challenge']).optional(),
+});
+
+// ---- Backlog B-13: Team vs Team Challenge Mode ----
+
+export const sendChallengeSchema = z.object({
+  challenged_team_id: uuid,
+});
+
+export const setOpenForChallengeSchema = z.object({
+  is_open_for_challenge: z.boolean(),
 });
 
 // ---- Module 2.6: Match Creation & Game Room ----

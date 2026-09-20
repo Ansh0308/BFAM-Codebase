@@ -27,6 +27,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // localStorage (there's no SecureStore/Keychain on web) instead of
 // expo-secure-store.
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<WebAuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,6 +41,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
+  const logout = useCallback(() => {
+    apiClient.clearToken();
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    setUser(null);
+  }, []);
+
+  // A stale/expired JWT surfaces as a 401 on whatever API call happens to
+  // run into it first — a real "please log in again" moment, not just that
+  // one screen's data failing to load. Registered once; always reads the
+  // latest `logout` via the ref-less closure trick of re-registering on
+  // every render is unnecessary here since logout/router are stable
+  // (useCallback + Next's router), so a single registration on mount holds.
+  useEffect(() => {
+    apiClient.setUnauthorizedHandler(() => {
+      logout();
+      router.replace('/login');
+    });
+    return () => apiClient.setUnauthorizedHandler(null);
+  }, [logout, router]);
+
   const login = useCallback(async (identifier: string, password: string) => {
     const res = await apiClient.login(identifier, password);
     const webUser: WebAuthUser = { user_id: res.user_id, role: res.role as WebAuthUser['role'] };
@@ -48,13 +70,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(USER_KEY, JSON.stringify(webUser));
     setUser(webUser);
     return webUser;
-  }, []);
-
-  const logout = useCallback(() => {
-    apiClient.clearToken();
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    setUser(null);
   }, []);
 
   return (

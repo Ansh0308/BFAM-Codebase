@@ -437,3 +437,12 @@ export class PlayerAlreadyRatedError extends Error {
     this.name = 'PlayerAlreadyRatedError';
   }
 }
+
+// ---- Backlog B-13: Team vs Team Challenge Mode ----
+
+export class ChallengeNotFoundError extends Error {
+  constructor(challengeId: string) {
+    super(`Challenge ${challengeId} not found`);
+    this.name = 'ChallengeNotFoundError';
+  }
+}

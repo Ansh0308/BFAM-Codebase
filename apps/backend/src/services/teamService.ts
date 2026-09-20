@@ -4,6 +4,7 @@ import { sequelize } from '../config/sequelize';
 import { isUniqueConstraintError } from '../domain/dbErrors';
 import {
   AlreadyTeamMemberError,
+  ChallengeNotFoundError,
   ForbiddenActionError,
   InvalidTeamStateError,
   JoinRequestNotFoundError,
@@ -22,6 +23,7 @@ interface TeamRow {
   skill_level: string | null;
   home_city: string | null;
   is_open_for_players: boolean;
+  is_open_for_challenge: boolean;
   team_status: string;
   created_by: string;
   created_at: Date;
@@ -232,6 +234,10 @@ export async function listMyTeams(userId: string) {
 export interface OpenTeamFilters {
   skill_level?: string;
   city?: string;
+  // Backlog B-13: the same Open Teams screen folds in challenge discovery
+  // (founder's own suggested option) rather than a wholly separate screen
+  // — 'players' (default) keeps today's is_open_for_players behavior.
+  mode?: 'players' | 'challenge';
 }
 
 // Open Teams: vacancy discovery (PRD §12.4) — map view is not part of this
@@ -240,7 +246,9 @@ export async function listOpenTeams(filters: OpenTeamFilters) {
   const conditions = [
     "t.team_status = 'ACTIVE'",
     't.deleted_at IS NULL',
-    't.is_open_for_players = TRUE',
+    filters.mode === 'challenge'
+      ? 't.is_open_for_challenge = TRUE'
+      : 't.is_open_for_players = TRUE',
   ];
   const replacements: Record<string, unknown> = {};
 
@@ -609,4 +617,207 @@ export async function respondToJoinRequest(
   }
 
   return { request_id: requestId, status: accept ? 'ACCEPTED' : 'REJECTED' };
+}
+
+// ---- Backlog B-13: Team vs Team Challenge Mode ----
+
+interface ChallengeRow {
+  challenge_id: string;
+  challenging_team_id: string;
+  challenged_team_id: string;
+  status: string;
+  initiated_by: string;
+  responded_by: string | null;
+  created_at: Date;
+  responded_at: Date | null;
+}
+
+async function fetchChallenge(challengeId: string): Promise<ChallengeRow | null> {
+  const [challenge] = await sequelize.query<ChallengeRow>(
+    'SELECT * FROM team_challenges WHERE challenge_id = :challengeId',
+    { type: QueryTypes.SELECT, replacements: { challengeId } },
+  );
+  return challenge ?? null;
+}
+
+// Captain-only, same shape as the is_open_for_players flag set at team
+// creation — this is the only place it's toggled after the fact.
+export async function setOpenForChallenge(teamId: string, actorUserId: string, isOpen: boolean) {
+  await assertIsCaptain(teamId, actorUserId);
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate('teams', { is_open_for_challenge: isOpen }, { team_id: teamId });
+  return { team_id: teamId, is_open_for_challenge: isOpen };
+}
+
+// A captain challenges another team to a match. The challenged team must
+// be open for it (is_open_for_challenge), unlike inviteToTeam's target
+// player, who can be added to a closed team by direct BFAM ID — a whole
+// team accepting a challenge is a bigger commitment than one player
+// joining, so it's opt-in via the flag rather than always-open.
+export async function sendChallenge(
+  challengingTeamId: string,
+  actorUserId: string,
+  challengedTeamId: string,
+) {
+  await assertIsCaptain(challengingTeamId, actorUserId);
+
+  if (challengingTeamId === challengedTeamId) {
+    throw new InvalidTeamStateError('A team cannot challenge itself.');
+  }
+
+  const challengedTeam = await fetchTeam(challengedTeamId);
+  if (!challengedTeam) throw new TeamNotFoundError(challengedTeamId);
+  if (!challengedTeam.is_open_for_challenge) {
+    throw new InvalidTeamStateError('This team is not currently open for challenges.');
+  }
+
+  const [pending] = await sequelize.query<{ challenge_id: string }>(
+    `SELECT challenge_id FROM team_challenges
+     WHERE challenging_team_id = :challengingTeamId AND challenged_team_id = :challengedTeamId
+       AND status = 'PENDING'`,
+    { type: QueryTypes.SELECT, replacements: { challengingTeamId, challengedTeamId } },
+  );
+  if (pending) {
+    throw new InvalidTeamStateError('You already have a pending challenge to this team.');
+  }
+
+  const challengeId = randomUUID();
+  await sequelize.getQueryInterface().bulkInsert('team_challenges', [
+    {
+      challenge_id: challengeId,
+      challenging_team_id: challengingTeamId,
+      challenged_team_id: challengedTeamId,
+      status: 'PENDING',
+      initiated_by: actorUserId,
+      responded_by: null,
+      created_at: new Date(),
+      responded_at: null,
+    },
+  ]);
+
+  // CHALLENGE_RECEIVED — never allowed to fail the challenge itself.
+  try {
+    const challengingTeam = await fetchTeam(challengingTeamId);
+    const challengedCaptain = await fetchActiveCaptainMembership(challengedTeamId);
+    if (challengingTeam && challengedCaptain) {
+      const [captainPlayer] = await sequelize.query<{ user_id: string }>(
+        'SELECT user_id FROM players WHERE player_id = :playerId',
+        { type: QueryTypes.SELECT, replacements: { playerId: challengedCaptain.player_id } },
+      );
+      if (captainPlayer) {
+        await sendNotification({
+          userId: captainPlayer.user_id,
+          event: 'CHALLENGE_RECEIVED',
+          params: { teamName: challengingTeam.team_name },
+          relatedEntityType: 'team_challenge',
+          relatedEntityId: challengeId,
+        });
+      }
+    }
+  } catch (error) {
+    console.error(`[teamService] Failed to send CHALLENGE_RECEIVED for ${challengeId}:`, error);
+  }
+
+  return { challenge_id: challengeId };
+}
+
+// The challenged team's captain accepts or declines.
+export async function respondToChallenge(
+  challengeId: string,
+  actorUserId: string,
+  accept: boolean,
+) {
+  const challenge = await fetchChallenge(challengeId);
+  if (!challenge) throw new ChallengeNotFoundError(challengeId);
+
+  await assertIsCaptain(challenge.challenged_team_id, actorUserId);
+
+  if (challenge.status !== 'PENDING') {
+    throw new InvalidTeamStateError('This challenge has already been responded to.');
+  }
+
+  const now = new Date();
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate(
+      'team_challenges',
+      { status: accept ? 'ACCEPTED' : 'DECLINED', responded_by: actorUserId, responded_at: now },
+      { challenge_id: challengeId },
+    );
+
+  // CHALLENGE_ACCEPTED/DECLINED to the original challenger — best-effort.
+  try {
+    const challengedTeam = await fetchTeam(challenge.challenged_team_id);
+    const challengingCaptain = await fetchActiveCaptainMembership(challenge.challenging_team_id);
+    if (challengedTeam && challengingCaptain) {
+      const [captainPlayer] = await sequelize.query<{ user_id: string }>(
+        'SELECT user_id FROM players WHERE player_id = :playerId',
+        { type: QueryTypes.SELECT, replacements: { playerId: challengingCaptain.player_id } },
+      );
+      if (captainPlayer) {
+        await sendNotification({
+          userId: captainPlayer.user_id,
+          event: accept ? 'CHALLENGE_ACCEPTED' : 'CHALLENGE_DECLINED',
+          params: { teamName: challengedTeam.team_name },
+          relatedEntityType: 'team_challenge',
+          relatedEntityId: challengeId,
+        });
+      }
+    }
+  } catch (error) {
+    console.error(
+      `[teamService] Failed to send challenge response notification for ${challengeId}:`,
+      error,
+    );
+  }
+
+  return { challenge_id: challengeId, status: accept ? 'ACCEPTED' : 'DECLINED' };
+}
+
+// The challenger withdraws a still-PENDING challenge.
+export async function cancelChallenge(challengeId: string, actorUserId: string) {
+  const challenge = await fetchChallenge(challengeId);
+  if (!challenge) throw new ChallengeNotFoundError(challengeId);
+
+  await assertIsCaptain(challenge.challenging_team_id, actorUserId);
+
+  if (challenge.status !== 'PENDING') {
+    throw new InvalidTeamStateError('This challenge has already been responded to.');
+  }
+
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate(
+      'team_challenges',
+      { status: 'CANCELLED', responded_at: new Date() },
+      { challenge_id: challengeId },
+    );
+
+  return { challenge_id: challengeId, status: 'CANCELLED' };
+}
+
+// Every challenge involving a team the caller captains, either side —
+// denormalized with both team names so the mobile list needs no follow-up
+// per-team fetch.
+export async function listMyChallenges(userId: string) {
+  const playerId = await resolvePlayerId(userId);
+  return sequelize.query<
+    ChallengeRow & { challenging_team_name: string; challenged_team_name: string }
+  >(
+    `SELECT tc.*, ct.team_name AS challenging_team_name, cd.team_name AS challenged_team_name
+     FROM team_challenges tc
+     JOIN teams ct ON ct.team_id = tc.challenging_team_id
+     JOIN teams cd ON cd.team_id = tc.challenged_team_id
+     WHERE tc.challenging_team_id IN (
+             SELECT team_id FROM team_members
+             WHERE player_id = :playerId AND role_in_team = 'CAPTAIN' AND membership_status = 'ACTIVE'
+           )
+        OR tc.challenged_team_id IN (
+             SELECT team_id FROM team_members
+             WHERE player_id = :playerId AND role_in_team = 'CAPTAIN' AND membership_status = 'ACTIVE'
+           )
+     ORDER BY tc.created_at DESC`,
+    { type: QueryTypes.SELECT, replacements: { playerId } },
+  );
 }

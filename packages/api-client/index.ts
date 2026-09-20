@@ -29,6 +29,7 @@ import {
   ReplacementSuggestion,
   ReviewSubmissionResult,
   TeamDetails,
+  TeamChallenge,
   OpenRoom,
   RoomDetails,
   CreateRoomInput,
@@ -48,6 +49,7 @@ import {
   Cricketer,
   MyProfile,
   PublicPlayerProfile,
+  PlayerSearchResult,
   UpdateProfilePayload,
   PlayerStatistics,
   PlayerRating,
@@ -175,6 +177,16 @@ export interface CompleteSocialSignupPayload {
 export class BFAMApiClient {
   private baseUrl: string;
   private token: string | null = null;
+  // Fires once per 401 from the shared `request()` path below (a real
+  // "your session died" case — auth simply missing/expired/invalid, not a
+  // permission error, which the backend returns as 403 instead). Web has
+  // no equivalent of mobile's SecureStore-backed pre-flight token check, so
+  // without this a stale token quietly surfaces as a broken data-loading
+  // screen (e.g. Admin's Players list, "Could not load players") instead of
+  // bouncing back to the login screen. Optional/settable rather than baked
+  // in, since this class is shared with the mobile app, which has its own
+  // session-expiry handling and doesn't need this hook.
+  private onUnauthorized: (() => void) | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -186,6 +198,10 @@ export class BFAMApiClient {
 
   clearToken() {
     this.token = null;
+  }
+
+  setUnauthorizedHandler(handler: (() => void) | null) {
+    this.onUnauthorized = handler;
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -209,6 +225,7 @@ export class BFAMApiClient {
       } catch {
         // Non-JSON error body — fall back to the generic message above.
       }
+      if (response.status === 401) this.onUnauthorized?.();
       throw new BFAMApiError(message, response.status);
     }
 
@@ -353,6 +370,13 @@ export class BFAMApiClient {
   // Backlog B-10: another player's public profile.
   async getPlayerProfile(playerId: string): Promise<PublicPlayerProfile> {
     return this.request<PublicPlayerProfile>(`/players/${playerId}`);
+  }
+
+  // Backlog B-12: Player Search from the Home top nav.
+  async searchPlayers(query: string): Promise<{ results: PlayerSearchResult[] }> {
+    return this.request<{ results: PlayerSearchResult[] }>(
+      `/players/search${toQueryString({ q: query })}`,
+    );
   }
 
   // Backlog B-9: follow/unfollow, idempotent.
@@ -508,7 +532,7 @@ export class BFAMApiClient {
   }
 
   async getOpenTeams(
-    filters: { skill_level?: string; city?: string } = {},
+    filters: { skill_level?: string; city?: string; mode?: 'players' | 'challenge' } = {},
   ): Promise<{ results: OpenTeam[] }> {
     return this.request<{ results: OpenTeam[] }>(`/teams/open${toQueryString(filters)}`);
   }
@@ -565,6 +589,42 @@ export class BFAMApiClient {
 
   async getJoinRequests(teamId: string): Promise<{ results: JoinRequest[] }> {
     return this.request<{ results: JoinRequest[] }>(`/teams/${teamId}/join-requests`);
+  }
+
+  // ---- Backlog B-13: Team vs Team Challenge Mode ----
+
+  async setOpenForChallenge(
+    teamId: string,
+    isOpen: boolean,
+  ): Promise<{ team_id: string; is_open_for_challenge: boolean }> {
+    return this.request(`/teams/${teamId}/open-for-challenge`, {
+      method: 'POST',
+      body: JSON.stringify({ is_open_for_challenge: isOpen }),
+    });
+  }
+
+  async sendChallenge(teamId: string, challengedTeamId: string): Promise<{ challenge_id: string }> {
+    return this.request<{ challenge_id: string }>(`/teams/${teamId}/challenges`, {
+      method: 'POST',
+      body: JSON.stringify({ challenged_team_id: challengedTeamId }),
+    });
+  }
+
+  async getMyChallenges(): Promise<{ results: TeamChallenge[] }> {
+    return this.request<{ results: TeamChallenge[] }>('/teams/challenges/mine');
+  }
+
+  async respondToChallenge(challengeId: string, accept: boolean): Promise<{ status: string }> {
+    return this.request<{ status: string }>(`/teams/challenges/${challengeId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ accept }),
+    });
+  }
+
+  async cancelChallenge(challengeId: string): Promise<{ status: string }> {
+    return this.request<{ status: string }>(`/teams/challenges/${challengeId}/cancel`, {
+      method: 'POST',
+    });
   }
 
   // ---- Backlog B-11: Pre-Match Room (lobby) ----

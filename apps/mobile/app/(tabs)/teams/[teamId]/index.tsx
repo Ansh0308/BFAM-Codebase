@@ -2,7 +2,8 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import type { TeamDetails } from '@bfam/shared-types';
+import type { MyTeam, TeamDetails } from '@bfam/shared-types';
+import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
@@ -19,12 +20,18 @@ export default function TeamDetailsScreen() {
   const user = useAuthStore((s) => s.user);
   const [team, setTeam] = useState<TeamDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [myCaptainedTeams, setMyCaptainedTeams] = useState<MyTeam[]>([]);
+  const [challengingTeamId, setChallengingTeamId] = useState<string | null>(null);
+  const [challengeSentIds, setChallengeSentIds] = useState<Set<string>>(new Set());
+  const [challengeError, setChallengeError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
-    apiClient
-      .getTeamDetails(teamId)
-      .then(setTeam)
+    Promise.all([apiClient.getTeamDetails(teamId), apiClient.getMyTeams()])
+      .then(([teamDetails, myTeams]) => {
+        setTeam(teamDetails);
+        setMyCaptainedTeams(myTeams.results.filter((t) => t.role_in_team === 'CAPTAIN'));
+      })
       .finally(() => setLoading(false));
   }, [teamId]);
 
@@ -46,6 +53,24 @@ export default function TeamDetailsScreen() {
 
   const myMembership = team.members.find((m) => m.bfam_id === user?.bfam_id);
   const isCaptain = myMembership?.role_in_team === 'CAPTAIN';
+  // Backlog B-13: a team I don't captain, open for challenges, and I
+  // captain at least one team of my own to challenge with.
+  const challengeableFromTeams = myCaptainedTeams.filter((t) => t.team_id !== teamId);
+  const canChallenge = team.is_open_for_challenge && challengeableFromTeams.length > 0;
+
+  async function sendChallengeFrom(myTeamId: string) {
+    setChallengingTeamId(myTeamId);
+    setChallengeError(null);
+    try {
+      await apiClient.sendChallenge(myTeamId, teamId);
+      setChallengeSentIds((prev) => new Set(prev).add(myTeamId));
+    } catch (err) {
+      if (err instanceof BFAMApiError) setChallengeError(err.message);
+      else setChallengeError('Could not send the challenge. Please try again.');
+    } finally {
+      setChallengingTeamId(null);
+    }
+  }
 
   return (
     <ScrollView className="flex-1 bg-surface" testID="team-details-screen">
@@ -85,6 +110,36 @@ export default function TeamDetailsScreen() {
               onPress={() => router.push(`/(tabs)/teams/${teamId}/manage`)}
               testID="manage-team-button"
             />
+          </View>
+        )}
+
+        {/* Backlog B-13: Team vs Team Challenge Mode. */}
+        {canChallenge && (
+          <View className="mt-3 mb-2" testID="challenge-team-section">
+            <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
+              Challenge This Team
+            </Text>
+            {challengeError && (
+              <Text className="text-brand-red text-body mb-2">{challengeError}</Text>
+            )}
+            {challengeableFromTeams.map((myTeam) => {
+              const sent = challengeSentIds.has(myTeam.team_id);
+              return (
+                <Button
+                  key={myTeam.team_id}
+                  label={
+                    sent
+                      ? `Challenge Sent (${myTeam.team_name})`
+                      : `Challenge with ${myTeam.team_name}`
+                  }
+                  variant={sent ? 'ghost' : 'primary'}
+                  disabled={sent}
+                  loading={challengingTeamId === myTeam.team_id}
+                  onPress={() => sendChallengeFrom(myTeam.team_id)}
+                  testID={`challenge-this-team-${myTeam.team_id}`}
+                />
+              );
+            })}
           </View>
         )}
 
