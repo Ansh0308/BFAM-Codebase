@@ -1,7 +1,8 @@
 // Comprehensive demo dataset for exercising the mobile app end-to-end —
 // realistic (not random-garbage) data across turfs, players, teams,
 // bookings, matches at every stage (open roster, fully confirmed but not
-// started, and a fully completed match with a real ball-by-ball innings),
+// started, a match LIVE right now with a real innings in progress, and a
+// fully completed match with two full innings scored ball-by-ball),
 // payments, and notifications.
 //
 // Simple entities (users/players/teams/turfs) are inserted directly.
@@ -491,9 +492,10 @@ async function main() {
   await confirmPlayingXi(matchE.match_id, playerUsers[8].user_id, 'TEAM_A');
   await confirmPlayingXi(matchE.match_id, playerUsers[8].user_id, 'TEAM_B');
 
-  // ---- Booking + Match F: paused right after toss, first ball not yet
-  // bowled — for exercising/demoing the Scoring Interface from a clean
-  // start rather than only a fully-completed innings.
+  // ---- Booking + Match F: LIVE right now — toss done, 2+ overs already
+  // scored ball-by-ball, innings left IN_PROGRESS (never finalized) — for
+  // testing the Live Score screen, Scorecard, and owner Digital Scoreboard
+  // against a match that's actually mid-innings, not just 0/0 or completed.
   const bookingF = await createBooking({
     turfId: turfs[2].turf_id,
     bookedBy: playerUsers[15].user_id,
@@ -507,7 +509,7 @@ async function main() {
     .bulkUpdate('bookings', { booking_status: 'CONFIRMED' }, { booking_id: bookingF.booking_id });
   const matchF = await createMatch(playerUsers[15].user_id, {
     booking_id: bookingF.booking_id,
-    match_name: 'Ready for Scoring',
+    match_name: 'Live Now — Floodlit Friendly',
     match_type: 'FRIENDS',
     ball_type: 'TENNIS',
     overs_per_innings: 6,
@@ -529,11 +531,56 @@ async function main() {
   const teamBIdF = introF.matchTeams.find((t) => t.side_label === 'TEAM_B')!.match_team_id;
   await recordToss(matchF.match_id, playerUsers[15].user_id, teamAIdF, 'BAT');
   await completeIntro(matchF.match_id, playerUsers[15].user_id);
-  await startInnings(matchF.match_id, playerUsers[15].user_id, {
+  const inningsF = await startInnings(matchF.match_id, playerUsers[15].user_id, {
     innings_number: 1,
     batting_match_team_id: teamAIdF,
     bowling_match_team_id: teamBIdF,
   });
+
+  // Organizer + first 3 of the 6-player roster bat; the other 3 bowl —
+  // same split ratio as Match C below. 2 overs plus a partial 3rd (13
+  // legal balls, one wide) so it reads as genuinely mid-over, not a round
+  // number — a four, a six, and a wicket so the scorecard has real shape.
+  const battingOrderF = [playerUsers[15], rosterF[0], rosterF[1], rosterF[2]];
+  const bowlingOrderF = [rosterF[3], rosterF[4], rosterF[5]];
+  const overFDeliveries = [
+    { runs: 1 },
+    { runs: 4 },
+    { runs: 0 },
+    { runs: 2 },
+    { runs: 0, extra: 'WIDE' as const, extraRuns: 1 },
+    { runs: 1 },
+    { runs: 6 },
+    { runs: 0 },
+    { runs: 0, wicket: true },
+    { runs: 1 },
+    { runs: 4 },
+    { runs: 2 },
+    { runs: 1 },
+    { runs: 0 },
+  ];
+  let strikerIdxF = 0;
+  let bowlerIdxF = 0;
+  for (let i = 0; i < overFDeliveries.length; i++) {
+    const d = overFDeliveries[i];
+    if (i > 0 && i % 6 === 0) bowlerIdxF = (bowlerIdxF + 1) % bowlingOrderF.length;
+    const striker = battingOrderF[strikerIdxF % battingOrderF.length];
+    const nonStriker = battingOrderF[(strikerIdxF + 1) % battingOrderF.length];
+    const bowler = bowlingOrderF[bowlerIdxF];
+    await recordBall(inningsF!.innings_id, playerUsers[15].user_id, {
+      striker_player_id: playerIdByUserId.get(striker.user_id)!,
+      non_striker_player_id: playerIdByUserId.get(nonStriker.user_id)!,
+      bowler_player_id: playerIdByUserId.get(bowler.user_id)!,
+      runs_scored: d.wicket ? 0 : d.runs,
+      extra_type: d.extra ?? 'NONE',
+      extra_runs: d.extraRuns ?? 0,
+      is_wicket: Boolean(d.wicket),
+      wicket_type: d.wicket ? 'BOWLED' : null,
+      dismissed_player_id: d.wicket ? playerIdByUserId.get(striker.user_id)! : null,
+    });
+    if (d.wicket) strikerIdxF += 2;
+    else if (d.runs % 2 === 1) strikerIdxF += 1;
+  }
 
   // ---- Booking + Match C: fully completed with a real ball-by-ball ------
   const bookingC = await createBooking({
@@ -782,7 +829,8 @@ async function main() {
     `  - Match E "${matchE.match_name}": Playing XI confirmed both sides, toss NOT recorded yet`,
   );
   console.log(
-    `  - Match F "${matchF.match_name}": toss done, innings started, no balls scored yet`,
+    `  - Match F "${matchF.match_name}": LIVE — innings 1 in progress, 2+ overs already scored ` +
+      '(open Live Score / Scorecard, or keep scoring it yourself in the app)',
   );
   console.log(
     '  - Match C "Royals vs Owls — Derby": COMPLETED, 2 full innings scored ball-by-ball, result finalized with POTM',
