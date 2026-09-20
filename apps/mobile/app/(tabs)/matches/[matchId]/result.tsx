@@ -44,6 +44,45 @@ function topBowler(rows: BowlingRow[]): BowlingRow | null {
   }, null);
 }
 
+// A-24: "automatically select Player of the Match based on overall
+// performance" — a simple points formula (per the founder's choice), run
+// purely over the scorecard data this screen already fetches: 1 point per
+// run, 20 per wicket (roughly makes a useful bowling spell comparable to
+// a useful batting innings, a common convention). Deliberately excludes
+// fielding (catches/run-outs/stumpings) — the backend accepts a
+// fielder_player_id on a wicket, but the scoring screen never actually
+// collects one, so there's no fielder identity anywhere to credit yet.
+// Summed across every innings so an all-rounder's bat-then-bowl (or
+// bowl-then-bat) contributions both count.
+const POTM_POINTS_PER_RUN = 1;
+const POTM_POINTS_PER_WICKET = 20;
+
+function suggestPlayerOfTheMatch(
+  scorecard: Scorecard,
+  eligiblePlayerIds: Set<string>,
+): string | null {
+  const points = new Map<string, number>();
+  for (const inn of scorecard.innings) {
+    for (const b of inn.batting) {
+      if (!eligiblePlayerIds.has(b.player_id)) continue;
+      points.set(b.player_id, (points.get(b.player_id) ?? 0) + b.runs * POTM_POINTS_PER_RUN);
+    }
+    for (const b of inn.bowling) {
+      if (!eligiblePlayerIds.has(b.player_id)) continue;
+      points.set(b.player_id, (points.get(b.player_id) ?? 0) + b.wickets * POTM_POINTS_PER_WICKET);
+    }
+  }
+  let winner: string | null = null;
+  let bestScore = -Infinity;
+  for (const [playerId, score] of points) {
+    if (score > bestScore) {
+      bestScore = score;
+      winner = playerId;
+    }
+  }
+  return winner;
+}
+
 // Match Result (PRD §12.18 requirement 5): winner, margin, Player of the
 // Match, plus a Match Summary (backlog A-22: run rate, top score, best
 // bowling per innings) and a link to the full Scorecard.
@@ -92,6 +131,20 @@ export default function MatchResultScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // A-24: pre-fill (never override a choice the organizer already made,
+  // matching the same "computed-then-confirmed, not silently automatic"
+  // pattern used for the toss auto-fill above) once there's a scorecard to
+  // compute from — still a normal chip-select underneath, so the organizer
+  // sees it and can tap someone else.
+  useEffect(() => {
+    if (potmId !== null || !room || !scorecard) return;
+    const eligibleIds = new Set(
+      room.players.filter((p) => p.invitation_status === 'CONFIRMED').map((p) => p.player_id),
+    );
+    const suggested = suggestPlayerOfTheMatch(scorecard, eligibleIds);
+    if (suggested) setPotmId(suggested);
+  }, [room, scorecard, potmId]);
 
   async function finalize() {
     setBusy(true);
@@ -329,6 +382,14 @@ export default function MatchResultScreen() {
           onChange={setPotmId}
           testID="potm-select"
         />
+        {scorecard && scorecard.innings.length > 0 && (
+          <Text
+            className="font-ui text-micro text-text-tertiary -mt-3 mb-4"
+            testID="potm-suggested-note"
+          >
+            Suggested from this match&apos;s runs and wickets — tap another player to override.
+          </Text>
+        )}
 
         {error && <Text className="text-brand-red text-body mb-4">{error}</Text>}
 
