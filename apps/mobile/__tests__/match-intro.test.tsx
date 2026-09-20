@@ -43,15 +43,18 @@ const MATCH_TEAMS = [
 
 const mockGetGameRoom = jest.fn();
 const mockStartMatchIntro = jest.fn();
+const mockGetMatchIntro = jest.fn();
 const mockRecordToss = jest.fn();
 const mockCompleteMatchIntro = jest.fn();
+const mockGetLiveScore = jest.fn();
 jest.mock('../src/lib/apiClient', () => ({
   apiClient: {
     getGameRoom: (...args: unknown[]) => mockGetGameRoom(...args),
     startMatchIntro: (...args: unknown[]) => mockStartMatchIntro(...args),
-    getMatchIntro: jest.fn(),
+    getMatchIntro: (...args: unknown[]) => mockGetMatchIntro(...args),
     recordToss: (...args: unknown[]) => mockRecordToss(...args),
     completeMatchIntro: (...args: unknown[]) => mockCompleteMatchIntro(...args),
+    getLiveScore: (...args: unknown[]) => mockGetLiveScore(...args),
   },
 }));
 
@@ -67,8 +70,16 @@ describe('Match Countdown Intro (module 2.7)', () => {
       players: PLAYERS,
       matchTeams: MATCH_TEAMS,
     });
+    mockGetMatchIntro.mockResolvedValue({
+      intro: { background_music_enabled: false },
+      players: PLAYERS,
+      matchTeams: MATCH_TEAMS,
+    });
     mockRecordToss.mockResolvedValue({});
     mockCompleteMatchIntro.mockResolvedValue(undefined);
+    // A-26: the screen now checks whether an innings already exists before
+    // trusting COUNTDOWN as the resume point — no innings yet by default.
+    mockGetLiveScore.mockResolvedValue({ match_id: 'match-1', innings: null });
   });
 
   afterEach(() => {
@@ -278,6 +289,128 @@ describe('Match Countdown Intro (module 2.7)', () => {
     expect(mockSocketEmit).not.toHaveBeenCalledWith(
       'match:intro_stage',
       expect.objectContaining({ stage: 'COUNTDOWN' }),
+    );
+  });
+});
+
+// Backlog A-26: "clicking Start Match again shouldn't restart the whole
+// setup" — re-opening Intro (a second Start Match tap, the app
+// backgrounding mid-sequence) must resume at the match's actual current
+// stage, and must not re-broadcast COUNTDOWN to everyone else watching.
+describe('Match Countdown Intro — resuming in place instead of restarting (backlog A-26)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    mockGetGameRoom.mockResolvedValue({ organizer_id: 'organizer-user', assigned_scorer_id: null });
+    mockGetLiveScore.mockResolvedValue({ match_id: 'match-1', innings: null });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('resumes at TOSS (not recorded) once Playing XI is already confirmed both sides, without re-broadcasting COUNTDOWN', async () => {
+    mockStartMatchIntro.mockResolvedValue({
+      intro: {
+        background_music_enabled: false,
+        playing_xi_confirmed_team_a: true,
+        playing_xi_confirmed_team_b: true,
+        toss_completed_at: null,
+        toss_winner_match_team_id: null,
+        toss_decision: null,
+      },
+      players: PLAYERS,
+      matchTeams: MATCH_TEAMS,
+    });
+
+    const { getByTestId, queryByTestId } = await render(<MatchIntroScreen />);
+
+    await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
+    expect(queryByTestId('intro-countdown')).toBeNull();
+    expect(queryByTestId('intro-xi-reveal')).toBeNull();
+    expect(mockSocketEmit).not.toHaveBeenCalledWith(
+      'match:intro_stage',
+      expect.objectContaining({ stage: 'COUNTDOWN' }),
+    );
+  });
+
+  it('resumes at TOSS with the result already shown once the toss is already recorded', async () => {
+    mockStartMatchIntro.mockResolvedValue({
+      intro: {
+        background_music_enabled: false,
+        playing_xi_confirmed_team_a: true,
+        playing_xi_confirmed_team_b: true,
+        toss_completed_at: '2026-09-20T10:00:00Z',
+        toss_winner_match_team_id: 'mt-b',
+        toss_decision: 'BOWL',
+      },
+      players: PLAYERS,
+      matchTeams: MATCH_TEAMS,
+    });
+
+    const { getByTestId, getByText } = await render(<MatchIntroScreen />);
+
+    await waitFor(() => expect(getByTestId('toss-final-result')).toBeTruthy());
+    expect(getByText(/Team B won the toss, chose to bowl/)).toBeTruthy();
+    expect(getByTestId('continue-to-match')).toBeTruthy();
+    expect(mockSocketEmit).not.toHaveBeenCalledWith(
+      'match:intro_stage',
+      expect.objectContaining({ stage: 'COUNTDOWN' }),
+    );
+  });
+
+  it('redirects straight to Scoring when an innings has already started, skipping the intro entirely', async () => {
+    mockStartMatchIntro.mockResolvedValue({
+      intro: {
+        background_music_enabled: false,
+        playing_xi_confirmed_team_a: true,
+        playing_xi_confirmed_team_b: true,
+        toss_completed_at: '2026-09-20T10:00:00Z',
+        toss_winner_match_team_id: 'mt-a',
+        toss_decision: 'BAT',
+      },
+      players: PLAYERS,
+      matchTeams: MATCH_TEAMS,
+    });
+    mockGetLiveScore.mockResolvedValue({
+      match_id: 'match-1',
+      innings: { innings_id: 'innings-1' },
+    });
+
+    await render(<MatchIntroScreen />);
+
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/matches/match-1/scoring'),
+    );
+    expect(mockSocketEmit).not.toHaveBeenCalledWith(
+      'match:intro_stage',
+      expect.objectContaining({ stage: 'COUNTDOWN' }),
+    );
+  });
+
+  it('still starts (and broadcasts) COUNTDOWN on an actual first start — nothing confirmed yet', async () => {
+    mockStartMatchIntro.mockResolvedValue({
+      intro: {
+        background_music_enabled: false,
+        playing_xi_confirmed_team_a: false,
+        playing_xi_confirmed_team_b: false,
+        toss_completed_at: null,
+        toss_winner_match_team_id: null,
+        toss_decision: null,
+      },
+      players: PLAYERS,
+      matchTeams: MATCH_TEAMS,
+    });
+
+    const { getByTestId } = await render(<MatchIntroScreen />);
+
+    await waitFor(() => expect(getByTestId('intro-countdown')).toBeTruthy());
+    await waitFor(() =>
+      expect(mockSocketEmit).toHaveBeenCalledWith('match:intro_stage', {
+        matchId: 'match-1',
+        stage: 'COUNTDOWN',
+        data: {},
+      }),
     );
   });
 });

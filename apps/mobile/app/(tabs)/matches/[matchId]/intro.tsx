@@ -37,7 +37,13 @@ export default function MatchIntroScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
-  const [stage, setStage] = useState<Stage>('COUNTDOWN');
+  // A-26: null until the actual resume point is resolved from the
+  // server (see the mount effect below) — starting this at 'COUNTDOWN'
+  // unconditionally was the bug: every re-entry (a second Start Match
+  // tap, the app backgrounding mid-sequence) began the cinematic
+  // sequence from scratch, for this viewer and, via the client's own
+  // emitStage call below, for everyone else watching too.
+  const [stage, setStage] = useState<Stage | null>(null);
   const [count, setCount] = useState(COUNTDOWN_SECONDS);
   const [players, setPlayers] = useState<PlayingXiPlayer[]>([]);
   const [matchTeams, setMatchTeams] = useState<IntroMatchTeam[]>([]);
@@ -79,23 +85,53 @@ export default function MatchIntroScreen() {
 
     apiClient
       .getGameRoom(matchId)
-      .then((room) => {
+      .then(async (room) => {
         const manager =
           room.organizer_id === user?.user_id || room.assigned_scorer_id === user?.user_id;
         setIsOrganizer(manager);
         const contextCall = manager
           ? apiClient.startMatchIntro(matchId)
           : apiClient.getMatchIntro(matchId);
-        return contextCall.then((res) => {
-          setPlayers(res.players);
-          setMatchTeams(res.matchTeams);
-          setMusicAvailable(res.intro.background_music_enabled);
-          setMusicEnabled(res.intro.background_music_enabled);
+        const [res, live] = await Promise.all([
+          contextCall,
+          apiClient.getLiveScore(matchId).catch(() => null),
+        ]);
+        setPlayers(res.players);
+        setMatchTeams(res.matchTeams);
+        setMusicAvailable(res.intro.background_music_enabled);
+        setMusicEnabled(res.intro.background_music_enabled);
+
+        // A-26: resolve the actual resume point from persisted state
+        // instead of always beginning at COUNTDOWN.
+        if (live?.innings) {
+          // Scoring has already started — nothing left for this screen
+          // to show at all.
+          router.replace(`/(tabs)/matches/${matchId}/scoring`);
+          return;
+        }
+        if (res.intro.toss_completed_at) {
+          const winnerTeam = res.matchTeams.find(
+            (t) => t.match_team_id === res.intro.toss_winner_match_team_id,
+          );
+          setTossWinnerSide(winnerTeam?.side_label ?? null);
+          setTossDecision(res.intro.toss_decision);
+          setTossRecorded(true);
+          setStage('TOSS');
+        } else if (res.intro.playing_xi_confirmed_team_a && res.intro.playing_xi_confirmed_team_b) {
+          // XI reveal is a fixed-length cosmetic animation with nothing
+          // persisted to resume mid-way through — once both sides have
+          // confirmed it, the next real state to resume at is TOSS.
+          setStage('TOSS');
+        } else {
+          // This really is the first time anyone's opened Intro for this
+          // match — only now is it correct to start (and broadcast) the
+          // countdown from the top.
+          setStage('COUNTDOWN');
           if (manager) {
             playTriggerSound('COUNTDOWN_START', res.intro.background_music_enabled).catch(() => {});
             emitStage('COUNTDOWN', {});
           }
-        });
+        }
       })
       .catch(() => {});
 
@@ -206,7 +242,13 @@ export default function MatchIntroScreen() {
         </Pressable>
       )}
 
-      <View style={styles.content}>
+      <View style={styles.content} testID="intro-content">
+        {stage === null && (
+          <Text style={styles.waitingText} testID="intro-resolving">
+            Loading…
+          </Text>
+        )}
+
         {stage === 'COUNTDOWN' &&
           (isOrganizer ? (
             <CountdownNumber value={count} testID="intro-countdown" />

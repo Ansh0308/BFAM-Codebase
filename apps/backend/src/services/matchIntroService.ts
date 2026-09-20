@@ -116,6 +116,10 @@ function broadcastStage(matchId: string, stage: string, data: unknown) {
 // Idempotent — this is a one-time sequence, so re-entering (e.g. the
 // organizer's app backgrounded and they tap Start Match again) just
 // resumes the existing record instead of erroring or duplicating it.
+// Backlog A-26: idempotent now also means "quiet" — a re-entry returns
+// the current intro/players/matchTeams for the caller to resolve their
+// own resume point from, without broadcasting COUNTDOWN and forcing
+// every other viewer back to the start.
 export async function startIntro(matchId: string, actorUserId: string) {
   const match = await fetchMatch(matchId);
   if (!match) throw new MatchNotFoundError(matchId);
@@ -140,11 +144,25 @@ export async function startIntro(matchId: string, actorUserId: string) {
         intro_played_at: new Date(),
       },
     ]);
+    // A-26: this is the one place a match actually transitions into
+    // IN_PROGRESS — match_status has always had this value defined, but
+    // nothing ever set it before now.
+    await sequelize
+      .getQueryInterface()
+      .bulkUpdate('matches', { match_status: 'IN_PROGRESS' }, { match_id: matchId });
     intro = await fetchIntro(matchId);
   }
 
   const [players, matchTeams] = await Promise.all([getPlayingXi(matchId), getMatchTeams(matchId)]);
-  broadcastStage(matchId, 'COUNTDOWN', { players });
+  // A-26: only the actual first start should force every connected
+  // viewer's screen back to COUNTDOWN — a re-entry (organizer's app
+  // backgrounded, or a second "Start Match" tap) must not reset anyone
+  // else mid-toss or mid-innings. A re-entering caller instead resolves
+  // their own resume point from getIntroContext/getLiveScore (see the
+  // mobile Match Intro screen), not from this broadcast.
+  if (isFirstStart) {
+    broadcastStage(matchId, 'COUNTDOWN', { players });
+  }
 
   // MATCH_STARTING (module 2.11, PRD §12.45) — only on the actual first
   // start, not a resumed re-entry into an already-started intro. Never

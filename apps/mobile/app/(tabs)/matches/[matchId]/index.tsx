@@ -38,7 +38,9 @@ function formatMatchTime(iso: string) {
 
 // Game Room (PRD §12.10): match info, roster with confirmations +
 // attendance, payment status, attendance summary. "Start Match" hands off
-// to the Countdown Intro (module 2.7).
+// to the Countdown Intro (module 2.7) — once match_status is IN_PROGRESS
+// (backlog A-26), it becomes "Resume Match" and jumps straight to Scoring
+// if an innings is already underway, instead of always restarting Intro.
 export default function GameRoomScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const router = useRouter();
@@ -72,6 +74,30 @@ export default function GameRoomScreen() {
     } catch (err) {
       if (err instanceof BFAMApiError) setError(err.message);
       else setError('Something went wrong. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // A-26: a match already IN_PROGRESS must resume in place, not restart
+  // the whole intro sequence — that's what re-broadcasting COUNTDOWN to
+  // everyone else used to do. Once an innings actually exists, jump
+  // straight to Scoring; short of that (still mid-XI-reveal or mid-toss),
+  // Intro is still the right screen, and it now resolves its own correct
+  // stage instead of always beginning at COUNTDOWN.
+  async function startOrResumeMatch() {
+    if (room?.match_status !== 'IN_PROGRESS') {
+      router.push(`/(tabs)/matches/${matchId}/intro`);
+      return;
+    }
+    setBusy(true);
+    try {
+      const live = await apiClient.getLiveScore(matchId).catch(() => null);
+      if (live?.innings) {
+        router.push(`/(tabs)/matches/${matchId}/scoring`);
+      } else {
+        router.push(`/(tabs)/matches/${matchId}/intro`);
+      }
     } finally {
       setBusy(false);
     }
@@ -265,8 +291,9 @@ export default function GameRoomScreen() {
         {isManager && (
           <View className="mt-6 mb-3">
             <Button
-              label="Start Match"
-              onPress={() => router.push(`/(tabs)/matches/${matchId}/intro`)}
+              label={room.match_status === 'IN_PROGRESS' ? 'Resume Match' : 'Start Match'}
+              onPress={startOrResumeMatch}
+              loading={busy}
               testID="start-match-button"
             />
           </View>

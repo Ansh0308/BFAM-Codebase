@@ -63,6 +63,7 @@ jest.mock('../config/sequelize', () => {
       },
       getQueryInterface: () => ({
         bulkInsert: async () => undefined,
+        bulkUpdate: async () => undefined,
       }),
     },
   };
