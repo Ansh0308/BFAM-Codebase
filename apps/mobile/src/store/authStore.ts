@@ -88,13 +88,24 @@ export const useAuthStore = create<AuthState>((set) => ({
       ]);
       if (token && userJson) {
         apiClient.setToken(token);
+        // Validate rather than trust blindly — app/index.tsx routes
+        // straight past Login into the tab bar the instant `token` is
+        // non-null, with nothing else checking it's still valid. A JWT
+        // is 1h-lived, so without this, reopening the app after an idle
+        // hour would sail past Login and only fail once some tab's first
+        // API call throws a raw "Invalid bearer token" — same bug on
+        // every fresh launch after the token expires, since Splash runs
+        // every time. Any failure here (401, network, whatever) means
+        // don't trust this session; fall through to logged-out below.
+        await apiClient.getCurrentUser();
         set({ token, user: JSON.parse(userJson) as AuthUser, isHydrating: false });
         registerForPushNotifications();
         return;
       }
     } catch {
-      // Corrupt/missing secure-store entry — fall through to a clean,
-      // logged-out state rather than crashing app launch.
+      apiClient.clearToken();
+      await secureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
+      await secureStore.deleteItemAsync(USER_KEY).catch(() => {});
     }
     set({ token: null, user: null, isHydrating: false });
   },
