@@ -641,6 +641,7 @@ export interface InningsScorecard {
   total_runs: number;
   total_wickets: number;
   overs_completed: number;
+  run_rate: number;
   batting: BattingRow[];
   bowling: BowlingRow[];
   extras: { WIDE: number; NO_BALL: number; BYE: number; LEG_BYE: number };

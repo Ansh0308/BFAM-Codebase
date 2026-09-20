@@ -52,9 +52,15 @@ export default function ScorecardScreen() {
             className="mb-8"
             testID={`scorecard-innings-${inn.innings_number}`}
           >
-            <Text className="font-ui font-bold text-section-header text-ink-black mb-3">
+            <Text className="font-ui font-bold text-section-header text-ink-black mb-1">
               Innings {inn.innings_number} — {inn.total_runs}/{inn.total_wickets} (
               {inn.overs_completed} ov)
+            </Text>
+            <Text
+              className="font-ui text-micro text-text-secondary mb-3"
+              testID={`innings-${inn.innings_number}-run-rate`}
+            >
+              Run Rate: {inn.run_rate}
             </Text>
 
             <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">

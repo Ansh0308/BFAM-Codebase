@@ -644,12 +644,19 @@ export async function getScorecard(matchId: string) {
       }
     }
 
+    // A-22: team run rate, alongside the bowler economy this function
+    // already computes the same way (runs / (legal balls / 6)).
+    const totalLegalBalls = oversNotationToLegalBalls(Number(innings.overs_completed));
     result.push({
       innings_id: innings.innings_id,
       innings_number: innings.innings_number,
       total_runs: innings.total_runs,
       total_wickets: innings.total_wickets,
       overs_completed: innings.overs_completed,
+      run_rate:
+        totalLegalBalls > 0
+          ? Math.round((innings.total_runs / (totalLegalBalls / 6)) * 100) / 100
+          : 0,
       batting: Array.from(batting.values()),
       bowling: Array.from(bowling.values()).map(({ overs_balls, ...b }) => ({
         ...b,

@@ -2,7 +2,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import type { GameRoom, IntroMatchTeam, MatchResult } from '@bfam/shared-types';
+import type {
+  BattingRow,
+  BowlingRow,
+  GameRoom,
+  IntroMatchTeam,
+  MatchResult,
+  Scorecard,
+} from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
@@ -19,8 +26,27 @@ const RESULT_TYPES: { value: 'WIN' | 'TIE' | 'NO_RESULT'; label: string }[] = [
   { value: 'NO_RESULT', label: 'No Result' },
 ];
 
+// A-22: highest score / best bowling figures for a completed innings —
+// every number here is already computed server-side by getScorecard, this
+// just picks the standout row per innings for the Result screen's summary.
+function topBatter(rows: BattingRow[]): BattingRow | null {
+  return rows.reduce<BattingRow | null>(
+    (best, row) => (!best || row.runs > best.runs ? row : best),
+    null,
+  );
+}
+
+function topBowler(rows: BowlingRow[]): BowlingRow | null {
+  return rows.reduce<BowlingRow | null>((best, row) => {
+    if (!best) return row;
+    if (row.wickets !== best.wickets) return row.wickets > best.wickets ? row : best;
+    return row.economy < best.economy ? row : best;
+  }, null);
+}
+
 // Match Result (PRD §12.18 requirement 5): winner, margin, Player of the
-// Match. Links out to Statistics (module 2.10) as a stub only.
+// Match, plus a Match Summary (backlog A-22: run rate, top score, best
+// bowling per innings) and a link to the full Scorecard.
 export default function MatchResultScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const router = useRouter();
@@ -30,6 +56,7 @@ export default function MatchResultScreen() {
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [matchTeams, setMatchTeams] = useState<IntroMatchTeam[]>([]);
   const [result, setResult] = useState<MatchResult | null>(null);
+  const [scorecard, setScorecard] = useState<Scorecard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -45,12 +72,14 @@ export default function MatchResultScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [gameRoom, intro] = await Promise.all([
+      const [gameRoom, intro, scorecardData] = await Promise.all([
         apiClient.getGameRoom(matchId),
         apiClient.getMatchIntro(matchId).catch(() => null),
+        apiClient.getScorecard(matchId).catch(() => null),
       ]);
       setRoom(gameRoom);
       setMatchTeams(intro?.matchTeams ?? []);
+      setScorecard(scorecardData);
       const existingResult = await apiClient.getMatchResult(matchId).catch(() => null);
       setResult(existingResult);
     } catch {
@@ -163,12 +192,56 @@ export default function MatchResultScreen() {
               {rebookError}
             </Text>
           )}
-          <View className="mt-8 w-full">
+          {/* A-22: run rate, top score, and best bowling per innings —
+              right where a viewer lands at the end of the match, instead
+              of only inside the full Scorecard (which nothing on this
+              screen used to link to at all). */}
+          {scorecard && scorecard.innings.length > 0 && (
+            <View className="mt-8 w-full" testID="match-summary">
+              <Text className="font-ui font-bold text-section-header text-ink-black mb-3">
+                Match Summary
+              </Text>
+              {scorecard.innings.map((inn) => {
+                const topBat = topBatter(inn.batting);
+                const topBowl = topBowler(inn.bowling);
+                return (
+                  <View
+                    key={inn.innings_id}
+                    className="bg-surface-alt rounded-lg p-4 mb-3"
+                    testID={`match-summary-innings-${inn.innings_number}`}
+                  >
+                    <Text className="font-ui font-bold text-body text-ink-black">
+                      Innings {inn.innings_number}: {inn.total_runs}/{inn.total_wickets} (
+                      {inn.overs_completed} ov)
+                    </Text>
+                    <Text className="font-ui text-micro text-text-secondary mt-1">
+                      Run Rate: {inn.run_rate}
+                    </Text>
+                    {topBat && (
+                      <Text className="font-ui text-body text-text-primary mt-2">
+                        Top Score: {topBat.bfam_id} — {topBat.runs} ({topBat.balls}b, {topBat.fours}
+                        x4, {topBat.sixes}x6)
+                      </Text>
+                    )}
+                    {topBowl && (
+                      <Text className="font-ui text-body text-text-primary mt-1">
+                        Best Bowling: {topBowl.bfam_id} — {topBowl.wickets}/{topBowl.runs_conceded}{' '}
+                        ({topBowl.overs} ov, Econ {topBowl.economy})
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          <View className="mt-3 w-full">
             <Button
-              label="Statistics"
+              label="Full Scorecard"
               variant="secondary"
-              onPress={() => router.push('/player-statistics')}
-              testID="open-statistics"
+              iconLeft={<Feather name="list" size={16} color="#D80000" />}
+              onPress={() => router.push(`/(tabs)/matches/${matchId}/scorecard`)}
+              testID="open-scorecard"
             />
           </View>
           {/* Backlog B-4: prompts the player to review the match/turf right

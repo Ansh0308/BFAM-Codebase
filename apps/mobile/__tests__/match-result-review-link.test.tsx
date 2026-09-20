@@ -7,6 +7,7 @@ jest.mock('../src/lib/apiClient', () => ({
     getGameRoom: jest.fn(),
     getMatchIntro: jest.fn(),
     getMatchResult: jest.fn(),
+    getScorecard: jest.fn(),
   },
 }));
 
@@ -19,6 +20,7 @@ jest.mock('expo-router', () => ({
 const mockGetGameRoom = apiClient.getGameRoom as jest.Mock;
 const mockGetMatchIntro = apiClient.getMatchIntro as jest.Mock;
 const mockGetMatchResult = apiClient.getMatchResult as jest.Mock;
+const mockGetScorecard = apiClient.getScorecard as jest.Mock;
 
 import MatchResultScreen from '../app/(tabs)/matches/[matchId]/result';
 
@@ -42,6 +44,11 @@ describe('Match Result screen — Rate This Match link (backlog B-4)', () => {
       winning_margin: '10 runs',
       player_of_the_match_id: null,
       finalized_at: '',
+    });
+    mockGetScorecard.mockResolvedValue({
+      match_id: 'match-1',
+      extras_count_toward_score: true,
+      innings: [],
     });
   });
 
