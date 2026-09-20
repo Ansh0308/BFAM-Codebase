@@ -10,15 +10,20 @@ interface ViewerCountBadgeProps {
   matchId: string;
 }
 
-// "👁 N Watching Live" (module 2.9, PRD §12.62) — the slot module 2.8's
+// "👁 N total views" (module 2.9, PRD §12.62) — the slot module 2.8's
 // Live Score header left for this. Styled with the live-indicator red
 // token (Design §1.3/§4.3) — this is a data-forward scoreboard reading,
-// never a green "active" badge. `active` is de-duplicated per viewer by
-// the backend's Redis presence set; `total` is a separate lifetime count
-// of every session that has ever joined, not a live figure.
+// never a green "active" badge.
+//
+// Backlog A-23: the "N Watching Live" active-viewer count used to be
+// shown alongside this — removed per feedback, keeping only the lifetime
+// total. The active-presence tracking underneath (join/leave/heartbeat
+// socket events, the backend's Redis presence set) is left running: it's
+// cheap infrastructure that could feed something else later, so `active`
+// is still tracked here even though nothing renders it.
 export function ViewerCountBadge({ matchId }: ViewerCountBadgeProps) {
   const user = useAuthStore((s) => s.user);
-  const [active, setActive] = useState<number | null>(null);
+  const [, setActive] = useState<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
 
   useEffect(() => {
@@ -53,22 +58,17 @@ export function ViewerCountBadge({ matchId }: ViewerCountBadgeProps) {
     };
   }, [matchId, user?.user_id]);
 
-  if (active === null) return null;
+  if (total === null) return null;
 
   return (
     <View className="flex-row items-center" testID="viewer-count-badge">
       <Feather name="eye" size={14} color={colors.liveIndicator} />
       <Text
         className="font-ui font-bold text-micro text-live-indicator ml-1"
-        testID="viewer-count-active"
+        testID="viewer-count-total"
       >
-        {active} Watching Live
+        {total} total views
       </Text>
-      {total != null && (
-        <Text className="font-ui text-micro text-text-tertiary ml-2" testID="viewer-count-total">
-          · {total} total views
-        </Text>
-      )}
     </View>
   );
 }

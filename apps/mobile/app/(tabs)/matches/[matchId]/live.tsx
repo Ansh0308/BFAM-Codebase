@@ -16,7 +16,7 @@ function bfamIdFor(players: GameRoom['players'], playerId: string | null | undef
 
 // Live Score viewer (PRD §12.18 requirement 3): score header, overs/
 // wickets, current batsmen/bowler, target/RRR/CRR where applicable.
-// "👁 N Watching Live" is module 2.9's ViewerCountBadge.
+// "👁 N total views" is module 2.9's ViewerCountBadge.
 export default function LiveScoreScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const router = useRouter();
