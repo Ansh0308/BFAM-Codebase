@@ -9,6 +9,13 @@ interface TextFieldProps extends TextInputProps {
   iconLeft?: React.ReactNode;
   /** e.g. a password show/hide toggle, right-aligned inside the field. */
   rightAction?: React.ReactNode;
+  /**
+   * Renders `label` as-typed (e.g. "Phone or Email") instead of the
+   * default all-caps treatment. Default true (unchanged everywhere else)
+   * — Login/Signup pass false since their labels are meant to read as
+   * proper case, not a shouted micro-header.
+   */
+  uppercaseLabel?: boolean;
 }
 
 // White bg, 1px border-strong, radius-md, ~48px height, text-tertiary
@@ -21,6 +28,7 @@ export function TextField({
   error,
   iconLeft,
   rightAction,
+  uppercaseLabel = true,
   style,
   onFocus,
   onBlur,
@@ -36,7 +44,12 @@ export function TextField({
 
   return (
     <View className="mb-4">
-      <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-2">
+      <Text
+        className={[
+          'font-ui text-micro tracking-wide text-text-secondary mb-2',
+          uppercaseLabel ? 'uppercase' : '',
+        ].join(' ')}
+      >
         {label}
       </Text>
       <View

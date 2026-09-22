@@ -145,6 +145,7 @@ export default function Signup() {
         <Reveal delay={140}>
           <TextField
             label="Phone Number"
+            uppercaseLabel={false}
             placeholder="Enter your phone number"
             value={identifier}
             onChangeText={setIdentifier}
@@ -157,6 +158,7 @@ export default function Signup() {
         <Reveal delay={180}>
           <TextField
             label="Password"
+            uppercaseLabel={false}
             placeholder="Create a password"
             value={password}
             onChangeText={setPassword}
@@ -188,6 +190,7 @@ export default function Signup() {
         <Reveal delay={220}>
           <TextField
             label="Confirm Password"
+            uppercaseLabel={false}
             placeholder="Confirm your password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}

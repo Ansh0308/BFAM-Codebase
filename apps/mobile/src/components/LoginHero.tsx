@@ -15,16 +15,21 @@ export function LoginHero() {
 
   return (
     <View className="overflow-hidden" style={{ height: HERO_HEIGHT, marginHorizontal: -20 }}>
-      <Reveal duration={340}>
-        <Image
-          source={loginHeroImage}
-          style={{ width: '100%', height: HERO_HEIGHT }}
-          contentFit="cover"
-          contentPosition="top"
-          accessibilityRole="image"
-          accessibilityLabel="BFAM batter walking onto the pitch, bat in hand, under floodlights"
-        />
-      </Reveal>
+      {/* Rendered directly, not wrapped in Reveal — on web, the
+          Reanimated-backed fade/rise timing animation can be interrupted
+          mid-flight (e.g. a background/inactive tab during the very first
+          paint) and never settle to its rest state, leaving this — the
+          screen's whole brand moment — stuck nearly invisible at a low
+          interpolated opacity. Too load-bearing to risk that; only the
+          overlaid text below still gets the entrance treatment. */}
+      <Image
+        source={loginHeroImage}
+        style={{ width: '100%', height: HERO_HEIGHT }}
+        contentFit="cover"
+        contentPosition="top"
+        accessibilityRole="image"
+        accessibilityLabel="BFAM batter walking onto the pitch, bat in hand, under floodlights"
+      />
 
       <View style={{ position: 'absolute', top: HERO_HEIGHT * 0.33, left: 20 }}>
         <Reveal delay={120}>

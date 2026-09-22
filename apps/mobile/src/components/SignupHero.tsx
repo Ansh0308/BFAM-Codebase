@@ -17,16 +17,17 @@ export function SignupHero() {
 
   return (
     <View className="overflow-hidden" style={{ height: HERO_HEIGHT, marginHorizontal: -20 }}>
-      <Reveal duration={340}>
-        <Image
-          source={signupHeroImage}
-          style={{ width: '100%', height: HERO_HEIGHT }}
-          contentFit="cover"
-          contentPosition="top"
-          accessibilityRole="image"
-          accessibilityLabel="BFAM batter walking onto the pitch, bat raised, under a stormy floodlit sky"
-        />
-      </Reveal>
+      {/* Rendered directly, not wrapped in Reveal — see LoginHero for why:
+          the entrance animation can get interrupted mid-flight on web and
+          never settle, leaving the hero photo stuck at a low opacity. */}
+      <Image
+        source={signupHeroImage}
+        style={{ width: '100%', height: HERO_HEIGHT }}
+        contentFit="cover"
+        contentPosition="top"
+        accessibilityRole="image"
+        accessibilityLabel="BFAM batter walking onto the pitch, bat raised, under a stormy floodlit sky"
+      />
 
       {/* Soft scrim behind the headline block only — the photo's brightness
           varies underneath it (foggy sky vs. stadium seating), so contrast

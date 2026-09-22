@@ -114,6 +114,7 @@ export default function Login() {
           <Reveal delay={130}>
             <TextField
               label="Phone or Email"
+              uppercaseLabel={false}
               placeholder="Enter phone or email"
               value={identifier}
               onChangeText={setIdentifier}
@@ -126,6 +127,7 @@ export default function Login() {
           <Reveal delay={170}>
             <TextField
               label="Password"
+              uppercaseLabel={false}
               placeholder="Enter your password"
               value={password}
               onChangeText={setPassword}
