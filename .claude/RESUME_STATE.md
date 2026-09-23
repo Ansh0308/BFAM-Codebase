@@ -43,11 +43,11 @@ next available item).
 3. If a scheduled continuation isn't already set up for after the next
    reset, create one (see "Scheduling yourself" below).
 
-## Where things stand right now (2026-09-23, session ending ~97% usage)
+## Where things stand right now (2026-09-23, continued session)
 
-`main` branch, latest commit at time of writing: `50a7cb4` — "Split My
-Bookings and My Matches into Upcoming/Past tabs (A-15)". Working tree is
-clean, everything up to and including A-15 is committed and pushed.
+`main` branch, latest commit at time of writing: `b696a5d` — "Add
+copy-pitch-details across pitches at a venue (A-14)". Working tree is
+clean, everything up to and including A-14 is committed and pushed.
 
 Full context: the canonical, continuously-updated status doc is
 `BFAM_Gap_Analysis_and_TODO.md` at the repo root — read it for the full
@@ -107,26 +107,28 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
    Players/Challenge switch from backlog B-13 that predates this component
    and could be migrated to it as a small follow-up, but that's optional
    polish, not required).
+10. **A-13 — Default-hours quick-fill** for Turf Operating Hours (Owner
+    Mobile + Web). "Apply a Default to Every Day" block on both platforms'
+    turf-management screen, ahead of the per-day rows. No live-DB
+    verification (MySQL wasn't running) — component tests only.
+11. **A-14 — Copy a pitch's details onto another pitch**
+    (`copyTurfDetails` in `apps/backend/src/services/ownerService.ts`,
+    route `POST /owner/turfs/:turfId/copy-from`, api-client
+    `copyTurfDetails()`, "Copy Details From Another Pitch" UI section on
+    both Owner Mobile and Web). Copies description, ball types, sound
+    setting, pricing, and operating hours — never the name or address.
+    Same no-live-DB caveat as A-13.
 
 ### What's next, in priority order (per `BFAM_Gap_Analysis_and_TODO.md` Part 4 / the remaining-backlog doc's Section D)
 
-1. **A-13** — General turf operating-hours default, with a per-day
-   override. Owner-side (Availability Management). NOT STARTED. Check
-   `apps/backend/src/services/turfService.ts` (or similar — search for
-   `turf_operating_hours`) and the Owner Web/Mobile availability screens.
-2. **A-14** — Copy one pitch's (multi-pitch venue) details onto another
-   pitch. Owner-side. NOT STARTED. Search for `turf_pricing`,
-   `turf_facilities`, `turf_operating_hours`, multi-pitch/"venue" handling
-   — likely in `apps/backend/src/services/venueService.ts` or
-   `turfService.ts`, and Owner Web's turf-management pages.
-3. **G-22** — Minor/age-gate doesn't actually block registration at
+1. **G-22** — Minor/age-gate doesn't actually block registration at
    signup (only checked later, at profile-edit time). Real compliance
    gap, well-scoped: `apps/backend/src/services/accountService.ts`'s
    `createUserAccount` hardcodes `is_minor: false` and never checks
    `date_of_birth` against `MINIMUM_AGE_YEARS` (see
    `apps/backend/src/domain/errors.ts`'s `UnderMinimumAgeError` and
    wherever `MINIMUM_AGE_YEARS` is defined) at registration time.
-4. **G-23** — Reschedule Booking as its own flow (distinct from
+2. **G-23** — Reschedule Booking as its own flow (distinct from
    cancel-then-rebook). Needs a product-scoping decision (does it reuse
    cancel+rebook internally, or need its own state machine?) — if working
    autonomously with no founder available, implement the simpler
@@ -134,22 +136,22 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
    creates a new one in one transaction, refunding/re-charging only the
    difference if the price differs) and note the decision clearly in the
    commit message so it can be revisited.
-5. **G-24** — Audit log (`audit_logs` table doesn't exist at all, despite
+3. **G-24** — Audit log (`audit_logs` table doesn't exist at all, despite
    being expected by the original data dictionary/build docs). Cuts across
    almost every write path (cancellations, refunds, match-result
    corrections, admin actions) — scope this deliberately as its own
    migration + a small `auditLogService.ts` + call sites, not bolted onto
    an unrelated PR.
-6. **G-21** — Consent capture at signup with policy versioning (only a
+4. **G-21** — Consent capture at signup with policy versioning (only a
    single boolean `waiver_accepted` exists today, no per-category consent
    log). Needs a real data model decision — same "do it once properly"
    caution as G-24.
-7. **E-3** — Turf Management in Admin Web (cheapest remaining Admin Panel
+5. **E-3** — Turf Management in Admin Web (cheapest remaining Admin Panel
    module — Owner Web's turf-management UI already exists, mostly needs
    the ownership check relaxed to "any turf" for an admin caller).
-8. **E-2, E-4, E-5, E-6** — rest of the Admin Panel (Match/Team/Reviews
+6. **E-2, E-4, E-5, E-6** — rest of the Admin Panel (Match/Team/Reviews
    Management, Reports).
-9. Everything in the "long tail" section of the remaining-backlog doc
+7. Everything in the "long tail" section of the remaining-backlog doc
    (Rankings, XP/Levels, Achievements, Tournaments, etc.) — lowest
    priority, pick based on what seems highest-value; none of it blocks
    anything else.
