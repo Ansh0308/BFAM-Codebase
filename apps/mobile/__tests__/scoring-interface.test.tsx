@@ -360,3 +360,58 @@ describe('Scoring Interface — all-out banner (backlog A-21)', () => {
     expect(queryByTestId('run-1')).toBeNull();
   });
 });
+
+// A-19: the same banner slot, but for the other two ways an innings can
+// auto-complete — a chased target or the overs allotment running out —
+// which used to always say "All out" regardless of the real reason.
+describe('Scoring Interface — completion banner shows the real reason (backlog A-19)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetGameRoom.mockResolvedValue(ROOM);
+    mockGetMatchIntro.mockResolvedValue(null);
+    mockGetScorecard.mockResolvedValue({
+      match_id: 'match-1',
+      extras_count_toward_score: true,
+      innings: [],
+    });
+  });
+
+  it('shows a "Target chased" banner instead of "All out" when the innings completed by reaching the target', async () => {
+    mockGetLiveScore.mockResolvedValue({
+      match_id: 'match-1',
+      overs_per_innings: 8,
+      innings: {
+        ...LIVE_SCORE.innings,
+        innings_number: 2,
+        target_runs: 60,
+        total_runs: 61,
+        total_wickets: 2,
+        innings_status: 'COMPLETED',
+      },
+    });
+
+    const { getByTestId } = await render(<ScoringInterfaceScreen />);
+    await waitFor(() => expect(getByTestId('scoring-interface-screen')).toBeTruthy());
+
+    expect(within(getByTestId('innings-all-out-banner')).getByText(/Target chased/)).toBeTruthy();
+  });
+
+  it('shows an "Overs complete" banner instead of "All out" when the overs allotment ran out with wickets in hand', async () => {
+    mockGetLiveScore.mockResolvedValue({
+      match_id: 'match-1',
+      overs_per_innings: 8,
+      innings: {
+        ...LIVE_SCORE.innings,
+        total_runs: 55,
+        total_wickets: 3,
+        overs_completed: 8.0,
+        innings_status: 'COMPLETED',
+      },
+    });
+
+    const { getByTestId } = await render(<ScoringInterfaceScreen />);
+    await waitFor(() => expect(getByTestId('scoring-interface-screen')).toBeTruthy());
+
+    expect(within(getByTestId('innings-all-out-banner')).getByText(/Overs complete/)).toBeTruthy();
+  });
+});

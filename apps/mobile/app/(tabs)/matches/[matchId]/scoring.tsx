@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import type { GameRoom, IntroMatchTeam, LiveScore, WicketType } from '@bfam/shared-types';
+import type { GameRoom, Innings, IntroMatchTeam, LiveScore, WicketType } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
@@ -40,6 +40,23 @@ type ExtraKind = 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE';
 // the BFAM ID for a player who hasn't set a name yet.
 function displayName(p: { full_name?: string | null; bfam_id?: string }): string {
   return p.full_name || p.bfam_id || '';
+}
+
+// Backlog A-19: a COMPLETED innings can end for any of three reasons
+// (target chased, overs used up, or all out) — checked in this order
+// since a chased target is the most conclusive reason to show even if the
+// overs also happen to be up at the same moment.
+function inningsCompletionReason(innings: Innings, oversPerInnings: number | undefined): string {
+  // The exact win margin (by N wickets/runs) is the Match Result screen's
+  // job, once finalizeMatch computes it properly — this banner only needs
+  // to explain why the innings itself stopped taking balls.
+  if (innings.target_runs != null && innings.total_runs >= innings.target_runs) {
+    return `Target chased — ${innings.total_runs}/${innings.total_wickets}`;
+  }
+  if (oversPerInnings != null && innings.overs_completed >= oversPerInnings) {
+    return `Overs complete — ${innings.total_runs}/${innings.total_wickets}`;
+  }
+  return `All out — ${innings.total_wickets} wickets down`;
 }
 
 // Striker/Non-Striker/Bowler row: shows who's currently selected and, when
@@ -807,7 +824,8 @@ export default function ScoringInterfaceScreen() {
           {error && <Text className="text-brand-red text-body mb-3">{error}</Text>}
 
           {live.innings.innings_status === 'COMPLETED' ? (
-            // A-21: the backend auto-completes an innings once wickets hit
+            // A-19/A-21: the backend auto-completes an innings for any of
+            // three reasons — target chased, overs used up, or wickets hit
             // (assigned batting side size - 1) — no more balls can be
             // recorded for it, so the run/extra/wicket controls give way to
             // this instead of failing silently on the next tap.
@@ -817,7 +835,7 @@ export default function ScoringInterfaceScreen() {
               testID="innings-all-out-banner"
             >
               <Text className="font-ui font-bold text-body text-brand-red-dark">
-                All out — {live.innings.total_wickets} wickets down
+                {inningsCompletionReason(live.innings, live.overs_per_innings)}
               </Text>
               <Text className="font-ui text-micro text-text-secondary mt-1">
                 {live.innings.innings_number === 1

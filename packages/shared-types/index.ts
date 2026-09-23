@@ -637,6 +637,10 @@ export interface LiveScore {
   current_bowler_player_id?: string | null;
   current_run_rate?: number;
   required_run_rate?: number | null;
+  // Backlog A-19: lets the Scoring Interface show the real reason a
+  // COMPLETED innings ended (target reached / overs used up / all out)
+  // instead of always assuming "all out".
+  overs_per_innings?: number;
 }
 
 export interface BattingRow {

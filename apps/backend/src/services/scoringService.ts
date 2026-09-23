@@ -33,6 +33,7 @@ interface MatchRow {
   scoring_mode: string;
   match_status: string;
   extras_count_toward_score: boolean;
+  overs_per_innings: number;
 }
 
 interface InningsRow {
@@ -73,7 +74,7 @@ interface ScoreEventRow {
 async function fetchMatch(matchId: string): Promise<MatchRow | null> {
   const [row] = await sequelize.query<MatchRow>(
     `SELECT match_id, organizer_id, assigned_scorer_id, scoring_mode, match_status,
-            extras_count_toward_score
+            extras_count_toward_score, overs_per_innings
      FROM matches WHERE match_id = :matchId`,
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
@@ -156,6 +157,29 @@ async function isAllOut(
   );
   const assignedBattingCount = Number(count);
   return assignedBattingCount >= 2 && totalWickets >= assignedBattingCount - 1;
+}
+
+// A-19: an innings also ends the moment the overs allotment is used up, or
+// (2nd innings only) the chased target is reached — the same
+// auto-completion path A-21 already built for all-out, just two more
+// trigger conditions feeding the same `innings_status = 'COMPLETED'`
+// transition, so undoLastBall's existing reopen logic covers all three for
+// free by re-checking this same function post-reversal.
+async function isInningsComplete(
+  match: MatchRow,
+  innings: InningsRow,
+  totals: InningsTotals,
+  transaction: unknown,
+): Promise<boolean> {
+  const allOut = await isAllOut(
+    match.match_id,
+    innings.batting_match_team_id,
+    totals.total_wickets,
+    transaction,
+  );
+  const oversComplete = totals.legal_balls >= match.overs_per_innings * 6;
+  const targetReached = innings.target_runs != null && totals.total_runs >= innings.target_runs;
+  return allOut || oversComplete || targetReached;
 }
 
 function broadcastScoreUpdate(matchId: string, payload: unknown) {
@@ -316,12 +340,7 @@ export async function recordBall(inningsId: string, actorUserId: string, input: 
     const totalsBefore = toTotals(innings);
     const position = positionForNextBall(totalsBefore.legal_balls);
     const totalsAfter = applyBall(totalsBefore, input, match.extras_count_toward_score);
-    const allOut = await isAllOut(
-      match.match_id,
-      innings.batting_match_team_id,
-      totalsAfter.total_wickets,
-      transaction,
-    );
+    const complete = await isInningsComplete(match, innings, totalsAfter, transaction);
 
     const { strikerRunsBeforeBall, bowlerConsecutiveWickets } = await getAudioContext(
       inningsId,
@@ -375,7 +394,7 @@ export async function recordBall(inningsId: string, actorUserId: string, input: 
         total_runs: totalsAfter.total_runs,
         total_wickets: totalsAfter.total_wickets,
         overs_completed: legalBallsToOversNotation(totalsAfter.legal_balls),
-        ...(allOut ? { innings_status: 'COMPLETED' } : {}),
+        ...(complete ? { innings_status: 'COMPLETED' } : {}),
         updated_at: now,
       },
       { innings_id: inningsId },
@@ -400,7 +419,7 @@ export async function recordBall(inningsId: string, actorUserId: string, input: 
       ...innings,
       ...totalsAfter,
       overs_completed: legalBallsToOversNotation(totalsAfter.legal_balls),
-      innings_status: allOut ? 'COMPLETED' : innings.innings_status,
+      innings_status: complete ? 'COMPLETED' : innings.innings_status,
     };
   });
 
@@ -448,17 +467,13 @@ export async function undoLastBall(inningsId: string, actorUserId: string) {
       lastEvent as unknown as BallInput,
       match.extras_count_toward_score,
     );
-    // A-21: undoing the wicket that auto-completed the innings (see
-    // recordBall) must reopen it for scoring — otherwise it stays stuck
-    // COMPLETED with no wicket left to blame it on.
+    // A-19/A-21: undoing the ball that auto-completed the innings (all
+    // out, overs used up, or target reached — see recordBall) must reopen
+    // it for scoring, whichever of those three caused it, otherwise it
+    // stays stuck COMPLETED with nothing left to blame it on.
     const reopens =
       innings.innings_status === 'COMPLETED' &&
-      !(await isAllOut(
-        match.match_id,
-        innings.batting_match_team_id,
-        totalsAfter.total_wickets,
-        transaction,
-      ));
+      !(await isInningsComplete(match, innings, totalsAfter, transaction));
 
     await sequelize
       .getQueryInterface()
@@ -521,7 +536,11 @@ export async function getLiveScore(matchId: string) {
   let rrr: number | null = null;
   if (innings.target_runs != null) {
     const runsNeeded = innings.target_runs - innings.total_runs;
-    const ballsLeft = 20 * 6 - legalBalls; // overs cap resolved client-side from match.overs_per_innings if needed; kept simple here
+    // A-19 fix: this used to hardcode a 20-over (T20) cap regardless of
+    // the match's actual format, badly overstating required run rate for
+    // any shorter match (this app's matches are typically far fewer than
+    // 20 overs).
+    const ballsLeft = match.overs_per_innings * 6 - legalBalls;
     rrr = ballsLeft > 0 ? runsNeeded / (ballsLeft / 6) : null;
   }
 
@@ -534,6 +553,7 @@ export async function getLiveScore(matchId: string) {
     current_bowler_player_id: lastEvent?.bowler_player_id ?? null,
     current_run_rate: Math.round(crr * 100) / 100,
     required_run_rate: rrr != null ? Math.round(rrr * 100) / 100 : null,
+    overs_per_innings: match.overs_per_innings,
   };
 }
 

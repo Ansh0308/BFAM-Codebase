@@ -16,6 +16,7 @@ interface MatchRow {
   assigned_scorer_id: string | null;
   scoring_mode: string;
   match_status: string;
+  overs_per_innings: number;
 }
 interface InningsRow {
   innings_id: string;
@@ -222,6 +223,7 @@ describe('Live Scoring transaction atomicity under concurrency (module 2.8)', ()
         assigned_scorer_id: null,
         scoring_mode: 'PLAYER_MANAGED',
         match_status: 'IN_PROGRESS',
+        overs_per_innings: 8,
       },
     ];
     innings = [
@@ -321,6 +323,7 @@ describe('A-21: wicket cap at (assigned batting players - 1), auto all-out', () 
         assigned_scorer_id: null,
         scoring_mode: 'PLAYER_MANAGED',
         match_status: 'IN_PROGRESS',
+        overs_per_innings: 8,
       },
     ];
     innings = [
@@ -396,5 +399,122 @@ describe('A-21: wicket cap at (assigned batting players - 1), auto all-out', () 
     const finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
     expect(finalInnings.total_wickets).toBe(1);
     expect(finalInnings.innings_status).toBe('IN_PROGRESS');
+  });
+});
+
+describe('A-19: auto-finalize the innings once the target is chased or overs run out', () => {
+  beforeEach(() => {
+    matches = [
+      {
+        match_id: MATCH_ID,
+        organizer_id: ORGANIZER_USER,
+        assigned_scorer_id: null,
+        scoring_mode: 'PLAYER_MANAGED',
+        match_status: 'IN_PROGRESS',
+        overs_per_innings: 1, // 6 legal balls, to keep the tests short.
+      },
+    ];
+    innings = [
+      {
+        innings_id: INNINGS_ID,
+        match_id: MATCH_ID,
+        innings_number: 2,
+        batting_match_team_id: 'mt-a',
+        bowling_match_team_id: 'mt-b',
+        total_runs: 0,
+        total_wickets: 0,
+        overs_completed: 0,
+        innings_status: 'IN_PROGRESS',
+        target_runs: 10,
+      },
+    ];
+    scoreEvents = [];
+    matchPlayers = [
+      { match_id: MATCH_ID, match_team_id: 'mt-a', invitation_status: 'CONFIRMED' },
+      { match_id: MATCH_ID, match_team_id: 'mt-a', invitation_status: 'CONFIRMED' },
+    ];
+    rowLocks.clear();
+  });
+
+  it('auto-completes the innings the moment the chased target is reached', async () => {
+    await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(6));
+    let finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.innings_status).toBe('IN_PROGRESS');
+
+    const result = await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(4));
+    finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.total_runs).toBe(10);
+    expect(finalInnings.innings_status).toBe('COMPLETED');
+    expect(result.innings.innings_status).toBe('COMPLETED');
+  });
+
+  it('rejects a further ball once the target has been reached', async () => {
+    await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(6));
+    await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(4));
+
+    await expect(recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(1))).rejects.toThrow(
+      'This innings is not in progress.',
+    );
+  });
+
+  it('reopens the innings when undoing the ball that reached the target', async () => {
+    await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(6));
+    await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(4));
+    expect(innings.find((i) => i.innings_id === INNINGS_ID)!.innings_status).toBe('COMPLETED');
+
+    const result = await undoLastBall(INNINGS_ID, ORGANIZER_USER);
+
+    const finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.total_runs).toBe(6);
+    expect(finalInnings.innings_status).toBe('IN_PROGRESS');
+    expect(result.innings.innings_status).toBe('IN_PROGRESS');
+  });
+
+  it('auto-completes the innings once the overs allotment (1 over = 6 legal balls) is used up', async () => {
+    innings[0].target_runs = null; // 1st-innings shape: no target to chase, just overs.
+
+    for (let i = 0; i < 5; i++) {
+      await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(1));
+    }
+    expect(innings.find((i) => i.innings_id === INNINGS_ID)!.innings_status).toBe('IN_PROGRESS');
+
+    const result = await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(1));
+    const finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.overs_completed).toBe(1.0);
+    expect(finalInnings.innings_status).toBe('COMPLETED');
+    expect(result.innings.innings_status).toBe('COMPLETED');
+  });
+
+  it('a wide does not count toward the overs allotment, so it never triggers auto-completion on its own', async () => {
+    innings[0].target_runs = null;
+
+    for (let i = 0; i < 6; i++) {
+      await recordBall(INNINGS_ID, ORGANIZER_USER, {
+        ...normalBall(0),
+        extra_type: 'WIDE',
+        extra_runs: 1,
+      });
+    }
+
+    // 6 wides bowled, but none of them are legal balls, so the over is
+    // nowhere near complete.
+    const finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.overs_completed).toBe(0);
+    expect(finalInnings.innings_status).toBe('IN_PROGRESS');
+  });
+
+  it('reopens the innings when undoing the ball that completed the overs allotment', async () => {
+    innings[0].target_runs = null;
+    for (let i = 0; i < 6; i++) {
+      await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(1));
+    }
+    expect(innings.find((i) => i.innings_id === INNINGS_ID)!.innings_status).toBe('COMPLETED');
+
+    const result = await undoLastBall(INNINGS_ID, ORGANIZER_USER);
+
+    const finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.overs_completed).toBe(0.5);
+    expect(finalInnings.innings_status).toBe('IN_PROGRESS');
+    expect(result.innings.innings_status).toBe('IN_PROGRESS');
   });
 });
