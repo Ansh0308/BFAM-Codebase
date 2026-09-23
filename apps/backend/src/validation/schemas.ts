@@ -506,6 +506,15 @@ export const cancelBookingSchema = z.object({
   cancellation_reason: z.string().max(255).optional(),
 });
 
+// Backlog G-23: Reschedule Booking as its own flow — the new slot only;
+// turf/payment mode carry over from the booking being rescheduled (see
+// rescheduleBooking in bookingService.ts for why).
+export const rescheduleBookingSchema = z.object({
+  booking_date: dateOnly,
+  start_time: timeOnly,
+  duration_minutes: z.number().int().min(30).max(480),
+});
+
 export const listMyBookingsQuerySchema = z.object({
   scope: z.enum(['upcoming', 'past', 'all']).optional(),
 });

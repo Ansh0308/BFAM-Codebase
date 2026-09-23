@@ -6,6 +6,7 @@ import {
   CreateMatchInput,
   CreateObligationsInput,
   CreateTeamInput,
+  RescheduleBookingInput,
   GameRoom,
   GatewayPaymentOrder,
   LiveMatchSummary,
@@ -282,6 +283,17 @@ export class BFAMApiClient {
     return this.request<Booking>(`/bookings/${bookingId}/cancel`, {
       method: 'POST',
       body: JSON.stringify({ cancellation_reason: cancellationReason }),
+    });
+  }
+
+  // Backlog G-23: Reschedule Booking — moves an existing booking to a new
+  // slot as its own action, rather than the caller manually cancelling and
+  // starting a fresh booking. Returns the newly created booking; the old
+  // one is cancelled server-side as part of the same call.
+  async rescheduleBooking(bookingId: string, input: RescheduleBookingInput): Promise<Booking> {
+    return this.request<Booking>(`/bookings/${bookingId}/reschedule`, {
+      method: 'POST',
+      body: JSON.stringify(input),
     });
   }
 

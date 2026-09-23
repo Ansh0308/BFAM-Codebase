@@ -288,3 +288,94 @@ export async function cancelBooking(
     cancelled_by: actor.userId,
   };
 }
+
+export interface RescheduleBookingInput {
+  bookingDate: string;
+  startTime: string;
+  durationMinutes: number;
+}
+
+// Backlog G-23: Reschedule Booking as its own flow (sitemap doc, distinct
+// from "cancel, then start a brand-new booking from scratch"). Scoping
+// decision (no founder available to weigh in, made autonomously — see
+// .claude/RESUME_STATE.md): implemented as a thin wrapper around the
+// existing createBooking/cancelBooking, not a new state machine or
+// migration. Two things this deliberately does NOT do, and why:
+//   - No "recharge only the difference" logic. Booking creation never
+//     synchronously charges anything here — payment is a separate,
+//     decoupled flow (initiateGatewayPayment/recordCashPayment, module
+//     2.4) — so there is no live charge to adjust in the first place. The
+//     new booking gets its own booking_amount from current pricing, paid
+//     for through that normal flow, same as any fresh booking.
+//   - No new `rescheduled_to/from_booking_id` columns (would need a
+//     migration). Traceability instead comes from the cancellation_reason
+//     on the old booking and a BOOKING_RESCHEDULED audit_logs entry
+//     linking both booking IDs — enough to answer "was this rescheduled,
+//     and to what" without a schema change.
+//
+// Order matters for failure safety: the new slot is created FIRST. If
+// slot validation fails (unavailable, outside hours, no pricing, etc.),
+// the old booking is untouched and the player keeps what they had. Only
+// once the new booking exists is the old one cancelled — so a failure
+// here can, at worst, leave the player holding both bookings (recoverable
+// by support) rather than neither (unrecoverable without rebooking from
+// scratch). This mirrors cancelBooking's own reasoning for why a refund
+// failure there never blocks the cancellation itself.
+export async function rescheduleBooking(
+  bookingId: string,
+  actor: { userId: string; role: string },
+  input: RescheduleBookingInput,
+) {
+  const booking = await fetchBooking(bookingId);
+  if (!booking) throw new BookingNotFoundError(bookingId);
+  await assertCanViewOrManage(booking, actor);
+
+  if (booking.booking_status === 'CANCELLED' || booking.booking_status === 'COMPLETED') {
+    throw new InvalidBookingStateError(
+      `Booking is already ${booking.booking_status.toLowerCase()} and cannot be rescheduled.`,
+    );
+  }
+
+  const endTime = addMinutesToTime(input.startTime, input.durationMinutes);
+  const isSameSlot =
+    booking.booking_date === input.bookingDate &&
+    booking.start_time === input.startTime &&
+    booking.end_time === endTime;
+  if (isSameSlot) {
+    throw new InvalidBookingStateError('The new slot is the same as the current booking.');
+  }
+
+  const newBooking = await createBooking({
+    turfId: booking.turf_id,
+    bookedBy: booking.booked_by,
+    bookingDate: input.bookingDate,
+    startTime: input.startTime,
+    durationMinutes: input.durationMinutes,
+    paymentMode: booking.payment_mode,
+  });
+
+  await cancelBooking(bookingId, actor, `Rescheduled to booking ${newBooking.booking_id}.`);
+
+  const now = new Date();
+  await sequelize.getQueryInterface().bulkInsert('audit_logs', [
+    {
+      log_id: randomUUID(),
+      actor_user_id: actor.userId,
+      actor_role: actor.role,
+      action: 'BOOKING_RESCHEDULED',
+      resource_type: 'booking',
+      resource_id: bookingId,
+      before_data: JSON.stringify({
+        booking_date: booking.booking_date,
+        start_time: booking.start_time,
+        end_time: booking.end_time,
+      }),
+      after_data: JSON.stringify({ new_booking_id: newBooking.booking_id }),
+      ip_address: null,
+      request_id: null,
+      created_at: now,
+    },
+  ]);
+
+  return newBooking;
+}

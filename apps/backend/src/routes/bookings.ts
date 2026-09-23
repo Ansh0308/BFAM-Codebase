@@ -6,12 +6,14 @@ import {
   createBookingSchema,
   createObligationsSchema,
   listMyBookingsQuerySchema,
+  rescheduleBookingSchema,
 } from '../validation/schemas';
 import {
   cancelBooking,
   createBooking,
   getBookingById,
   listBookingsForUser,
+  rescheduleBooking,
 } from '../services/bookingService';
 import {
   createObligationsForBooking,
@@ -145,6 +147,65 @@ router.post(
       }
       if (error instanceof InvalidBookingStateError) {
         return res.status(409).json({ error: { message: error.message, status: 409 } });
+      }
+      throw error;
+    }
+  }),
+);
+
+// POST /bookings/:bookingId/reschedule — Reschedule Booking (backlog G-23),
+// its own flow rather than a manual cancel + rebook-from-scratch. See
+// rescheduleBooking in bookingService.ts for the scoping decisions behind
+// its "cancel old, create new" implementation.
+router.post(
+  '/:bookingId/reschedule',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = rescheduleBookingSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid reschedule payload',
+          status: 400,
+          details: parsed.error.flatten(),
+        },
+      });
+    }
+
+    try {
+      const booking = await rescheduleBooking(
+        req.params.bookingId,
+        { userId: req.auth!.sub, role: req.auth!.role },
+        {
+          bookingDate: parsed.data.booking_date,
+          startTime: parsed.data.start_time,
+          durationMinutes: parsed.data.duration_minutes,
+        },
+      );
+      return res.status(200).json(booking);
+    } catch (error) {
+      if (error instanceof BookingNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      if (error instanceof ForbiddenActionError) {
+        return res.status(403).json({ error: { message: error.message, status: 403 } });
+      }
+      if (error instanceof InvalidBookingStateError) {
+        return res.status(409).json({ error: { message: error.message, status: 409 } });
+      }
+      if (error instanceof SlotUnavailableError) {
+        return res.status(409).json({ error: { message: error.message, status: 409 } });
+      }
+      if (error instanceof TurfNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      if (
+        error instanceof SlotBlockedError ||
+        error instanceof OutsideOperatingHoursError ||
+        error instanceof NoPricingConfiguredError ||
+        error instanceof InvalidSlotAlignmentError
+      ) {
+        return res.status(422).json({ error: { message: error.message, status: 422 } });
       }
       throw error;
     }

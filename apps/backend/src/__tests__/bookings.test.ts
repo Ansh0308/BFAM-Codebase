@@ -473,4 +473,130 @@ describe('Turf Booking (module 2.3)', () => {
       expect(res.status).toBe(409);
     });
   });
+
+  // Backlog G-23: Reschedule Booking as its own flow.
+  describe('POST /bookings/:bookingId/reschedule', () => {
+    it('creates a new booking at the new slot and cancels the old one', async () => {
+      const token = await tokenFor('PLAYER', PLAYER_ID);
+      const created = await request(app)
+        .post('/bookings')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          turf_id: TURF_ID,
+          booking_date: DATE,
+          start_time: '19:00:00',
+          duration_minutes: 60,
+          payment_mode: 'UPI',
+        });
+
+      const res = await request(app)
+        .post(`/bookings/${created.body.booking_id}/reschedule`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ booking_date: DATE, start_time: '20:00:00', duration_minutes: 60 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.booking_id).not.toBe(created.body.booking_id);
+      expect(res.body.start_time).toBe('20:00:00');
+      expect(res.body.booking_status).toBe('PENDING');
+
+      const oldBooking = bookingsState.find((b) => b.booking_id === created.body.booking_id);
+      expect(oldBooking?.booking_status).toBe('CANCELLED');
+      expect(oldBooking?.cancellation_reason).toMatch(new RegExp(`Rescheduled to booking`));
+
+      expect(auditLogs.some((log) => log.action === 'BOOKING_RESCHEDULED')).toBe(true);
+    });
+
+    it('leaves the original booking untouched when the new slot is unavailable', async () => {
+      const token = await tokenFor('PLAYER', PLAYER_ID);
+      const created = await request(app)
+        .post('/bookings')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          turf_id: TURF_ID,
+          booking_date: DATE,
+          start_time: '19:00:00',
+          duration_minutes: 60,
+          payment_mode: 'UPI',
+        });
+
+      const res = await request(app)
+        .post(`/bookings/${created.body.booking_id}/reschedule`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ booking_date: DATE, start_time: '05:00:00', duration_minutes: 60 });
+
+      expect(res.status).toBe(422);
+      const oldBooking = bookingsState.find((b) => b.booking_id === created.body.booking_id);
+      expect(oldBooking?.booking_status).toBe('PENDING');
+      expect(bookingsState).toHaveLength(1);
+    });
+
+    it('rejects rescheduling to the exact same slot', async () => {
+      const token = await tokenFor('PLAYER', PLAYER_ID);
+      const created = await request(app)
+        .post('/bookings')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          turf_id: TURF_ID,
+          booking_date: DATE,
+          start_time: '19:00:00',
+          duration_minutes: 60,
+          payment_mode: 'UPI',
+        });
+
+      const res = await request(app)
+        .post(`/bookings/${created.body.booking_id}/reschedule`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ booking_date: DATE, start_time: '19:00:00', duration_minutes: 60 });
+
+      expect(res.status).toBe(409);
+    });
+
+    it('rejects rescheduling an already-cancelled booking', async () => {
+      const token = await tokenFor('PLAYER', PLAYER_ID);
+      const created = await request(app)
+        .post('/bookings')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          turf_id: TURF_ID,
+          booking_date: DATE,
+          start_time: '19:00:00',
+          duration_minutes: 60,
+          payment_mode: 'UPI',
+        });
+
+      await request(app)
+        .post(`/bookings/${created.body.booking_id}/cancel`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({});
+
+      const res = await request(app)
+        .post(`/bookings/${created.body.booking_id}/reschedule`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ booking_date: DATE, start_time: '20:00:00', duration_minutes: 60 });
+
+      expect(res.status).toBe(409);
+    });
+
+    it("forbids an unrelated player from rescheduling someone else's booking", async () => {
+      const token = await tokenFor('PLAYER', PLAYER_ID);
+      const created = await request(app)
+        .post('/bookings')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          turf_id: TURF_ID,
+          booking_date: DATE,
+          start_time: '19:00:00',
+          duration_minutes: 60,
+          payment_mode: 'UPI',
+        });
+
+      const otherToken = await tokenFor('PLAYER', OTHER_PLAYER_ID);
+      const res = await request(app)
+        .post(`/bookings/${created.body.booking_id}/reschedule`)
+        .set('Authorization', `Bearer ${otherToken}`)
+        .send({ booking_date: DATE, start_time: '20:00:00', duration_minutes: 60 });
+
+      expect(res.status).toBe(403);
+    });
+  });
 });

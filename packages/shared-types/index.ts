@@ -312,6 +312,14 @@ export interface CreateBookingInput {
   payment_mode: string;
 }
 
+// Backlog G-23: Reschedule Booking — the new slot only; turf and payment
+// mode carry over from the booking being rescheduled.
+export interface RescheduleBookingInput {
+  booking_date: string;
+  start_time: string;
+  duration_minutes: number;
+}
+
 // ---- Module 2.4: Payments ----
 
 export type ObligationDueStatus = 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';

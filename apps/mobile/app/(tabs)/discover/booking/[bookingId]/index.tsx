@@ -70,11 +70,18 @@ export default function BookingDetailsScreen() {
         {canCancel && (
           <View className="mt-6 mb-8">
             <Button
-              label="Cancel Booking"
-              variant="ghost"
-              onPress={() => router.push(`/(tabs)/discover/booking/${bookingId}/cancel`)}
-              testID="cancel-booking-link"
+              label="Reschedule Booking"
+              onPress={() => router.push(`/(tabs)/discover/booking/${bookingId}/reschedule`)}
+              testID="reschedule-booking-link"
             />
+            <View className="mt-3">
+              <Button
+                label="Cancel Booking"
+                variant="ghost"
+                onPress={() => router.push(`/(tabs)/discover/booking/${bookingId}/cancel`)}
+                testID="cancel-booking-link"
+              />
+            </View>
           </View>
         )}
       </ScrollView>
