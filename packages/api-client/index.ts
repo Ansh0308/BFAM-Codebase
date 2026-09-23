@@ -543,6 +543,18 @@ export class BFAMApiClient {
     });
   }
 
+  // Backlog G-21: records a versioned consent event at the moment the app
+  // actually requests LOCATION/CONTACTS/PAYMENT_DATA (e.g. right after a
+  // device permission prompt is granted). Best-effort — a failure here
+  // must never block the feature that triggered it, so callers should not
+  // await-and-surface its errors to the user.
+  async recordConsent(consentType: 'LOCATION' | 'CONTACTS' | 'PAYMENT_DATA'): Promise<void> {
+    await this.request('/consents', {
+      method: 'POST',
+      body: JSON.stringify({ consent_type: consentType }),
+    });
+  }
+
   async getOpenTeams(
     filters: { skill_level?: string; city?: string; mode?: 'players' | 'challenge' } = {},
   ): Promise<{ results: OpenTeam[] }> {

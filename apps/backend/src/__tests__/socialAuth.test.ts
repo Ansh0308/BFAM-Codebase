@@ -17,6 +17,7 @@ interface FakeUserRow {
 
 let usersTable: FakeUserRow[] = [];
 let playersTable: Array<Record<string, unknown>> = [];
+let userConsents: Array<Record<string, unknown>> = [];
 let lockHeld = false;
 const lockWaiters: Array<() => void> = [];
 
@@ -76,6 +77,7 @@ jest.mock('../config/sequelize', () => {
         bulkInsert: async (table: string, rows: Array<Record<string, unknown>>) => {
           if (table === 'users') usersTable.push(...(rows as unknown as FakeUserRow[]));
           else if (table === 'players') playersTable.push(...rows);
+          else if (table === 'user_consents') userConsents.push(...rows);
         },
       }),
     },
@@ -110,6 +112,7 @@ describe('Social auth (Google / Apple)', () => {
   beforeEach(() => {
     usersTable = [];
     playersTable = [];
+    userConsents = [];
     lockHeld = false;
     lockWaiters.length = 0;
     googleVerifyResult = null;
@@ -142,6 +145,10 @@ describe('Social auth (Google / Apple)', () => {
     expect(usersTable[0].google_id).toBe('google-uid-1');
     expect(usersTable[0].email).toBe('new.google.user@example.com');
     expect(playersTable).toHaveLength(1);
+    // Backlog G-21: waiver_accepted: true must land as a versioned TERMS
+    // consent here too, not just on the phone/password registration path.
+    expect(userConsents).toHaveLength(1);
+    expect(userConsents[0]).toMatchObject({ consent_type: 'TERMS' });
   });
 
   it('logs in an existing Google user with the same JWT shape as password login', async () => {
@@ -183,6 +190,9 @@ describe('Social auth (Google / Apple)', () => {
     expect(usersTable[0].email).toBeNull();
     // TURF_OWNER never gets a players row.
     expect(playersTable).toHaveLength(0);
+    // ...but every role, PLAYER or not, still gets a TERMS consent row.
+    expect(userConsents).toHaveLength(1);
+    expect(userConsents[0]).toMatchObject({ consent_type: 'TERMS' });
   });
 
   // Backlog G-22: the minimum-age gate must also apply to the social signup

@@ -4,6 +4,7 @@
 // MySQL is available in this test environment.
 
 let usersTable: Array<Record<string, unknown>> = [];
+let userConsents: Array<Record<string, unknown>> = [];
 let lockHeld = false;
 const lockWaiters: Array<() => void> = [];
 
@@ -51,6 +52,10 @@ jest.mock('../config/sequelize', () => {
       transaction: async (fn: (transaction: unknown) => Promise<unknown>) => fn({}),
       getQueryInterface: () => ({
         bulkInsert: async (table: string, rows: Array<Record<string, unknown>>) => {
+          if (table === 'user_consents') {
+            userConsents.push(...rows);
+            return;
+          }
           if (table !== 'users') return;
           for (const row of rows) {
             if (usersTable.some((u) => u.phone_number === row.phone_number)) {
@@ -70,6 +75,7 @@ import app from '../app';
 describe('POST /auth/register', () => {
   beforeEach(() => {
     usersTable = [];
+    userConsents = [];
     lockHeld = false;
     lockWaiters.length = 0;
   });
@@ -89,6 +95,26 @@ describe('POST /auth/register', () => {
     expect(response.body.bfam_id).toMatch(/^BF\d+$/);
     expect(usersTable).toHaveLength(1);
     expect(usersTable[0].password_hash).not.toBe('SuperSecret123');
+  });
+
+  // Backlog G-21: waiver_accepted: true (required by registerUserSchema)
+  // must be recorded as a versioned TERMS consent, not just the older
+  // liability_waiver_accepted_at timestamp.
+  it('records a versioned TERMS consent on registration', async () => {
+    const response = await request(app).post('/auth/register').send({
+      phone_number: '+919876543298',
+      password: 'SuperSecret123',
+      role: 'PLAYER',
+      waiver_accepted: true,
+    });
+
+    expect(response.status).toBe(201);
+    expect(userConsents).toHaveLength(1);
+    expect(userConsents[0]).toMatchObject({
+      consent_type: 'TERMS',
+      user_id: usersTable[0].user_id,
+    });
+    expect(userConsents[0].policy_version).toEqual(expect.any(String));
   });
 
   it("assigns a BFAM ID ending in the favorite cricketer's jersey number when known", async () => {

@@ -9,6 +9,7 @@ import {
   BLOCK_REASONS,
   BOOKING_STATUSES,
   BOWLING_ARMS,
+  CONSENT_TYPES,
   DAY_TYPES,
   DELIVERY_CHANNELS,
   DELIVERY_STATUSES,
@@ -861,6 +862,13 @@ export const createInjuryReportSchema = z.object({
 
 export const updateTicketStatusSchema = z.object({
   status: z.enum(SUPPORT_STATUSES),
+});
+
+// Backlog G-21: recording a consent event at the moment the app actually
+// requests one of these (device permission grant, etc.) — TERMS is
+// recorded server-side at registration itself, never through this route.
+export const recordConsentSchema = z.object({
+  consent_type: z.enum(CONSENT_TYPES.filter((t) => t !== 'TERMS') as [string, ...string[]]),
 });
 
 // Backlog B-2: contacts-based invites. Capped batch size — a typical phone

@@ -142,6 +142,10 @@ export const SUPPORT_CATEGORIES = [
   'OTHER',
 ] as const;
 export const SUPPORT_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const;
+// Backlog G-21 (PRD §32.8): the four consent categories captured with
+// policy versioning — see migrations/20260924000000-user-consents.ts and
+// services/consentService.ts.
+export const CONSENT_TYPES = ['TERMS', 'LOCATION', 'CONTACTS', 'PAYMENT_DATA'] as const;
 // Module 2.13 (Support): every support_tickets row is one of these — a
 // plain Help Center complaint, an in-app match dispute (PRD §32.2), or an
 // injury report (PRD §32.9). All three share the same table/workflow

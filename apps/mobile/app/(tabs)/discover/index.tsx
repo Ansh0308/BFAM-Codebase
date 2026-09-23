@@ -122,6 +122,10 @@ export default function TurfListing() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted' || cancelled) return;
+        // Backlog G-21: log a versioned consent record the moment the
+        // device actually grants Location access — best-effort, never
+        // blocks this already-best-effort flow if it fails.
+        apiClient.recordConsent('LOCATION').catch(() => {});
         const position = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });

@@ -8,6 +8,7 @@ jest.mock('../src/lib/apiClient', () => ({
     getTeamDetails: jest.fn(),
     inviteToMatch: jest.fn(),
     matchContacts: jest.fn(),
+    recordConsent: jest.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -26,6 +27,7 @@ jest.mock('expo-router', () => ({
 const mockGetMyTeams = apiClient.getMyTeams as jest.Mock;
 const mockInviteToMatch = apiClient.inviteToMatch as jest.Mock;
 const mockMatchContacts = apiClient.matchContacts as jest.Mock;
+const mockRecordConsent = apiClient.recordConsent as jest.Mock;
 
 import InvitePlayersScreen from '../app/(tabs)/matches/[matchId]/invite';
 
@@ -62,6 +64,24 @@ describe('Invite Players screen — inviting from contacts (backlog B-2)', () =>
     await fireEvent.press(await findByTestId('match-invite-invite-button-p-contact-1'));
 
     await waitFor(() => expect(mockInviteToMatch).toHaveBeenCalledWith('match-1', 'p-contact-1'));
+  });
+
+  // Backlog G-21: a versioned consent record should be logged the moment
+  // Contacts access is actually granted, not just at signup.
+  it('records a CONTACTS consent once permission is granted', async () => {
+    const { findByTestId } = await render(<InvitePlayersScreen />);
+    await fireEvent.press(await findByTestId('match-invite-check-contacts-button'));
+
+    await waitFor(() => expect(mockRecordConsent).toHaveBeenCalledWith('CONTACTS'));
+  });
+
+  it('does not record a consent when permission is denied', async () => {
+    mockRequestPermissionsAsync.mockResolvedValueOnce({ status: 'denied' });
+    const { findByTestId } = await render(<InvitePlayersScreen />);
+    await fireEvent.press(await findByTestId('match-invite-check-contacts-button'));
+
+    await findByTestId('match-invite-contacts-denied');
+    expect(mockRecordConsent).not.toHaveBeenCalled();
   });
 
   it('only ever sends phone numbers to the lookup, never names or other contact fields', async () => {

@@ -3,7 +3,11 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { apiClient } from '../src/lib/apiClient';
 
 jest.mock('../src/lib/apiClient', () => ({
-  apiClient: { getTurfs: jest.fn(), getLiveMatches: jest.fn().mockResolvedValue({ results: [] }) },
+  apiClient: {
+    getTurfs: jest.fn(),
+    getLiveMatches: jest.fn().mockResolvedValue({ results: [] }),
+    recordConsent: jest.fn().mockResolvedValue(undefined),
+  },
 }));
 
 const mockPush = jest.fn();
@@ -33,6 +37,7 @@ jest.mock('expo-location', () => ({
 }));
 
 const mockGetTurfs = apiClient.getTurfs as jest.Mock;
+const mockRecordConsentTopLevel = apiClient.recordConsent as jest.Mock;
 
 import TurfListing from '../app/(tabs)/discover/index';
 
@@ -42,6 +47,7 @@ describe('TurfListing screen (module 2.3)', () => {
     mockPush.mockReset();
     mockRequestForegroundPermissionsAsync.mockReset().mockResolvedValue({ status: 'denied' });
     mockGetCurrentPositionAsync.mockReset();
+    mockRecordConsentTopLevel.mockReset().mockResolvedValue(undefined);
   });
 
   it('loads and displays turfs on mount, using search/filter only — no map view', async () => {
@@ -136,6 +142,32 @@ describe('TurfListing screen (module 2.3)', () => {
 
     await waitFor(() => expect(mockGetTurfs).toHaveBeenCalledWith({}));
     expect(mockGetCurrentPositionAsync).not.toHaveBeenCalled();
+  });
+
+  // Backlog G-21: a versioned consent record should be logged the moment
+  // Location access is actually granted, not just at signup.
+  it('records a LOCATION consent once permission is granted', async () => {
+    mockGetTurfs.mockResolvedValue({ page: 1, page_size: 20, results: [] });
+    mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mockGetCurrentPositionAsync.mockResolvedValue({
+      coords: { latitude: 22.3039, longitude: 70.8022 },
+    });
+    const mockRecordConsent = apiClient.recordConsent as jest.Mock;
+
+    await render(<TurfListing />);
+
+    await waitFor(() => expect(mockRecordConsent).toHaveBeenCalledWith('LOCATION'));
+  });
+
+  it('does not record a consent when location permission is denied', async () => {
+    mockGetTurfs.mockResolvedValue({ page: 1, page_size: 20, results: [] });
+    mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    const mockRecordConsent = apiClient.recordConsent as jest.Mock;
+
+    await render(<TurfListing />);
+
+    await waitFor(() => expect(mockGetTurfs).toHaveBeenCalledWith({}));
+    expect(mockRecordConsent).not.toHaveBeenCalled();
   });
 
   describe('grouping pitches that share a venue (feedback follow-up)', () => {

@@ -33,6 +33,10 @@ export function useContactsMatch() {
         setStatus('denied');
         return;
       }
+      // Backlog G-21: log a versioned consent record the moment the device
+      // actually grants Contacts access — best-effort, never blocks the
+      // feature itself if it fails.
+      apiClient.recordConsent('CONTACTS').catch(() => {});
 
       const { data } = await Contacts.getContactsAsync({
         fields: [Contacts.Fields.PhoneNumbers],

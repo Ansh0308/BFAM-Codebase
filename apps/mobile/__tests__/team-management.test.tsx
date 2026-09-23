@@ -15,6 +15,7 @@ jest.mock('../src/lib/apiClient', () => ({
     setOpenForChallenge: jest.fn(),
     respondToChallenge: jest.fn(),
     cancelChallenge: jest.fn(),
+    recordConsent: jest.fn().mockResolvedValue(undefined),
   },
 }));
 

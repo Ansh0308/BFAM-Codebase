@@ -16,6 +16,7 @@ import { lookupJerseyNumber } from './cricketerSearchService';
 import { UserRole } from './authService';
 import { calculateAge, MINIMUM_AGE_YEARS, MINOR_UNTIL_AGE_YEARS } from './profileService';
 import { UnderMinimumAgeError } from '../domain/errors';
+import { recordConsent } from './consentService';
 
 export interface CreateAccountInput {
   phoneNumber: string;
@@ -86,6 +87,11 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
 
   if (input.role !== 'PLAYER') {
     await sequelize.getQueryInterface().bulkInsert('users', [{ ...baseUserRow, bfam_id: null }]);
+    // Backlog G-21: every registration path requires waiver_accepted: true
+    // (see comment on liability_waiver_accepted_at above) — recorded here
+    // as a versioned TERMS consent row alongside the existing timestamp
+    // column, not instead of it (other code already reads that column).
+    await recordConsent(userId, 'TERMS', now);
     return { userId, bfamId: null };
   }
 
@@ -126,6 +132,8 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
       ],
       { transaction },
     );
+
+    await recordConsent(userId, 'TERMS', now, transaction);
 
     return userId;
   }, jerseyNumberSuffix);
