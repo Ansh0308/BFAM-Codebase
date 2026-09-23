@@ -43,21 +43,17 @@ next available item).
 3. If a scheduled continuation isn't already set up for after the next
    reset, create one (see "Scheduling yourself" below).
 
-## Where things stand right now (2026-09-23, continued session)
+## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `485d933` — "Add
-Reschedule Booking as its own flow (G-23)". Working tree is clean,
-everything up to and including G-23 is committed and pushed.
+`main` branch, latest commit at time of writing: `dc00ba1` — "Extend
+audit logging to refunds and admin ticket-status changes (G-24)".
+Working tree is clean, everything up to and including G-24 is
+committed and pushed.
 
-**Correction to this file's own prior notes**: G-24 ("audit_logs table
-doesn't exist at all") is stale/wrong — the `audit_logs` table exists
-(phase1 migration) and `bookingService.ts`'s `cancelBooking` already
-wrote to it before this session started; `rescheduleBooking` (added
-this cycle) now also does. The real remaining gap is narrower than the
-original note: payment/refund events (`paymentService.ts`), match-
-result corrections, and admin actions still don't write audit_logs
-entries. Scope G-24 as "extend audit logging to the write paths that
-don't have it yet," not "build it from scratch."
+**G-24 is now done** — see "Completed this cycle" below for exactly
+what it covers and what it deliberately doesn't (there's no
+match-result-correction feature or Admin Panel yet to audit; revisit
+when E-2..E-6 land).
 
 Full context: the canonical, continuously-updated status doc is
 `BFAM_Gap_Analysis_and_TODO.md` at the repo root — read it for the full
@@ -146,26 +142,35 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     `BOOKING_RESCHEDULED` audit_logs entry — see the commit message for
     the full scoping rationale (no migration, no "recharge the
     difference" logic).
+14. **G-24 — Audit logging extended to refunds + admin ticket actions**
+    New `apps/backend/src/services/auditLogService.ts`'s `writeAuditLog()`
+    — the one shared helper every write path should use going forward
+    instead of inlining its own `bulkInsert('audit_logs', ...)`.
+    `bookingService.ts`'s cancel/reschedule now route through it (pure
+    refactor). New `REFUND_ISSUED` entries in
+    `paymentService.ts`'s `refundPaymentsForBooking`, and
+    `SUPPORT_TICKET_STATUS_CHANGED` in `supportService.ts`'s
+    `updateTicketStatus` (currently the only real ADMIN-only write path
+    in the app). Match-result corrections and the rest of "admin
+    actions" have no audit hook yet because those features (Admin Panel
+    E-2..E-6, any result-correction flow) don't exist yet — add the
+    `writeAuditLog()` call at the same time those are eventually built,
+    not as a separate retrofit.
 
 ### What's next, in priority order (per `BFAM_Gap_Analysis_and_TODO.md` Part 4 / the remaining-backlog doc's Section D)
 
-1. **G-24** — Audit log. **Note: narrower than originally scoped** — the
-   `audit_logs` table already exists and `bookingService.ts` already
-   writes to it (cancellations, reschedules). What's still missing:
-   payment/refund events (`apps/backend/src/services/paymentService.ts`),
-   match-result corrections, and admin actions don't write audit_logs
-   entries yet. Scope this as "extend to the remaining write paths," not
-   "build from scratch."
-2. **G-21** — Consent capture at signup with policy versioning (only a
+1. **G-21** — Consent capture at signup with policy versioning (only a
    single boolean `waiver_accepted` exists today, no per-category consent
    log). Needs a real data model decision — same "do it once properly"
-   caution as G-24.
-3. **E-3** — Turf Management in Admin Web (cheapest remaining Admin Panel
+   caution G-24 got.
+2. **E-3** — Turf Management in Admin Web (cheapest remaining Admin Panel
    module — Owner Web's turf-management UI already exists, mostly needs
    the ownership check relaxed to "any turf" for an admin caller).
-4. **E-2, E-4, E-5, E-6** — rest of the Admin Panel (Match/Team/Reviews
-   Management, Reports).
-5. Everything in the "long tail" section of the remaining-backlog doc
+3. **E-2, E-4, E-5, E-6** — rest of the Admin Panel (Match/Team/Reviews
+   Management, Reports). Once any of these lands, wire `writeAuditLog()`
+   (see G-24 above) into its write paths at the same time, not as a
+   follow-up.
+4. Everything in the "long tail" section of the remaining-backlog doc
    (Rankings, XP/Levels, Achievements, Tournaments, etc.) — lowest
    priority, pick based on what seems highest-value; none of it blocks
    anything else.
