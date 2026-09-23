@@ -106,7 +106,7 @@ export default function RosterCheckInScreen() {
               <View className="flex-row items-center justify-between py-3 border-b border-border-subtle">
                 <View>
                   <Text className="font-ui font-semibold text-body text-text-primary">
-                    {item.bfam_id}
+                    {item.full_name || item.bfam_id}
                   </Text>
                   <Text className="font-ui text-micro text-text-tertiary mt-0.5">
                     {item.attendance_status.replace('_', ' ')}

@@ -4,6 +4,7 @@ import { sequelize } from '../config/sequelize';
 export interface AdminPlayerRow {
   user_id: string;
   bfam_id: string;
+  full_name: string | null;
   phone_number: string;
   email: string | null;
   city: string | null;
@@ -24,7 +25,7 @@ export interface AdminPlayerRow {
 // context, not a flat list.
 export async function listAllPlayers(): Promise<AdminPlayerRow[]> {
   return sequelize.query<AdminPlayerRow>(
-    `SELECT u.user_id, p.bfam_id, u.phone_number, u.email, u.city, u.account_status,
+    `SELECT u.user_id, p.bfam_id, p.full_name, u.phone_number, u.email, u.city, u.account_status,
             p.playing_role, p.batting_style, p.experience_level, p.skill_rating,
             p.reliability_score, p.favorite_cricketer_name, u.created_at
      FROM users u

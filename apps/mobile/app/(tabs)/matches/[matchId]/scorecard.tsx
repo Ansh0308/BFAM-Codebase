@@ -88,7 +88,7 @@ export default function ScorecardScreen() {
                 testID={`batting-row-${b.player_id}`}
               >
                 <Text className="flex-1 font-ui text-body text-text-primary">
-                  {b.bfam_id}
+                  {b.full_name || b.bfam_id}
                   {b.out ? '' : ' *'}
                 </Text>
                 <Text className="w-10 font-ui text-body text-text-primary text-right">
@@ -130,7 +130,9 @@ export default function ScorecardScreen() {
                 className="flex-row py-2 border-b border-border-subtle"
                 testID={`bowling-row-${b.player_id}`}
               >
-                <Text className="flex-1 font-ui text-body text-text-primary">{b.bfam_id}</Text>
+                <Text className="flex-1 font-ui text-body text-text-primary">
+                  {b.full_name || b.bfam_id}
+                </Text>
                 <Text className="w-10 font-ui text-body text-text-secondary text-right">
                   {b.overs}
                 </Text>
@@ -163,7 +165,7 @@ export default function ScorecardScreen() {
                   {inn.fall_of_wickets
                     .map(
                       (f) =>
-                        `${f.score}-${f.wicket_number} (${f.bfam_id}, ${f.over.toFixed(1)} ov)`,
+                        `${f.score}-${f.wicket_number} (${f.full_name || f.bfam_id}, ${f.over.toFixed(1)} ov)`,
                     )
                     .join(', ')}
                 </Text>

@@ -97,7 +97,9 @@ export default function TeamDetailsScreen() {
           >
             <View className="flex-row items-center">
               <Avatar size={36} />
-              <Text className="text-text-primary text-body ml-3">{member.bfam_id}</Text>
+              <Text className="text-text-primary text-body ml-3">
+                {member.full_name || member.bfam_id}
+              </Text>
             </View>
             {member.role_in_team === 'CAPTAIN' && <StatusBadge label="Captain" variant="warning" />}
           </View>

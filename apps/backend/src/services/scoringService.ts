@@ -552,9 +552,15 @@ export async function getScorecard(matchId: string) {
   const result = [];
   for (const innings of inningsList) {
     const events = await sequelize.query<
-      ScoreEventRow & { striker_bfam_id: string; bowler_bfam_id: string }
+      ScoreEventRow & {
+        striker_bfam_id: string;
+        striker_full_name: string | null;
+        bowler_bfam_id: string;
+        bowler_full_name: string | null;
+      }
     >(
-      `SELECT se.*, ps.bfam_id AS striker_bfam_id, pb.bfam_id AS bowler_bfam_id
+      `SELECT se.*, ps.bfam_id AS striker_bfam_id, ps.full_name AS striker_full_name,
+              pb.bfam_id AS bowler_bfam_id, pb.full_name AS bowler_full_name
        FROM score_events se
        JOIN players ps ON ps.player_id = se.striker_player_id
        JOIN players pb ON pb.player_id = se.bowler_player_id
@@ -568,6 +574,7 @@ export async function getScorecard(matchId: string) {
       {
         player_id: string;
         bfam_id: string;
+        full_name: string | null;
         runs: number;
         balls: number;
         fours: number;
@@ -580,6 +587,7 @@ export async function getScorecard(matchId: string) {
       {
         player_id: string;
         bfam_id: string;
+        full_name: string | null;
         overs_balls: number;
         runs_conceded: number;
         wickets: number;
@@ -592,6 +600,7 @@ export async function getScorecard(matchId: string) {
       over: number;
       player_id: string;
       bfam_id: string;
+      full_name: string | null;
     }[] = [];
     let runningScore = 0;
     let wicketCount = 0;
@@ -600,6 +609,7 @@ export async function getScorecard(matchId: string) {
       const bat = batting.get(e.striker_player_id) ?? {
         player_id: e.striker_player_id,
         bfam_id: e.striker_bfam_id,
+        full_name: e.striker_full_name,
         runs: 0,
         balls: 0,
         fours: 0,
@@ -615,6 +625,7 @@ export async function getScorecard(matchId: string) {
       const bowl = bowling.get(e.bowler_player_id) ?? {
         player_id: e.bowler_player_id,
         bfam_id: e.bowler_bfam_id,
+        full_name: e.bowler_full_name,
         overs_balls: 0,
         runs_conceded: 0,
         wickets: 0,
@@ -640,6 +651,7 @@ export async function getScorecard(matchId: string) {
           over: e.over_number + (e.ball_number_in_over - 1) / 6,
           player_id: dismissedId,
           bfam_id: dismissedRow?.bfam_id ?? '',
+          full_name: dismissedRow?.full_name ?? null,
         });
       }
     }

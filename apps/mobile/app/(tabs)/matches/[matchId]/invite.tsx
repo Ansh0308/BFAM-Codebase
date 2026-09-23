@@ -137,7 +137,9 @@ export default function InvitePlayersScreen() {
               >
                 <View className="flex-row items-center">
                   <Avatar size={36} />
-                  <Text className="text-text-primary text-body ml-3">{member.bfam_id}</Text>
+                  <Text className="text-text-primary text-body ml-3">
+                    {member.full_name || member.bfam_id}
+                  </Text>
                 </View>
                 <Pressable
                   onPress={() => invite(member.player_id)}

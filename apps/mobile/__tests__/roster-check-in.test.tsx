@@ -25,6 +25,7 @@ const ROOM = {
     {
       player_id: 'p1',
       bfam_id: 'BF1001',
+      full_name: 'Asha Patel',
       invitation_status: 'CONFIRMED',
       attendance_status: 'PENDING',
     },
@@ -47,8 +48,19 @@ describe('Player Check-In (module 2.12, PRD §8.3/§8.4 "Check-In")', () => {
     mockGetGameRoom.mockResolvedValueOnce(ROOM);
     const { findByText, getByTestId } = await render(<RosterCheckInScreen />);
 
-    expect(await findByText('BF1001')).toBeTruthy();
+    expect(await findByText('Asha Patel')).toBeTruthy();
     expect(getByTestId('checked-in-p2')).toBeTruthy();
+  });
+
+  // Backlog A-18: name-instead-of-BFAM-ID.
+  it("shows a player's name instead of their raw BFAM ID when one is set", async () => {
+    mockGetGameRoom.mockResolvedValueOnce(ROOM);
+    const { findByText, queryByText } = await render(<RosterCheckInScreen />);
+
+    expect(await findByText('Asha Patel')).toBeTruthy();
+    expect(queryByText('BF1001')).toBeNull();
+    // p2 has no full_name, so it still falls back to the BFAM ID.
+    expect(await findByText('BF1002')).toBeTruthy();
   });
 
   it('checks a pending player in on tap', async () => {

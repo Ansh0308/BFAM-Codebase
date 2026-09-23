@@ -10,8 +10,12 @@ import { Button } from '../../../../src/components/Button';
 import { ViewerCountBadge } from '../../../../src/components/ViewerCountBadge';
 import { useAuthStore } from '../../../../src/store/authStore';
 
-function bfamIdFor(players: GameRoom['players'], playerId: string | null | undefined) {
-  return players.find((p) => p.player_id === playerId)?.bfam_id ?? '—';
+// Backlog A-18: name-instead-of-BFAM-ID — a crowd watching Live Score has
+// no idea whose BFAM ID "BFDEMO34486101" is; the player's name is the
+// whole point of a viewer-facing scoreboard.
+function nameFor(players: GameRoom['players'], playerId: string | null | undefined) {
+  const player = players.find((p) => p.player_id === playerId);
+  return player ? (player.full_name ?? player.bfam_id ?? '—') : '—';
 }
 
 // Live Score viewer (PRD §12.18 requirement 3): score header, overs/
@@ -114,7 +118,7 @@ export default function LiveScoreScreen() {
                   Striker
                 </Text>
                 <Text className="font-ui font-semibold text-body text-ink-black">
-                  {bfamIdFor(room.players, live.current_striker_player_id)}
+                  {nameFor(room.players, live.current_striker_player_id)}
                 </Text>
               </View>
               <View className="flex-1 bg-surface-alt rounded-md p-3 m-1.5">
@@ -122,14 +126,14 @@ export default function LiveScoreScreen() {
                   Non-Striker
                 </Text>
                 <Text className="font-ui font-semibold text-body text-ink-black">
-                  {bfamIdFor(room.players, live.current_non_striker_player_id)}
+                  {nameFor(room.players, live.current_non_striker_player_id)}
                 </Text>
               </View>
             </View>
             <View className="bg-surface-alt rounded-md p-3 mt-1">
               <Text className="font-ui text-micro uppercase text-text-tertiary mb-1">Bowler</Text>
               <Text className="font-ui font-semibold text-body text-ink-black">
-                {bfamIdFor(room.players, live.current_bowler_player_id)}
+                {nameFor(room.players, live.current_bowler_player_id)}
               </Text>
             </View>
           </>

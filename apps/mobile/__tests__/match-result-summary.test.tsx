@@ -62,6 +62,7 @@ describe('Match Result screen — Match Summary (backlog A-22)', () => {
             {
               player_id: 'p1',
               bfam_id: 'BF1001',
+              full_name: 'Asha Patel',
               runs: 65,
               balls: 40,
               fours: 6,
@@ -82,6 +83,7 @@ describe('Match Result screen — Match Summary (backlog A-22)', () => {
             {
               player_id: 'p3',
               bfam_id: 'BF1003',
+              full_name: null,
               overs: 4,
               runs_conceded: 20,
               wickets: 2,
@@ -109,8 +111,10 @@ describe('Match Result screen — Match Summary (backlog A-22)', () => {
     const summary = await findByTestId('match-summary-innings-1');
     expect(within(summary).getByText('Run Rate: 9.86')).toBeTruthy();
     // p1 (65 runs) beats p2 (40 runs) for top score, even though p1 is out.
-    expect(within(summary).getByText(/Top Score: BF1001 — 65/)).toBeTruthy();
-    // p3 (2 wickets) beats p4 (1 wicket) for best bowling.
+    // p1 has a full_name set, so the name shows instead of the BFAM ID.
+    expect(within(summary).getByText(/Top Score: Asha Patel — 65/)).toBeTruthy();
+    // p3 (2 wickets) beats p4 (1 wicket) for best bowling. p3 has no
+    // full_name set, so this falls back to the BFAM ID (backlog A-18).
     expect(within(summary).getByText(/Best Bowling: BF1003 — 2\/20/)).toBeTruthy();
   });
 

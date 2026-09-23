@@ -314,7 +314,9 @@ export default function ManageTeamScreen() {
           >
             <View className="flex-row items-center">
               <Avatar size={36} />
-              <Text className="text-text-primary text-body ml-3">{request.bfam_id}</Text>
+              <Text className="text-text-primary text-body ml-3">
+                {request.full_name || request.bfam_id}
+              </Text>
             </View>
             <View className="flex-row items-center">
               <Pressable

@@ -25,6 +25,7 @@ export default function AdminPlayersPage() {
     ? players.filter((p) => {
         const q = query.trim().toLowerCase();
         return (
+          (p.full_name ?? '').toLowerCase().includes(q) ||
           p.bfam_id.toLowerCase().includes(q) ||
           p.phone_number.includes(q) ||
           (p.email ?? '').toLowerCase().includes(q) ||
@@ -42,7 +43,7 @@ export default function AdminPlayersPage() {
           label="Search"
           value={query}
           onChange={setQuery}
-          placeholder="BFAM ID, phone, email, or city"
+          placeholder="Name, BFAM ID, phone, email, or city"
         />
       </div>
 
@@ -60,6 +61,7 @@ export default function AdminPlayersPage() {
             players.length === 0 ? 'No players registered yet.' : 'No players match your search.'
           }
           columns={[
+            { key: 'full_name', label: 'Name', render: (r) => r.full_name ?? '—' },
             { key: 'bfam_id', label: 'BFAM ID' },
             { key: 'phone_number', label: 'Phone' },
             { key: 'city', label: 'City', render: (r) => r.city ?? '—' },

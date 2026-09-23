@@ -574,7 +574,7 @@ export async function requestToJoinTeam(teamId: string, userId: string) {
 export async function listJoinRequests(teamId: string, actorUserId: string) {
   await assertIsCaptain(teamId, actorUserId);
   return sequelize.query(
-    `SELECT jr.*, p.bfam_id
+    `SELECT jr.*, p.bfam_id, p.full_name
      FROM team_join_requests jr JOIN players p ON p.player_id = jr.player_id
      WHERE jr.team_id = :teamId AND jr.status = 'PENDING'
      ORDER BY jr.requested_at ASC`,

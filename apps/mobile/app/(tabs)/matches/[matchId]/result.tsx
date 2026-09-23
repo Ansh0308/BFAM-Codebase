@@ -272,14 +272,15 @@ export default function MatchResultScreen() {
                     </Text>
                     {topBat && (
                       <Text className="font-ui text-body text-text-primary mt-2">
-                        Top Score: {topBat.bfam_id} — {topBat.runs} ({topBat.balls}b, {topBat.fours}
+                        Top Score: {topBat.full_name || topBat.bfam_id} — {topBat.runs} (
+                        {topBat.balls}b, {topBat.fours}
                         x4, {topBat.sixes}x6)
                       </Text>
                     )}
                     {topBowl && (
                       <Text className="font-ui text-body text-text-primary mt-1">
-                        Best Bowling: {topBowl.bfam_id} — {topBowl.wickets}/{topBowl.runs_conceded}{' '}
-                        ({topBowl.overs} ov, Econ {topBowl.economy})
+                        Best Bowling: {topBowl.full_name || topBowl.bfam_id} — {topBowl.wickets}/
+                        {topBowl.runs_conceded} ({topBowl.overs} ov, Econ {topBowl.economy})
                       </Text>
                     )}
                   </View>

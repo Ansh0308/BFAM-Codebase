@@ -465,6 +465,7 @@ export interface JoinRequest {
   requested_at: string;
   responded_by: string | null;
   bfam_id?: string;
+  full_name?: string | null;
 }
 
 // ---- Module 2.6: Match Creation & Game Room ----
@@ -641,6 +642,7 @@ export interface LiveScore {
 export interface BattingRow {
   player_id: string;
   bfam_id: string;
+  full_name: string | null;
   runs: number;
   balls: number;
   fours: number;
@@ -651,6 +653,7 @@ export interface BattingRow {
 export interface BowlingRow {
   player_id: string;
   bfam_id: string;
+  full_name: string | null;
   overs: number;
   runs_conceded: number;
   wickets: number;
@@ -663,6 +666,7 @@ export interface FallOfWicket {
   over: number;
   player_id: string;
   bfam_id: string;
+  full_name: string | null;
 }
 
 export interface InningsScorecard {
@@ -994,6 +998,7 @@ export interface SupportTicket {
 export interface AdminPlayer {
   user_id: string;
   bfam_id: string;
+  full_name: string | null;
   phone_number: string;
   email: string | null;
   city: string | null;
