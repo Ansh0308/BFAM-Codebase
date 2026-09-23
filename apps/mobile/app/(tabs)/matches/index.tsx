@@ -8,6 +8,9 @@ import { colors } from '../../../src/theme/tokens';
 import { ScreenContainer } from '../../../src/components/ScreenContainer';
 import { Button } from '../../../src/components/Button';
 import { StatusBadge, type StatusVariant } from '../../../src/components/StatusBadge';
+import { SegmentedTabs } from '../../../src/components/SegmentedTabs';
+
+type MatchScope = 'upcoming' | 'past';
 
 const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
   OPEN: { label: 'Open', variant: 'info' },
@@ -32,13 +35,14 @@ function formatMatchTime(iso: string) {
 // scores, or is on the roster for.
 export default function MyMatchesScreen() {
   const router = useRouter();
+  const [scope, setScope] = useState<MatchScope>('upcoming');
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(() => {
+  const load = useCallback((forScope: MatchScope) => {
     setLoading(true);
     apiClient
-      .getMyMatches()
+      .getMyMatches(forScope)
       .then((res) => setMatches(res.results))
       .catch(() => setMatches([]))
       .finally(() => setLoading(false));
@@ -46,8 +50,8 @@ export default function MyMatchesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load]),
+      load(scope);
+    }, [load, scope]),
   );
 
   return (
@@ -68,6 +72,18 @@ export default function MyMatchesScreen() {
           />
         </View>
 
+        {/* Backlog A-15: split into Upcoming/Past instead of one long,
+            undifferentiated list of every match ever played. */}
+        <SegmentedTabs
+          options={[
+            { value: 'upcoming', label: 'Upcoming' },
+            { value: 'past', label: 'Past' },
+          ]}
+          value={scope}
+          onChange={setScope}
+          testIDPrefix="my-matches-scope"
+        />
+
         {loading ? (
           <ActivityIndicator size="large" color={colors.brandRed} testID="my-matches-loading" />
         ) : matches.length === 0 ? (
@@ -79,14 +95,18 @@ export default function MyMatchesScreen() {
               <MaterialCommunityIcons name="cricket" size={28} color="#9A9A9A" />
             </View>
             <Text className="font-ui text-body text-text-secondary text-center mb-6">
-              No matches yet. Book a turf, then create a match for it.
+              {scope === 'upcoming'
+                ? 'No upcoming matches. Book a turf, then create a match for it.'
+                : 'No past matches yet.'}
             </Text>
-            <Button
-              label="Book a Turf"
-              variant="secondary"
-              onPress={() => router.push('/(tabs)/discover')}
-              testID="my-matches-empty-book-turf"
-            />
+            {scope === 'upcoming' && (
+              <Button
+                label="Book a Turf"
+                variant="secondary"
+                onPress={() => router.push('/(tabs)/discover')}
+                testID="my-matches-empty-book-turf"
+              />
+            )}
           </View>
         ) : (
           <FlatList

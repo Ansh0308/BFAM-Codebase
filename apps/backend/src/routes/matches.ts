@@ -120,12 +120,16 @@ router.post(
   }),
 );
 
-// GET /matches/mine — Matches tab list.
+// GET /matches/mine — Matches tab list. ?scope=upcoming|past|all (backlog
+// A-15), defaulting to "all" so an existing caller with no query param
+// keeps today's behavior unchanged.
 router.get(
   '/mine',
   authenticateJwt,
   asyncHandler(async (req: Request, res: Response) => {
-    const matches = await listMyMatches(req.auth!.sub);
+    const scope = req.query.scope;
+    const validScope = scope === 'upcoming' || scope === 'past' ? scope : 'all';
+    const matches = await listMyMatches(req.auth!.sub, validScope);
     return res.status(200).json({ results: matches });
   }),
 );

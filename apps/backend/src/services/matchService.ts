@@ -309,12 +309,23 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
 
 // Matches tab: every match the caller organizes, is assigned to score, or
 // is a roster participant on.
-export async function listMyMatches(userId: string) {
+// Backlog A-15: split the Matches tab into Upcoming/Past, same
+// scope convention as listBookingsForUser — status-based rather than a
+// pure time comparison, so a match that's overdue but not yet
+// started/cancelled still reads as "upcoming" instead of vanishing into
+// Past with no explanation.
+export async function listMyMatches(userId: string, scope: 'upcoming' | 'past' | 'all' = 'all') {
   const playerId = await resolvePlayerId(userId).catch(() => null);
+  const conditions = [
+    '(m.organizer_id = :userId OR m.assigned_scorer_id = :userId OR mp.player_id = :playerId)',
+  ];
+  if (scope === 'upcoming') conditions.push("m.match_status NOT IN ('COMPLETED', 'CANCELLED')");
+  if (scope === 'past') conditions.push("m.match_status IN ('COMPLETED', 'CANCELLED')");
+
   return sequelize.query<MatchRow>(
     `SELECT DISTINCT m.* FROM matches m
      LEFT JOIN match_players mp ON mp.match_id = m.match_id AND mp.player_id = :playerId
-     WHERE m.organizer_id = :userId OR m.assigned_scorer_id = :userId OR mp.player_id = :playerId
+     WHERE ${conditions.join(' AND ')}
      ORDER BY m.scheduled_start_time DESC`,
     { type: QueryTypes.SELECT, replacements: { userId, playerId } },
   );

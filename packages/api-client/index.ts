@@ -683,8 +683,8 @@ export class BFAMApiClient {
     return this.request<Match>('/matches', { method: 'POST', body: JSON.stringify(input) });
   }
 
-  async getMyMatches(): Promise<{ results: Match[] }> {
-    return this.request<{ results: Match[] }>('/matches/mine');
+  async getMyMatches(scope: 'upcoming' | 'past' | 'all' = 'all'): Promise<{ results: Match[] }> {
+    return this.request<{ results: Match[] }>(`/matches/mine${toQueryString({ scope })}`);
   }
 
   // Backlog G-20: "Live Now" discovery (Discover tab) — every PUBLIC match
