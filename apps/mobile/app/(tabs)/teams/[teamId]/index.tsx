@@ -11,6 +11,7 @@ import { StatusBadge } from '../../../../src/components/StatusBadge';
 import { Button } from '../../../../src/components/Button';
 import { Avatar } from '../../../../src/components/Avatar';
 import { useAuthStore } from '../../../../src/store/authStore';
+import { confirmAction } from '../../../../src/lib/confirm';
 
 // Team Details (PRD §12.3). Links out to Team Management only — Match
 // Creation (module 2.6) is out of this module's scope.
@@ -24,6 +25,8 @@ export default function TeamDetailsScreen() {
   const [challengingTeamId, setChallengingTeamId] = useState<string | null>(null);
   const [challengeSentIds, setChallengeSentIds] = useState<Set<string>>(new Set());
   const [challengeError, setChallengeError] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -57,6 +60,28 @@ export default function TeamDetailsScreen() {
   // captain at least one team of my own to challenge with.
   const challengeableFromTeams = myCaptainedTeams.filter((t) => t.team_id !== teamId);
   const canChallenge = team.is_open_for_challenge && challengeableFromTeams.length > 0;
+
+  async function leaveTeam() {
+    setLeaving(true);
+    setLeaveError(null);
+    try {
+      await apiClient.leaveTeam(teamId);
+      router.replace('/(tabs)/teams');
+    } catch (err) {
+      if (err instanceof BFAMApiError) setLeaveError(err.message);
+      else setLeaveError('Could not leave the team. Please try again.');
+      setLeaving(false);
+    }
+  }
+
+  async function confirmLeaveTeam() {
+    const confirmed = await confirmAction(
+      'Leave this team?',
+      `You'll need a new invite or a join request to get back into ${team?.team_name ?? 'this team'}.`,
+      'Leave Team',
+    );
+    if (confirmed) await leaveTeam();
+  }
 
   async function sendChallengeFrom(myTeamId: string) {
     setChallengingTeamId(myTeamId);
@@ -111,6 +136,22 @@ export default function TeamDetailsScreen() {
               label="Manage Team"
               onPress={() => router.push(`/(tabs)/teams/${teamId}/manage`)}
               testID="manage-team-button"
+            />
+          </View>
+        )}
+
+        {/* Backlog A-16: a captain must transfer captaincy first (the
+            backend already enforces this) — everyone else can leave
+            directly. */}
+        {myMembership && !isCaptain && (
+          <View className="mt-6 mb-8">
+            {leaveError && <Text className="text-brand-red text-body mb-2">{leaveError}</Text>}
+            <Button
+              label="Leave Team"
+              variant="secondary"
+              loading={leaving}
+              onPress={confirmLeaveTeam}
+              testID="leave-team-button"
             />
           </View>
         )}
