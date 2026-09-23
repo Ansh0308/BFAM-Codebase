@@ -78,6 +78,12 @@ export default function ManageTurfScreen() {
   // that day as OutsideOperatingHoursError; a blank day means "closed".
   const [hoursByDay, setHoursByDay] = useState<Record<number, { open: string; close: string }>>({});
   const [savingHours, setSavingHours] = useState(false);
+  // Backlog A-13: most turfs run the same hours every day — filling in 7
+  // rows one at a time to say so was the entire gap. This "default, then
+  // override" pair just fills every day at once; the per-day rows below
+  // remain individually editable afterward, same as before.
+  const [defaultOpen, setDefaultOpen] = useState('06:00');
+  const [defaultClose, setDefaultClose] = useState('23:00');
 
   const [blocks, setBlocks] = useState<TurfAvailabilityBlock[]>([]);
   const [blockStart, setBlockStart] = useState('');
@@ -206,6 +212,21 @@ export default function ManageTurfScreen() {
       ...prev,
       [day]: { open: prev[day]?.open ?? '', close: prev[day]?.close ?? '', [field]: value },
     }));
+  }
+
+  // Backlog A-13: fills all 7 days with the same open/close time in one
+  // tap — an owner then tweaks whichever specific day needs to differ
+  // (e.g. shorter Sunday hours) using the per-day rows below, instead of
+  // typing the same pair of times seven times over.
+  function applyDefaultToAllDays() {
+    if (!defaultOpen.trim() || !defaultClose.trim()) return;
+    setHoursByDay(() => {
+      const next: Record<number, { open: string; close: string }> = {};
+      for (let day = 0; day < 7; day++) {
+        next[day] = { open: defaultOpen.trim(), close: defaultClose.trim() };
+      }
+      return next;
+    });
   }
 
   async function saveOperatingHours() {
@@ -409,6 +430,40 @@ export default function ManageTurfScreen() {
       <Text className="font-ui text-micro text-text-tertiary mb-3">
         Leave a day blank to mark it closed. A day with no hours set can never be booked.
       </Text>
+
+      <Text className="font-ui font-bold text-micro text-text-tertiary uppercase mb-2">
+        Apply a Default to Every Day
+      </Text>
+      <View className="flex-row items-end mb-4">
+        <View className="flex-1 mr-2">
+          <TextField
+            label="Open"
+            value={defaultOpen}
+            onChangeText={setDefaultOpen}
+            placeholder="06:00"
+            testID="default-hours-open"
+          />
+        </View>
+        <View className="flex-1 mr-2">
+          <TextField
+            label="Close"
+            value={defaultClose}
+            onChangeText={setDefaultClose}
+            placeholder="23:00"
+            testID="default-hours-close"
+          />
+        </View>
+        <View style={{ marginBottom: 4 }}>
+          <Button
+            label="Apply to All Days"
+            variant="secondary"
+            fullWidth={false}
+            onPress={applyDefaultToAllDays}
+            testID="apply-default-hours"
+          />
+        </View>
+      </View>
+
       {WEEKDAY_LABELS.map((label, day) => (
         <View key={day} className="flex-row items-center mb-2">
           <Text className="font-ui text-body text-text-primary" style={{ width: 92 }}>

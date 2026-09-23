@@ -66,6 +66,12 @@ export default function ManageTurfPage() {
   // pair means "closed that day" and is left out of the saved rows.
   const [hoursByDay, setHoursByDay] = useState<Record<number, { open: string; close: string }>>({});
   const [savingHours, setSavingHours] = useState(false);
+  // Backlog A-13: most turfs run the same hours every day — filling in 7
+  // rows one at a time to say so was the entire gap. This "default, then
+  // override" pair just fills every day at once; the per-day rows below
+  // remain individually editable afterward, same as before.
+  const [defaultOpen, setDefaultOpen] = useState('06:00');
+  const [defaultClose, setDefaultClose] = useState('23:00');
 
   const [blocks, setBlocks] = useState<TurfAvailabilityBlock[]>([]);
   const [blockStart, setBlockStart] = useState('');
@@ -181,6 +187,19 @@ export default function ManageTurfPage() {
       ...prev,
       [day]: { open: prev[day]?.open ?? '', close: prev[day]?.close ?? '', [field]: value },
     }));
+  }
+
+  // Backlog A-13: fills all 7 days with the same open/close time in one
+  // click — an owner then tweaks whichever specific day needs to differ
+  // using the per-day rows below, instead of typing the same pair of
+  // times seven times over.
+  function applyDefaultToAllDays() {
+    if (!defaultOpen.trim() || !defaultClose.trim()) return;
+    const next: Record<number, { open: string; close: string }> = {};
+    for (let day = 0; day < 7; day++) {
+      next[day] = { open: defaultOpen.trim(), close: defaultClose.trim() };
+    }
+    setHoursByDay(next);
   }
 
   async function saveOperatingHours() {
@@ -361,6 +380,26 @@ export default function ManageTurfPage() {
         <p className="font-ui text-micro text-text-tertiary mb-4">
           Leave a day blank to mark it closed. A day with no hours set can never be booked.
         </p>
+
+        <h3 className="font-ui font-bold text-micro text-text-tertiary uppercase mb-2">
+          Apply a Default to Every Day
+        </h3>
+        <div className="grid grid-cols-3 gap-2 items-end mb-4">
+          <TextInput
+            label="Open"
+            value={defaultOpen}
+            onChange={setDefaultOpen}
+            placeholder="06:00"
+          />
+          <TextInput
+            label="Close"
+            value={defaultClose}
+            onChange={setDefaultClose}
+            placeholder="23:00"
+          />
+          <SecondaryButton onClick={applyDefaultToAllDays}>Apply to All Days</SecondaryButton>
+        </div>
+
         {WEEKDAY_LABELS.map((label, day) => (
           <div key={day} className="grid grid-cols-3 gap-2 items-end mb-2">
             <span className="font-ui text-body text-text-primary pb-2">{label}</span>
