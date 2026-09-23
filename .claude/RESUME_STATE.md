@@ -45,15 +45,16 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `dc00ba1` — "Extend
-audit logging to refunds and admin ticket-status changes (G-24)".
-Working tree is clean, everything up to and including G-24 is
-committed and pushed.
+`main` branch, latest commit at time of writing: `85c7cf7` — "Add
+consent capture with policy versioning (G-21)". Working tree is clean,
+everything up to and including G-21 is committed and pushed.
 
-**G-24 is now done** — see "Completed this cycle" below for exactly
-what it covers and what it deliberately doesn't (there's no
-match-result-correction feature or Admin Panel yet to audit; revisit
-when E-2..E-6 land).
+**Also noticed while testing G-21**: `apps/web/__tests__/admin-banners.test.tsx`
+and `admin-players.test.tsx` exist and pass — meaning some Admin Web
+surface already exists (banner management, player directory), despite
+this file's "E-2 through E-6 not started" framing. Check what's
+actually there under `apps/web/src/app/admin/` before assuming E-3
+(Turf Management) or any other admin module starts from zero.
 
 Full context: the canonical, continuously-updated status doc is
 `BFAM_Gap_Analysis_and_TODO.md` at the repo root — read it for the full
@@ -156,21 +157,29 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     E-2..E-6, any result-correction flow) don't exist yet — add the
     `writeAuditLog()` call at the same time those are eventually built,
     not as a separate retrofit.
+15. **G-21 — Consent capture with policy versioning**
+    New `user_consents` table + `apps/backend/src/services/consentService.ts`
+    (`recordConsent`/`getMyConsents`, append-only log, one shared
+    `CURRENT_POLICY_VERSION` across all 4 categories — see the migration's
+    comment for why). `createUserAccount` now records a `TERMS` consent
+    on every registration. New `POST /consents` / `GET /consents/mine`,
+    wired into the two real device-permission-grant moments that already
+    exist: `useContactsMatch.ts` (CONTACTS) and the Turf Discovery
+    screen's location effect (LOCATION). `PAYMENT_DATA` has no UI wiring
+    — flagged under "Needs founder input" below.
 
 ### What's next, in priority order (per `BFAM_Gap_Analysis_and_TODO.md` Part 4 / the remaining-backlog doc's Section D)
 
-1. **G-21** — Consent capture at signup with policy versioning (only a
-   single boolean `waiver_accepted` exists today, no per-category consent
-   log). Needs a real data model decision — same "do it once properly"
-   caution G-24 got.
-2. **E-3** — Turf Management in Admin Web (cheapest remaining Admin Panel
-   module — Owner Web's turf-management UI already exists, mostly needs
-   the ownership check relaxed to "any turf" for an admin caller).
-3. **E-2, E-4, E-5, E-6** — rest of the Admin Panel (Match/Team/Reviews
-   Management, Reports). Once any of these lands, wire `writeAuditLog()`
-   (see G-24 above) into its write paths at the same time, not as a
-   follow-up.
-4. Everything in the "long tail" section of the remaining-backlog doc
+1. **E-3** — Turf Management in Admin Web. **Check first**: some Admin
+   Web already exists (`admin-banners.test.tsx`, `admin-players.test.tsx`
+   pass in `apps/web/__tests__`) — look at `apps/web/src/app/admin/`
+   before assuming this starts from zero; it may just need the turf
+   module added alongside what's already there, not a new admin shell.
+2. **E-2, E-4, E-5, E-6** — rest of the Admin Panel (Match/Team/Reviews
+   Management, Reports). Same "check what already exists first" caution
+   as E-3. Once any of these lands, wire `writeAuditLog()` (see G-24
+   above) into its write paths at the same time, not as a follow-up.
+3. Everything in the "long tail" section of the remaining-backlog doc
    (Rankings, XP/Levels, Achievements, Tournaments, etc.) — lowest
    priority, pick based on what seems highest-value; none of it blocks
    anything else.
@@ -196,6 +205,15 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
   autonomously — confirm with the founder first whether the "not
   age-gating" decision still holds, since both call sites now enforce
   the gate identically.
+- **G-21 follow-up**: `PAYMENT_DATA` is a defined consent type
+  (`consentService.ts`'s `ConsentType`, `POST /consents` accepts it) but
+  nothing calls `recordConsent(..., 'PAYMENT_DATA')` anywhere — BFAM
+  never collects raw payment data itself (Razorpay handles cards
+  directly via its own hosted flow), so there's no concrete UI moment
+  that obviously corresponds to "the user just gave us payment data."
+  Needs a product decision on what this should actually mean here (e.g.
+  consent to share booking/contact details _with_ the gateway?) before
+  wiring anything — don't guess at a UI moment for it.
 
 ## Standing conventions to follow (established this session, don't deviate)
 
