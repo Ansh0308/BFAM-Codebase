@@ -260,6 +260,11 @@ export default function ScoringInterfaceScreen() {
   const bowlingOptions = live?.innings
     ? optionsForSide(live.innings.bowling_match_team_id)
     : eligiblePlayers.map((p) => ({ value: p.player_id, label: displayName(p) }));
+  // The same batter can't stand at both ends — exclude whoever's already
+  // picked for the other end, rather than letting the picker offer a
+  // selection that would silently overwrite/duplicate them.
+  const strikerOptions = battingOptions.filter((o) => o.value !== nonStrikerId);
+  const nonStrikerOptions = battingOptions.filter((o) => o.value !== strikerId);
 
   async function startInnings() {
     if (!battingSide || !bowlingSide) return;
@@ -753,7 +758,7 @@ export default function ScoringInterfaceScreen() {
             }
             isOpen={openPicker === 'striker'}
             onToggle={() => setOpenPicker((cur) => (cur === 'striker' ? null : 'striker'))}
-            options={battingOptions}
+            options={strikerOptions}
             value={strikerId}
             onChange={setStrikerId}
             testID="striker-select"
@@ -774,7 +779,7 @@ export default function ScoringInterfaceScreen() {
             }
             isOpen={openPicker === 'nonStriker'}
             onToggle={() => setOpenPicker((cur) => (cur === 'nonStriker' ? null : 'nonStriker'))}
-            options={battingOptions}
+            options={nonStrikerOptions}
             value={nonStrikerId}
             onChange={setNonStrikerId}
             testID="non-striker-select"

@@ -55,7 +55,13 @@ function PagingDot({
 export default function Onboarding() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const SLIDE_WIDTH = width - 40;
+  // `width` can be reported as 0 for the first render or two (notably on
+  // web, before layout settles) — an unguarded `width - 40` then goes
+  // negative, which flips PagingDot's inputRange backwards and crashes
+  // Reanimated's interpolate ("inputRange must be monotonically
+  // non-decreasing"). Floor it so the carousel never computes a
+  // negative/zero slide width.
+  const SLIDE_WIDTH = Math.max(width - 40, 1);
   const [slideIndex, setSlideIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<ScrollView>(null);

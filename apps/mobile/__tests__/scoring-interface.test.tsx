@@ -245,6 +245,25 @@ describe('Scoring Interface (backlog A-7: fewer taps; UI rebuild per reference s
     expect(utils.queryByTestId('non-striker-select-options-p1')).toBeNull();
   });
 
+  // A batter can't stand at both ends at once — found while manually
+  // testing the "Start Innings" flow: picking p1 as striker still let it
+  // be picked as non-striker too, silently letting one player occupy both
+  // slots.
+  it('excludes the striker from the non-striker picker and vice versa', async () => {
+    const utils = await render(<ScoringInterfaceScreen />);
+    await waitFor(() => expect(utils.getByTestId('scoring-interface-screen')).toBeTruthy());
+
+    await selectPlayer(utils, 'striker-select', 'p1');
+
+    await fireEvent.press(utils.getByTestId('non-striker-select'));
+    expect(utils.queryByTestId('non-striker-select-options-p1')).toBeNull();
+    expect(utils.queryByTestId('non-striker-select-options-p2')).toBeTruthy();
+    await fireEvent.press(utils.getByTestId('non-striker-select-options-p2'));
+
+    await fireEvent.press(utils.getByTestId('striker-select'));
+    expect(utils.queryByTestId('striker-select-options-p2')).toBeNull();
+  });
+
   it('shows the current-over dots and fills one in after each legal ball', async () => {
     const { getByTestId } = await renderReady();
 
