@@ -798,6 +798,11 @@ export const setOperatingHoursSchema = z.object({
   ),
 });
 
+// Backlog A-14: copy a pitch's pricing/hours/details onto another pitch.
+export const copyTurfDetailsSchema = z.object({
+  source_turf_id: uuid,
+});
+
 export const createAvailabilityBlockSchema = z.object({
   start_datetime: z.string().datetime().or(z.string().min(10)),
   end_datetime: z.string().datetime().or(z.string().min(10)),

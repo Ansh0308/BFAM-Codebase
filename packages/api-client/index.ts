@@ -1078,6 +1078,14 @@ export class BFAMApiClient {
     return this.request(`/owner/turfs/${turfId}/availability-blocks`);
   }
 
+  // Backlog A-14: copy another pitch's pricing/hours/details onto this one.
+  async copyTurfDetails(targetTurfId: string, sourceTurfId: string): Promise<Turf> {
+    return this.request<Turf>(`/owner/turfs/${targetTurfId}/copy-from`, {
+      method: 'POST',
+      body: JSON.stringify({ source_turf_id: sourceTurfId }),
+    });
+  }
+
   async createAvailabilityBlock(
     turfId: string,
     input: { start_datetime: string; end_datetime: string; reason: AvailabilityBlockReason },

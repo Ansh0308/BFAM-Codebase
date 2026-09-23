@@ -1,7 +1,12 @@
 import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
-import { ForbiddenActionError, TurfNotFoundError, VenueNotFoundError } from '../domain/errors';
+import {
+  ForbiddenActionError,
+  InvalidTurfStateError,
+  TurfNotFoundError,
+  VenueNotFoundError,
+} from '../domain/errors';
 
 interface TurfRow {
   turf_id: string;
@@ -493,6 +498,57 @@ export async function setOperatingHours(
     'SELECT * FROM turf_operating_hours WHERE turf_id = :turfId ORDER BY day_of_week ASC',
     { type: QueryTypes.SELECT, replacements: { turfId } },
   );
+}
+
+interface FullTurfRow {
+  description: string | null;
+  ball_types_supported: string[] | null;
+  stadium_sound_enabled: boolean;
+}
+
+// Backlog A-14: copying a pitch's details onto another pitch — a real gap
+// for a multi-pitch venue (backlog A-2): an owner adding a 3rd/4th pitch
+// otherwise has to re-enter identical pricing and operating hours by hand,
+// pitch name and address aside (name stays each pitch's own; address is
+// already shared automatically via the venue for any pitch grouped under
+// one, per assignTurfToVenue). Reuses setPricing/setOperatingHours as-is —
+// their existing delete+reinsert pattern already makes this idempotent —
+// rather than a new copy-specific write path.
+export async function copyTurfDetails(
+  targetTurfId: string,
+  sourceTurfId: string,
+  ownerUserId: string,
+) {
+  if (targetTurfId === sourceTurfId) {
+    throw new InvalidTurfStateError('Choose a different pitch to copy details from.');
+  }
+
+  const targetTurf = await fetchTurfOrThrow(targetTurfId);
+  await assertIsOwner(targetTurf, ownerUserId);
+  const sourceTurf = await fetchTurfOrThrow(sourceTurfId);
+  await assertIsOwner(sourceTurf, ownerUserId);
+
+  const [sourceDetails] = await sequelize.query<FullTurfRow>(
+    'SELECT description, ball_types_supported, stadium_sound_enabled FROM turfs WHERE turf_id = :turfId',
+    { type: QueryTypes.SELECT, replacements: { turfId: sourceTurfId } },
+  );
+
+  await updateTurf(targetTurfId, ownerUserId, {
+    description: sourceDetails.description,
+    ball_types_supported: sourceDetails.ball_types_supported ?? [],
+  });
+  await setStadiumSoundEnabled(targetTurfId, ownerUserId, sourceDetails.stadium_sound_enabled);
+
+  const pricingRows = (await listPricing(sourceTurfId, ownerUserId)) as unknown as PricingRow[];
+  await setPricing(targetTurfId, ownerUserId, pricingRows);
+
+  const hoursRows = (await listOperatingHours(
+    sourceTurfId,
+    ownerUserId,
+  )) as unknown as OperatingHoursRow[];
+  await setOperatingHours(targetTurfId, ownerUserId, hoursRows);
+
+  return getTurfForOwner(targetTurfId, ownerUserId);
 }
 
 // Availability Management (module 2.12, PRD §8.3/§9.2) — owner-side view

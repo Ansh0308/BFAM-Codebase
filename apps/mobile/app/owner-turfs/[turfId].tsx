@@ -95,6 +95,13 @@ export default function ManageTurfScreen() {
 
   const [error, setError] = useState<string | null>(null);
 
+  // Backlog A-14: copy another pitch's pricing/hours/description/ball-types/
+  // sound-setting onto this one — the owner's other turfs, to pick a source
+  // pitch from.
+  const [otherTurfs, setOtherTurfs] = useState<Turf[]>([]);
+  const [copyFromTurfId, setCopyFromTurfId] = useState<string | null>(null);
+  const [copyingDetails, setCopyingDetails] = useState(false);
+
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
@@ -102,8 +109,9 @@ export default function ManageTurfScreen() {
       apiClient.listAvailabilityBlocks(turfId),
       apiClient.getTurfPricing(turfId),
       apiClient.getTurfOperatingHours(turfId),
+      apiClient.getMyTurfs(),
     ])
-      .then(([t, blockRes, pricingRes, hoursRes]) => {
+      .then(([t, blockRes, pricingRes, hoursRes, turfsRes]) => {
         setTurf(t);
         setTurfName(t.turf_name);
         setAddressLine(t.address_line);
@@ -111,6 +119,7 @@ export default function ManageTurfScreen() {
         setSoundEnabled(t.stadium_sound_enabled);
         setPricing(pricingRes.results);
         setBlocks(blockRes.results);
+        setOtherTurfs(turfsRes.results.filter((other) => other.turf_id !== turfId));
         const byDay: Record<number, { open: string; close: string }> = {};
         for (const h of hoursRes.results as TurfOperatingHours[]) {
           byDay[h.day_of_week] = { open: h.open_time.slice(0, 5), close: h.close_time.slice(0, 5) };
@@ -126,6 +135,20 @@ export default function ManageTurfScreen() {
       .catch(() => setError('Could not load this turf.'))
       .finally(() => setLoading(false));
   }, [turfId]);
+
+  async function copyDetailsFromOtherTurf() {
+    if (!copyFromTurfId) return;
+    setCopyingDetails(true);
+    setError(null);
+    try {
+      await apiClient.copyTurfDetails(turfId, copyFromTurfId);
+      load();
+    } catch (err) {
+      setError(err instanceof BFAMApiError ? err.message : 'Could not copy pitch details.');
+    } finally {
+      setCopyingDetails(false);
+    }
+  }
 
   async function assignToVenue() {
     if (!assignVenueId) return;
@@ -364,6 +387,35 @@ export default function ManageTurfScreen() {
             loading={assigning}
             disabled={!assignVenueId}
             testID="assign-to-venue"
+          />
+        </View>
+      )}
+
+      {/* Backlog A-14: adding another pitch at the same venue shouldn't
+          mean re-entering identical pricing/hours by hand. */}
+      {otherTurfs.length > 0 && (
+        <View className="mt-6">
+          <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
+            Copy Details From Another Pitch
+          </Text>
+          <Text className="font-ui text-micro text-text-tertiary mb-3">
+            Copies pricing, operating hours, description, ball types, and the sound setting from the
+            pitch you pick — replacing whatever this pitch already has.
+          </Text>
+          <ChipSelect
+            label="Copy From"
+            options={otherTurfs.map((t) => ({ value: t.turf_id, label: t.turf_name }))}
+            value={copyFromTurfId}
+            onChange={setCopyFromTurfId}
+            testID="copy-from-turf-select"
+          />
+          <Button
+            label="Copy Details"
+            variant="secondary"
+            onPress={copyDetailsFromOtherTurf}
+            loading={copyingDetails}
+            disabled={!copyFromTurfId}
+            testID="copy-turf-details"
           />
         </View>
       )}

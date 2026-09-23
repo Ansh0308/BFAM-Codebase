@@ -14,6 +14,7 @@ jest.mock('../src/lib/apiClient', () => ({
     getTurfOperatingHours: jest.fn(),
     setTurfOperatingHours: jest.fn(),
     getMyVenues: jest.fn(),
+    getMyTurfs: jest.fn(),
   },
 }));
 
@@ -24,6 +25,7 @@ const mockGetOwnerTurf = apiClient.getOwnerTurf as jest.Mock;
 const mockListAvailabilityBlocks = apiClient.listAvailabilityBlocks as jest.Mock;
 const mockGetTurfPricing = apiClient.getTurfPricing as jest.Mock;
 const mockGetTurfOperatingHours = apiClient.getTurfOperatingHours as jest.Mock;
+const mockGetMyTurfs = apiClient.getMyTurfs as jest.Mock;
 const mockSetTurfOperatingHours = apiClient.setTurfOperatingHours as jest.Mock;
 
 const TURF = {
@@ -48,6 +50,7 @@ describe('Owner Web — Operating Hours default (backlog A-13)', () => {
     mockListAvailabilityBlocks.mockReset().mockResolvedValue({ results: [] });
     mockGetTurfPricing.mockReset().mockResolvedValue({ results: [] });
     mockGetTurfOperatingHours.mockReset().mockResolvedValue({ results: [] });
+    mockGetMyTurfs.mockReset().mockResolvedValue({ results: [] });
     mockSetTurfOperatingHours.mockReset().mockResolvedValue({ results: [] });
   });
 

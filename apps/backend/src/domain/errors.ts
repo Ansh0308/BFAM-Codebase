@@ -10,6 +10,14 @@ export class TurfNotFoundError extends Error {
   }
 }
 
+// Backlog A-14: copying a pitch's details onto itself.
+export class InvalidTurfStateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidTurfStateError';
+  }
+}
+
 export class VenueNotFoundError extends Error {
   constructor(venueId: string) {
     super(`Venue ${venueId} not found`);

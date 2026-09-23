@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import {
   assignStaffSchema,
   assignTurfToVenueSchema,
+  copyTurfDetailsSchema,
   createAvailabilityBlockSchema,
   createTurfSchema,
   createVenueSchema,
@@ -16,6 +17,7 @@ import {
 } from '../validation/schemas';
 import {
   assignTurfToVenue,
+  copyTurfDetails,
   createAvailabilityBlock,
   createTurf,
   createVenue,
@@ -45,6 +47,7 @@ import {
 } from '../services/staffService';
 import {
   ForbiddenActionError,
+  InvalidTurfStateError,
   StaffAssignmentNotFoundError,
   TurfNotFoundError,
   VenueNotFoundError,
@@ -62,6 +65,9 @@ function handleOwnerError(error: unknown, res: Response) {
   }
   if (error instanceof ForbiddenActionError) {
     return res.status(403).json({ error: { message: error.message, status: 403 } });
+  }
+  if (error instanceof InvalidTurfStateError) {
+    return res.status(409).json({ error: { message: error.message, status: 409 } });
   }
   return null;
 }
@@ -285,6 +291,32 @@ router.put(
     try {
       const hours = await setOperatingHours(req.params.turfId, req.auth!.sub, parsed.data.rows);
       return res.status(200).json({ results: hours });
+    } catch (error) {
+      const handled = handleOwnerError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /owner/turfs/:turfId/copy-from — backlog A-14: copy another pitch's
+// pricing/operating-hours/description/ball-types/sound-setting onto this
+// one (:turfId is the target being filled in, source_turf_id in the body
+// is where the details are copied from).
+router.post(
+  '/turfs/:turfId/copy-from',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = copyTurfDetailsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid payload', status: 400 } });
+    }
+    try {
+      const turf = await copyTurfDetails(
+        req.params.turfId,
+        parsed.data.source_turf_id,
+        req.auth!.sub,
+      );
+      return res.status(200).json(turf);
     } catch (error) {
       const handled = handleOwnerError(error, res);
       if (handled) return handled;

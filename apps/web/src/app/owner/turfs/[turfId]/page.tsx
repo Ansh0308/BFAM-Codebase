@@ -78,6 +78,13 @@ export default function ManageTurfPage() {
   const [blockEnd, setBlockEnd] = useState('');
   const [blockReason, setBlockReason] = useState<(typeof BLOCK_REASONS)[number]>('MAINTENANCE');
 
+  // Backlog A-14: copy another pitch's pricing/hours/description/ball-types/
+  // sound-setting onto this one — the owner's other turfs, to pick a source
+  // pitch from.
+  const [otherTurfs, setOtherTurfs] = useState<Turf[]>([]);
+  const [copyFromTurfId, setCopyFromTurfId] = useState<string>('');
+  const [copyingDetails, setCopyingDetails] = useState(false);
+
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
@@ -85,14 +92,16 @@ export default function ManageTurfPage() {
       apiClient.listAvailabilityBlocks(turfId),
       apiClient.getTurfPricing(turfId),
       apiClient.getTurfOperatingHours(turfId),
+      apiClient.getMyTurfs(),
     ])
-      .then(([t, blockRes, pricingRes, hoursRes]) => {
+      .then(([t, blockRes, pricingRes, hoursRes, turfsRes]) => {
         setTurf(t);
         setTurfName(t.turf_name);
         setAddressLine(t.address_line);
         setCity(t.city);
         setPricing(pricingRes.results);
         setBlocks(blockRes.results);
+        setOtherTurfs(turfsRes.results.filter((other) => other.turf_id !== turfId));
         const byDay: Record<number, { open: string; close: string }> = {};
         for (const h of hoursRes.results as TurfOperatingHours[]) {
           byDay[h.day_of_week] = { open: h.open_time.slice(0, 5), close: h.close_time.slice(0, 5) };
@@ -108,6 +117,20 @@ export default function ManageTurfPage() {
       .catch(() => setError('Could not load this turf.'))
       .finally(() => setLoading(false));
   }, [turfId]);
+
+  async function copyDetailsFromOtherTurf() {
+    if (!copyFromTurfId) return;
+    setCopyingDetails(true);
+    setError(null);
+    try {
+      await apiClient.copyTurfDetails(turfId, copyFromTurfId);
+      load();
+    } catch (err) {
+      setError(err instanceof BFAMApiError ? err.message : 'Could not copy pitch details.');
+    } finally {
+      setCopyingDetails(false);
+    }
+  }
 
   useEffect(() => {
     load();
@@ -309,6 +332,43 @@ export default function ManageTurfPage() {
               </div>
               <PrimaryButton onClick={assignToVenue} disabled={!assignVenueId || assigning}>
                 {assigning ? 'Assigning…' : 'Assign to Venue'}
+              </PrimaryButton>
+            </div>
+          )}
+
+          {/* Backlog A-14: adding another pitch at the same venue
+              shouldn't mean re-entering identical pricing/hours by hand. */}
+          {otherTurfs.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-border-subtle">
+              <h3 className="font-ui font-bold text-body text-text-secondary uppercase text-micro mb-2">
+                Copy Details From Another Pitch
+              </h3>
+              <p className="font-ui text-micro text-text-tertiary mb-3">
+                Copies pricing, operating hours, description, ball types, and the sound setting from
+                the pitch you pick — replacing whatever this pitch already has.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-3" data-testid="copy-from-turf-select">
+                {otherTurfs.map((t) => (
+                  <button
+                    key={t.turf_id}
+                    type="button"
+                    onClick={() => setCopyFromTurfId(t.turf_id)}
+                    data-testid={`copy-from-turf-${t.turf_id}`}
+                    className={`rounded-md border px-4 py-2 font-ui text-body ${
+                      copyFromTurfId === t.turf_id
+                        ? 'bg-brand-red border-brand-red text-white font-bold'
+                        : 'bg-surface border-border-strong text-text-primary'
+                    }`}
+                  >
+                    {t.turf_name}
+                  </button>
+                ))}
+              </div>
+              <PrimaryButton
+                onClick={copyDetailsFromOtherTurf}
+                disabled={!copyFromTurfId || copyingDetails}
+              >
+                {copyingDetails ? 'Copying…' : 'Copy Details'}
               </PrimaryButton>
             </div>
           )}
