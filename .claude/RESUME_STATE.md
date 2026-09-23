@@ -45,9 +45,19 @@ next available item).
 
 ## Where things stand right now (2026-09-23, continued session)
 
-`main` branch, latest commit at time of writing: `b696a5d` — "Add
-copy-pitch-details across pitches at a venue (A-14)". Working tree is
-clean, everything up to and including A-14 is committed and pushed.
+`main` branch, latest commit at time of writing: `485d933` — "Add
+Reschedule Booking as its own flow (G-23)". Working tree is clean,
+everything up to and including G-23 is committed and pushed.
+
+**Correction to this file's own prior notes**: G-24 ("audit_logs table
+doesn't exist at all") is stale/wrong — the `audit_logs` table exists
+(phase1 migration) and `bookingService.ts`'s `cancelBooking` already
+wrote to it before this session started; `rescheduleBooking` (added
+this cycle) now also does. The real remaining gap is narrower than the
+original note: payment/refund events (`paymentService.ts`), match-
+result corrections, and admin actions still don't write audit_logs
+entries. Scope G-24 as "extend audit logging to the write paths that
+don't have it yet," not "build it from scratch."
 
 Full context: the canonical, continuously-updated status doc is
 `BFAM_Gap_Analysis_and_TODO.md` at the repo root — read it for the full
@@ -118,40 +128,44 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     both Owner Mobile and Web). Copies description, ball types, sound
     setting, pricing, and operating hours — never the name or address.
     Same no-live-DB caveat as A-13.
+12. **G-22 — Minor/age-gate enforced at registration itself**
+    (`createUserAccount` in `apps/backend/src/services/accountService.ts`
+    now computes `is_minor`/rejects under-13 from an optional
+    `date_of_birth` on both `POST /auth/register` and
+    `POST /auth/social/complete`, reusing profileService's existing
+    `calculateAge`/`MINIMUM_AGE_YEARS`/`UnderMinimumAgeError`). Did NOT
+    wire the mobile signup UI to collect `date_of_birth` at registration
+    time — flagged under "Needs founder input" below, since
+    `DateOfBirthField.tsx` documents a conflicting 2026-08-30 product
+    decision.
+13. **G-23 — Reschedule Booking as its own flow**
+    (`rescheduleBooking` in `apps/backend/src/services/bookingService.ts`,
+    route `POST /bookings/:bookingId/reschedule`, api-client
+    `rescheduleBooking()`, mobile screen reusing the turf-availability
+    slot grid). Implemented as create-new-then-cancel-old, linked via a
+    `BOOKING_RESCHEDULED` audit_logs entry — see the commit message for
+    the full scoping rationale (no migration, no "recharge the
+    difference" logic).
 
 ### What's next, in priority order (per `BFAM_Gap_Analysis_and_TODO.md` Part 4 / the remaining-backlog doc's Section D)
 
-1. **G-22** — Minor/age-gate doesn't actually block registration at
-   signup (only checked later, at profile-edit time). Real compliance
-   gap, well-scoped: `apps/backend/src/services/accountService.ts`'s
-   `createUserAccount` hardcodes `is_minor: false` and never checks
-   `date_of_birth` against `MINIMUM_AGE_YEARS` (see
-   `apps/backend/src/domain/errors.ts`'s `UnderMinimumAgeError` and
-   wherever `MINIMUM_AGE_YEARS` is defined) at registration time.
-2. **G-23** — Reschedule Booking as its own flow (distinct from
-   cancel-then-rebook). Needs a product-scoping decision (does it reuse
-   cancel+rebook internally, or need its own state machine?) — if working
-   autonomously with no founder available, implement the simpler
-   interpretation (a thin wrapper that atomically cancels the old slot and
-   creates a new one in one transaction, refunding/re-charging only the
-   difference if the price differs) and note the decision clearly in the
-   commit message so it can be revisited.
-3. **G-24** — Audit log (`audit_logs` table doesn't exist at all, despite
-   being expected by the original data dictionary/build docs). Cuts across
-   almost every write path (cancellations, refunds, match-result
-   corrections, admin actions) — scope this deliberately as its own
-   migration + a small `auditLogService.ts` + call sites, not bolted onto
-   an unrelated PR.
-4. **G-21** — Consent capture at signup with policy versioning (only a
+1. **G-24** — Audit log. **Note: narrower than originally scoped** — the
+   `audit_logs` table already exists and `bookingService.ts` already
+   writes to it (cancellations, reschedules). What's still missing:
+   payment/refund events (`apps/backend/src/services/paymentService.ts`),
+   match-result corrections, and admin actions don't write audit_logs
+   entries yet. Scope this as "extend to the remaining write paths," not
+   "build from scratch."
+2. **G-21** — Consent capture at signup with policy versioning (only a
    single boolean `waiver_accepted` exists today, no per-category consent
    log). Needs a real data model decision — same "do it once properly"
    caution as G-24.
-5. **E-3** — Turf Management in Admin Web (cheapest remaining Admin Panel
+3. **E-3** — Turf Management in Admin Web (cheapest remaining Admin Panel
    module — Owner Web's turf-management UI already exists, mostly needs
    the ownership check relaxed to "any turf" for an admin caller).
-6. **E-2, E-4, E-5, E-6** — rest of the Admin Panel (Match/Team/Reviews
+4. **E-2, E-4, E-5, E-6** — rest of the Admin Panel (Match/Team/Reviews
    Management, Reports).
-7. Everything in the "long tail" section of the remaining-backlog doc
+5. Everything in the "long tail" section of the remaining-backlog doc
    (Rankings, XP/Levels, Achievements, Tournaments, etc.) — lowest
    priority, pick based on what seems highest-value; none of it blocks
    anything else.
