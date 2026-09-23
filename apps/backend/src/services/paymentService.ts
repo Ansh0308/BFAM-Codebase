@@ -13,6 +13,7 @@ import {
 import { createRazorpayOrder, refundGatewayPayment } from './razorpayService';
 import { sendNotification } from './notificationService';
 import { assertStaffVerified } from './staffService';
+import { writeAuditLog } from './auditLogService';
 
 interface BookingRow {
   booking_id: string;
@@ -439,6 +440,7 @@ export async function refundPaymentsForBooking(
   bookingId: string,
   cancelledAt: Date,
   initiatedBy: string,
+  initiatedByRole?: string,
 ) {
   const booking = await fetchBooking(bookingId);
   if (!booking) throw new BookingNotFoundError(bookingId);
@@ -475,6 +477,16 @@ export async function refundPaymentsForBooking(
           completed_at: now,
         },
       ]);
+      await writeAuditLog({
+        actorUserId: initiatedBy,
+        actorRole: initiatedByRole ?? null,
+        action: 'REFUND_ISSUED',
+        resourceType: 'payment',
+        resourceId: payment.payment_id,
+        beforeData: { payment_status: payment.payment_status },
+        afterData: { refund_id: refundId, refund_amount: 0, refund_status: 'COMPLETED' },
+      });
+
       results.push({
         payment_id: payment.payment_id,
         refund_amount: 0,
@@ -521,6 +533,16 @@ export async function refundPaymentsForBooking(
         .getQueryInterface()
         .bulkUpdate('payments', { payment_status: 'REFUNDED' }, { payment_id: payment.payment_id });
     }
+
+    await writeAuditLog({
+      actorUserId: initiatedBy,
+      actorRole: initiatedByRole ?? null,
+      action: 'REFUND_ISSUED',
+      resourceType: 'payment',
+      resourceId: payment.payment_id,
+      beforeData: { payment_status: payment.payment_status },
+      afterData: { refund_id: refundId, refund_amount: refundAmount, refund_status: refundStatus },
+    });
 
     results.push({
       payment_id: payment.payment_id,

@@ -15,6 +15,7 @@ import {
 } from '../domain/errors';
 import { SLOT_DURATION_MINUTES, resolveDayType } from './turfService';
 import { refundPaymentsForBooking } from './paymentService';
+import { writeAuditLog } from './auditLogService';
 
 export interface CreateBookingInput {
   turfId: string;
@@ -250,24 +251,18 @@ export async function cancelBooking(
     { booking_id: bookingId },
   );
 
-  await sequelize.getQueryInterface().bulkInsert('audit_logs', [
-    {
-      log_id: randomUUID(),
-      actor_user_id: actor.userId,
-      actor_role: actor.role,
-      action: 'BOOKING_CANCELLED',
-      resource_type: 'booking',
-      resource_id: bookingId,
-      before_data: JSON.stringify({ booking_status: booking.booking_status }),
-      after_data: JSON.stringify({
-        booking_status: 'CANCELLED',
-        cancellation_reason: cancellationReason ?? null,
-      }),
-      ip_address: null,
-      request_id: null,
-      created_at: now,
+  await writeAuditLog({
+    actorUserId: actor.userId,
+    actorRole: actor.role,
+    action: 'BOOKING_CANCELLED',
+    resourceType: 'booking',
+    resourceId: bookingId,
+    beforeData: { booking_status: booking.booking_status },
+    afterData: {
+      booking_status: 'CANCELLED',
+      cancellation_reason: cancellationReason ?? null,
     },
-  ]);
+  });
 
   // Module 2.4: refund whatever was already paid, per the cancellation-
   // timing policy (PRD §12.17). A refund-processing failure must never
@@ -275,7 +270,7 @@ export async function cancelBooking(
   // any refund that couldn't be completed is recorded FAILED in `refunds`
   // for manual follow-up rather than silently lost.
   try {
-    await refundPaymentsForBooking(bookingId, now, actor.userId);
+    await refundPaymentsForBooking(bookingId, now, actor.userId, actor.role);
   } catch {
     // Deliberately swallowed — see comment above.
   }
@@ -356,26 +351,19 @@ export async function rescheduleBooking(
 
   await cancelBooking(bookingId, actor, `Rescheduled to booking ${newBooking.booking_id}.`);
 
-  const now = new Date();
-  await sequelize.getQueryInterface().bulkInsert('audit_logs', [
-    {
-      log_id: randomUUID(),
-      actor_user_id: actor.userId,
-      actor_role: actor.role,
-      action: 'BOOKING_RESCHEDULED',
-      resource_type: 'booking',
-      resource_id: bookingId,
-      before_data: JSON.stringify({
-        booking_date: booking.booking_date,
-        start_time: booking.start_time,
-        end_time: booking.end_time,
-      }),
-      after_data: JSON.stringify({ new_booking_id: newBooking.booking_id }),
-      ip_address: null,
-      request_id: null,
-      created_at: now,
+  await writeAuditLog({
+    actorUserId: actor.userId,
+    actorRole: actor.role,
+    action: 'BOOKING_RESCHEDULED',
+    resourceType: 'booking',
+    resourceId: bookingId,
+    beforeData: {
+      booking_date: booking.booking_date,
+      start_time: booking.start_time,
+      end_time: booking.end_time,
     },
-  ]);
+    afterData: { new_booking_id: newBooking.booking_id },
+  });
 
   return newBooking;
 }

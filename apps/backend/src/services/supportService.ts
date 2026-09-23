@@ -9,6 +9,7 @@ import {
   WaiverNotAcceptedError,
 } from '../domain/errors';
 import { sendNotification } from './notificationService';
+import { writeAuditLog } from './auditLogService';
 
 export interface SupportTicketRow {
   ticket_id: string;
@@ -195,6 +196,20 @@ export async function updateTicketStatus(
     params: { message: `Your support ticket is now ${newStatus.replace('_', ' ').toLowerCase()}.` },
     relatedEntityType: 'support_ticket',
     relatedEntityId: ticketId,
+  });
+
+  // Backlog G-24: the one real admin-only write path in the app today
+  // (POST /support/tickets/:ticketId/status is gated to ADMIN — see
+  // routes/support.ts — so the actor role here is always ADMIN, not taken
+  // as a parameter).
+  await writeAuditLog({
+    actorUserId,
+    actorRole: 'ADMIN',
+    action: 'SUPPORT_TICKET_STATUS_CHANGED',
+    resourceType: 'support_ticket',
+    resourceId: ticketId,
+    beforeData: { status: ticket.status },
+    afterData: { status: newStatus },
   });
 
   return fetchTicket(ticketId);
