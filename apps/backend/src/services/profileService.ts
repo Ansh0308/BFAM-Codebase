@@ -15,7 +15,7 @@ import { getFollowSummary, type FollowSummary } from './followService';
 // gating a parent/guardian-consent step ends up needing (out of scope
 // here — this only computes and stores the flag).
 export const MINIMUM_AGE_YEARS = 13;
-const MINOR_UNTIL_AGE_YEARS = 18;
+export const MINOR_UNTIL_AGE_YEARS = 18;
 
 // Pure so it's trivially testable without faking the system clock inside a
 // bigger update flow — `today` defaults to now but can be overridden.

@@ -14,6 +14,8 @@ import { sequelize } from '../config/sequelize';
 import { allocateBfamId } from './bfamIdAllocator';
 import { lookupJerseyNumber } from './cricketerSearchService';
 import { UserRole } from './authService';
+import { calculateAge, MINIMUM_AGE_YEARS, MINOR_UNTIL_AGE_YEARS } from './profileService';
+import { UnderMinimumAgeError } from '../domain/errors';
 
 export interface CreateAccountInput {
   phoneNumber: string;
@@ -30,6 +32,8 @@ export interface CreateAccountInput {
   favoriteCricketerExternalId?: string | null;
   /** Backlog A-9 — a real name, shown in place of the BFAM ID everywhere a player is listed. */
   fullName?: string | null;
+  /** Backlog G-22 — when supplied, enforces the minimum-age gate at signup itself. */
+  dateOfBirth?: string | null;
 }
 
 export interface CreatedAccount {
@@ -40,6 +44,18 @@ export interface CreatedAccount {
 export async function createUserAccount(input: CreateAccountInput): Promise<CreatedAccount> {
   const userId = randomUUID();
   const now = new Date();
+
+  // Backlog G-22: enforced here (not just later, at Profile Setup edit
+  // time via updateMyProfile) so a below-minimum-age date of birth blocks
+  // the registration itself. Not every signup flow collects it up front —
+  // when it's absent, is_minor stays false here exactly as before, and the
+  // gate still applies later if/when the player sets it via their profile.
+  let isMinor = false;
+  if (input.dateOfBirth) {
+    const age = calculateAge(input.dateOfBirth);
+    if (age < MINIMUM_AGE_YEARS) throw new UnderMinimumAgeError(MINIMUM_AGE_YEARS);
+    isMinor = age < MINOR_UNTIL_AGE_YEARS;
+  }
 
   const baseUserRow = {
     user_id: userId,
@@ -54,7 +70,7 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
     preferred_language: input.preferredLanguage ?? 'en',
     google_id: input.googleId ?? null,
     apple_id: input.appleId ?? null,
-    is_minor: false,
+    is_minor: isMinor,
     last_login_at: null,
     // Liability waiver (PRD §32.9), consumed by module 2.13's injury
     // report gate. Safe to stamp unconditionally here because both
@@ -100,7 +116,7 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
           community_rating: null,
           bio: null,
           full_name: input.fullName ?? null,
-          date_of_birth: null,
+          date_of_birth: input.dateOfBirth ?? null,
           favorite_cricketer_name: input.favoriteCricketerName ?? null,
           favorite_cricketer_external_id: input.favoriteCricketerExternalId ?? null,
           created_at: now,

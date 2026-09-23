@@ -132,6 +132,63 @@ describe('POST /auth/register', () => {
     expect(usersTable).toHaveLength(0);
   });
 
+  // Backlog G-22: the minimum-age gate (PRD §32.7) must block registration
+  // itself when a date of birth is supplied, not only a later profile edit.
+  it('rejects registration when the supplied date of birth is under the minimum age', async () => {
+    const under13 = new Date();
+    under13.setFullYear(under13.getFullYear() - 10);
+
+    const response = await request(app)
+      .post('/auth/register')
+      .send({
+        phone_number: '+919876543211',
+        password: 'SuperSecret123',
+        role: 'PLAYER',
+        date_of_birth: under13.toISOString().slice(0, 10),
+        waiver_accepted: true,
+      });
+
+    expect(response.status).toBe(422);
+    expect(response.body.error.message).toMatch(/at least 13 years old/);
+    expect(usersTable).toHaveLength(0);
+  });
+
+  it('accepts registration with an adult date of birth and stores is_minor correctly', async () => {
+    const adult = new Date();
+    adult.setFullYear(adult.getFullYear() - 25);
+
+    const response = await request(app)
+      .post('/auth/register')
+      .send({
+        phone_number: '+919876543212',
+        password: 'SuperSecret123',
+        role: 'PLAYER',
+        date_of_birth: adult.toISOString().slice(0, 10),
+        waiver_accepted: true,
+      });
+
+    expect(response.status).toBe(201);
+    expect(usersTable[0].is_minor).toBe(false);
+  });
+
+  it('flags is_minor for a 13-17 year old registrant without blocking registration', async () => {
+    const teen = new Date();
+    teen.setFullYear(teen.getFullYear() - 15);
+
+    const response = await request(app)
+      .post('/auth/register')
+      .send({
+        phone_number: '+919876543213',
+        password: 'SuperSecret123',
+        role: 'PLAYER',
+        date_of_birth: teen.toISOString().slice(0, 10),
+        waiver_accepted: true,
+      });
+
+    expect(response.status).toBe(201);
+    expect(usersTable[0].is_minor).toBe(true);
+  });
+
   it('assigns strictly increasing, unique BFAM IDs to concurrent registrations', async () => {
     const requests = Array.from({ length: 25 }, (_, index) =>
       request(app)

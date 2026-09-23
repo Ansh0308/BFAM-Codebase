@@ -304,11 +304,15 @@ app.post('/auth/register', async (req: Request, res: Response) => {
       favoriteCricketerName: profile.favorite_cricketer_name,
       favoriteCricketerExternalId: profile.favorite_cricketer_external_id,
       fullName: profile.full_name,
+      dateOfBirth: profile.date_of_birth,
     });
 
     const token = issueJwt({ userId, role: profile.role, bfamId });
     return res.status(201).json({ token, user_id: userId, bfam_id: bfamId });
   } catch (error) {
+    if (error instanceof UnderMinimumAgeError) {
+      return res.status(422).json({ error: { message: error.message, status: 422 } });
+    }
     const message = error instanceof Error ? error.message : 'Registration failed';
     return res.status(409).json({ error: { message, status: 409 } });
   }
@@ -689,11 +693,15 @@ app.post('/auth/social/complete', async (req: Request, res: Response) => {
       favoriteCricketerName: favorite_cricketer_name,
       favoriteCricketerExternalId: favorite_cricketer_external_id,
       fullName: full_name,
+      dateOfBirth: parsed.data.date_of_birth,
     });
 
     const token = issueJwt({ userId, role: role as UserRole, bfamId });
     return res.status(201).json({ token, user_id: userId, bfam_id: bfamId });
   } catch (error) {
+    if (error instanceof UnderMinimumAgeError) {
+      return res.status(422).json({ error: { message: error.message, status: 422 } });
+    }
     const message = error instanceof Error ? error.message : 'Social signup failed';
     return res.status(409).json({ error: { message, status: 409 } });
   }

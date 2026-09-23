@@ -98,6 +98,12 @@ export const registerUserSchema = z.object({
   // Optional at signup — collectible/editable later via Profile Setup —
   // since backfilling it for every account isn't feasible.
   full_name: z.string().max(100).nullable().optional(),
+  // Backlog G-22: collected at signup (not just later, in Profile Setup)
+  // so the minimum-age gate (PRD §32.7) actually blocks registration
+  // itself, rather than only a later profile edit. Optional here because
+  // not every signup flow collects it up front — createUserAccount only
+  // enforces the gate when a value is actually supplied.
+  date_of_birth: dateOnly.nullable().optional(),
   // Liability waiver consent (PRD §32.9) — must be an affirmative true,
   // never defaulted or inferred. Registration is rejected outright
   // without it, so a users row with liability_waiver_accepted_at set is
@@ -156,6 +162,8 @@ export const socialCompleteSchema = z.object({
   favorite_cricketer_name: z.string().max(100).nullable().optional(),
   favorite_cricketer_external_id: z.string().max(50).nullable().optional(),
   full_name: z.string().max(100).nullable().optional(),
+  // Backlog G-22 — same reasoning as registerUserSchema above.
+  date_of_birth: dateOnly.nullable().optional(),
   // Same liability waiver requirement as phone/password registration
   // (registerUserSchema) — the social signup branch must not skip it.
   waiver_accepted: z.literal(true),

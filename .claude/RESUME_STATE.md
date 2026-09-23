@@ -164,6 +164,19 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
 - S-6 (whether duplicate-signup validation should move earlier/inline).
 - A-17 (whether a specific screen still needs a manual reload — the two
   likely culprits already self-refresh).
+- **G-22 follow-up** (backend half done, see "Completed this cycle"
+  below): whether the mobile signup UI itself should collect
+  `date_of_birth` at registration (before account creation), vs. leaving
+  it collected only in the immediately-following Profile Setup step as
+  today. `apps/mobile/src/components/DateOfBirthField.tsx`'s own comment
+  documents a 2026-08-30 product decision that its Profile Setup
+  collection is "for future analytics, not age-gating" — which directly
+  conflicts with `profileService.ts`'s pre-existing G-04 age gate that
+  already throws `UnderMinimumAgeError` off that same field. Given that
+  explicit, dated product note, don't wire a signup-time DOB field
+  autonomously — confirm with the founder first whether the "not
+  age-gating" decision still holds, since both call sites now enforce
+  the gate identically.
 
 ## Standing conventions to follow (established this session, don't deviate)
 

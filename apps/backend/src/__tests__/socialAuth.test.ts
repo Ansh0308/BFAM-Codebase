@@ -185,6 +185,30 @@ describe('Social auth (Google / Apple)', () => {
     expect(playersTable).toHaveLength(0);
   });
 
+  // Backlog G-22: the minimum-age gate must also apply to the social signup
+  // completion path, not just phone/password registration.
+  it('rejects /auth/social/complete when the supplied date of birth is under the minimum age', async () => {
+    googleVerifyResult = { sub: 'google-uid-under-age', email: 'young.player@example.com' };
+    const googleResponse = await request(app).post('/auth/google').send({ id_token: 'fake' });
+
+    const under13 = new Date();
+    under13.setFullYear(under13.getFullYear() - 10);
+
+    const response = await request(app)
+      .post('/auth/social/complete')
+      .send({
+        social_ticket: googleResponse.body.social_ticket,
+        phone_number: '+919876500099',
+        role: 'PLAYER',
+        date_of_birth: under13.toISOString().slice(0, 10),
+        waiver_accepted: true,
+      });
+
+    expect(response.status).toBe(422);
+    expect(response.body.error.message).toMatch(/at least 13 years old/);
+    expect(usersTable).toHaveLength(0);
+  });
+
   it('rejects /auth/social/complete with a tampered/invalid ticket', async () => {
     const response = await request(app).post('/auth/social/complete').send({
       social_ticket: 'not-a-real-ticket',
