@@ -45,17 +45,19 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `831cf1f` — "Add Team
-Management to Admin Web (E-4)". Working tree is clean, everything up
-to and including E-4 is committed and pushed.
+`main` branch, latest commit at time of writing: `e317b7f` — "Add
+Match Management to Admin Web (E-2)". Working tree is clean,
+everything up to and including E-2 is committed and pushed.
 
-**Admin Web now has**: Players directory, Home Banners CMS, Turf
-directory + suspend/reactivate, Team directory + archive/reactivate,
-and Reviews directory + delete
-(`apps/web/src/app/admin/{players,banners,turfs,teams,reviews}/page.tsx`).
-Still missing (E-2/E-6): Match Management, Reports. Check
-`apps/web/src/app/admin/` directly before starting either — don't
-trust this file's item numbering alone, it can drift.
+**Admin Web now has**: Players, Matches, Turfs, Teams, and Reviews
+directories (the latter four each with a moderation action), plus the
+Home Banners CMS
+(`apps/web/src/app/admin/{players,matches,turfs,teams,reviews,banners}/page.tsx`).
+Only **E-6 (Reports)** remains of the original E-2..E-6 gap list —
+unlike E-2/E-3/E-4/E-5, this one is NOT a "directory + moderation"
+shape; it's real aggregate business metrics (PRD §12.49 Business
+Analytics), which has never existed anywhere in the app. Scope it as
+its own thing, not a fifth copy of the same pattern.
 
 Full context: the canonical, continuously-updated status doc is
 `BFAM_Gap_Analysis_and_TODO.md` at the repo root — read it for the full
@@ -193,19 +195,31 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     `GET /admin/teams` / `PATCH /admin/teams/:teamId/status`, and
     `apps/web/src/app/admin/teams/page.tsx` (directory + search +
     Archive/Reactivate). Same directory+moderation shape as E-3/E-5.
+19. **E-2 — Match Management in Admin Web**
+    New `apps/backend/src/services/adminMatchService.ts`
+    (`listAllMatchesForAdmin` — organizer name/phone and turf name via
+    joins through `bookings`; `forceCancelMatchAsAdmin` — writes a
+    `MATCH_FORCE_CANCELLED` audit_logs entry, rejects a match already
+    COMPLETED/CANCELLED), routes `GET /admin/matches` /
+    `POST /admin/matches/:matchId/force-cancel`, and
+    `apps/web/src/app/admin/matches/page.tsx` (directory + search +
+    confirm-then-force-cancel). Unlike E-3, there was no existing
+    organizer-facing cancel flow to relax an ownership check on —
+    force-cancel is a new, admin-only action from scratch. This closes
+    out the original E-2..E-6 gap list except E-6.
 
 ### What's next, in priority order (per `BFAM_Gap_Analysis_and_TODO.md` Part 4 / the remaining-backlog doc's Section D)
 
-1. **E-2, E-6** — rest of the Admin Panel (Match Management, Reports).
-   Check `apps/web/src/app/admin/` directly first — don't trust
-   backlog-doc item numbers, they can drift (E-3/E-4/E-5 all turned out
-   to need less new ground than their original notes implied — the real
-   gap each time was "no cross-cutting directory + moderation action
-   exists," not a full feature build; E-2 likely follows the same
-   shape — check matchService.ts for what moderation action would even
-   mean for a match, e.g. force-cancel/void a match). Once either lands,
-   wire `writeAuditLog()` (see G-24 above) into its write paths at the
-   same time, not as a follow-up.
+1. **E-6 — Reports (Business Analytics, PRD §12.49)**. Different shape
+   from E-2/E-3/E-4/E-5 — not a directory+moderation page, since there's
+   no existing "reports" concept anywhere to extend. Needs real
+   aggregate queries (bookings/revenue over time, cancellation rate,
+   active player/turf/team counts) that don't exist yet. Scope
+   deliberately: a first cut of the highest-value KPIs of PRD §12.49 is
+   fine — a small `adminReportsService.ts` + one `GET /admin/reports`
+   endpoint + one Admin Web page, not the full analytics platform PRD
+   §12.49/§12.50 implies eventually. Note what's deferred in the commit
+   message.
 2. Everything in the "long tail" section of the remaining-backlog doc
    (Rankings, XP/Levels, Achievements, Tournaments, etc.) — lowest
    priority, pick based on what seems highest-value; none of it blocks
