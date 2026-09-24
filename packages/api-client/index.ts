@@ -81,6 +81,7 @@ import {
   OwnerPayment,
   SupportTicket,
   SupportCategory,
+  AdminMatch,
   AdminPlayer,
   AdminReview,
   AdminTeam,
@@ -1262,6 +1263,16 @@ export class BFAMApiClient {
       method: 'PATCH',
       body: JSON.stringify({ team_status: teamStatus }),
     });
+  }
+
+  // ---- Backlog E-2: Match Management in Admin Web ----
+
+  async getAllMatchesAdmin(): Promise<{ results: AdminMatch[] }> {
+    return this.request('/admin/matches');
+  }
+
+  async forceCancelMatchAdmin(matchId: string): Promise<AdminMatch> {
+    return this.request(`/admin/matches/${matchId}/force-cancel`, { method: 'POST' });
   }
 
   // ---- Backlog B-6: Home Page Carousel ----

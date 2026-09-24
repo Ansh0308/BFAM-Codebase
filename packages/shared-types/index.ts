@@ -1038,6 +1038,22 @@ export interface AdminTurf {
   created_at: string;
 }
 
+// Backlog E-2: Match Management in Admin Web — a cross-organizer
+// directory entry, not the fuller Match/GameRoom shape the organizer's
+// own screens use.
+export interface AdminMatch {
+  match_id: string;
+  match_name: string | null;
+  match_type: string;
+  match_status: string;
+  visibility: string;
+  scheduled_start_time: string;
+  organizer_name: string | null;
+  organizer_phone: string;
+  turf_name: string | null;
+  created_at: string;
+}
+
 // Backlog E-4: Team Management in Admin Web — a cross-captain directory
 // entry, not the fuller TeamDetails shape the captain's own screen edits.
 export interface AdminTeam {

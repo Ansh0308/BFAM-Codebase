@@ -49,6 +49,7 @@ import { listAllPlayers } from './services/adminUserService';
 import { listAllTurfsForAdmin, setTurfStatusAsAdmin } from './services/adminTurfService';
 import { listAllReviewsForAdmin, deleteReviewAsAdmin } from './services/adminReviewService';
 import { listAllTeamsForAdmin, setTeamStatusAsAdmin } from './services/adminTeamService';
+import { listAllMatchesForAdmin, forceCancelMatchAsAdmin } from './services/adminMatchService';
 import { createPromoCode, listPromoCodes } from './services/promoCodeService';
 import {
   createPromoCodeSchema,
@@ -60,6 +61,8 @@ import {
 import { createBanner, deleteBanner, listAllBanners, updateBanner } from './services/bannerService';
 import {
   BannerNotFoundError,
+  InvalidMatchStateError,
+  MatchNotFoundError,
   ReviewNotFoundError,
   TeamNotFoundError,
   TurfNotFoundError,
@@ -1219,6 +1222,38 @@ app.patch(
     } catch (error) {
       if (error instanceof TeamNotFoundError) {
         return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      throw error;
+    }
+  },
+);
+
+// Backlog E-2 — Match Management in Admin Web (PRD §9.1): a cross-
+// organizer match directory, plus a force-cancel moderation action — see
+// adminMatchService.ts for the full reasoning.
+app.get(
+  '/admin/matches',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (_req: Request, res: Response) => {
+    const matches = await listAllMatchesForAdmin();
+    return res.status(200).json({ results: matches });
+  },
+);
+app.post(
+  '/admin/matches/:matchId/force-cancel',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (req: Request, res: Response) => {
+    try {
+      const match = await forceCancelMatchAsAdmin(req.params.matchId, req.auth!.sub);
+      return res.status(200).json(match);
+    } catch (error) {
+      if (error instanceof MatchNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      if (error instanceof InvalidMatchStateError) {
+        return res.status(409).json({ error: { message: error.message, status: 409 } });
       }
       throw error;
     }
