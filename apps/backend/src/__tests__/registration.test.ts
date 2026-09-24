@@ -5,6 +5,8 @@
 
 let usersTable: Array<Record<string, unknown>> = [];
 let userConsents: Array<Record<string, unknown>> = [];
+let playersTable: Array<Record<string, unknown>> = [];
+let referralsTable: Array<Record<string, unknown>> = [];
 let lockHeld = false;
 const lockWaiters: Array<() => void> = [];
 
@@ -47,6 +49,10 @@ jest.mock('../config/sequelize', () => {
         if (sql.includes('SELECT reservation_id FROM reserved_bfam_ids')) {
           return [];
         }
+        if (sql.includes('SELECT player_id FROM players WHERE bfam_id')) {
+          const found = playersTable.find((p) => p.bfam_id === options.replacements?.bfamId);
+          return found ? [{ player_id: found.player_id }] : [];
+        }
         throw new Error(`Unexpected query in test fake: ${sql}`);
       },
       transaction: async (fn: (transaction: unknown) => Promise<unknown>) => fn({}),
@@ -54,6 +60,14 @@ jest.mock('../config/sequelize', () => {
         bulkInsert: async (table: string, rows: Array<Record<string, unknown>>) => {
           if (table === 'user_consents') {
             userConsents.push(...rows);
+            return;
+          }
+          if (table === 'players') {
+            playersTable.push(...rows);
+            return;
+          }
+          if (table === 'referrals') {
+            referralsTable.push(...rows);
             return;
           }
           if (table !== 'users') return;
@@ -76,6 +90,8 @@ describe('POST /auth/register', () => {
   beforeEach(() => {
     usersTable = [];
     userConsents = [];
+    playersTable = [];
+    referralsTable = [];
     lockHeld = false;
     lockWaiters.length = 0;
   });
@@ -213,6 +229,43 @@ describe('POST /auth/register', () => {
 
     expect(response.status).toBe(201);
     expect(usersTable[0].is_minor).toBe(true);
+  });
+
+  // Long tail — Referral System (PRD §12.53).
+  it('records a pending referral when a valid referral code is supplied', async () => {
+    const referrer = await request(app).post('/auth/register').send({
+      phone_number: '+919876543220',
+      password: 'SuperSecret123',
+      role: 'PLAYER',
+      waiver_accepted: true,
+    });
+    expect(referrer.status).toBe(201);
+    const referrerBfamId = referrer.body.bfam_id;
+
+    const referred = await request(app).post('/auth/register').send({
+      phone_number: '+919876543221',
+      password: 'SuperSecret123',
+      role: 'PLAYER',
+      referral_code: referrerBfamId,
+      waiver_accepted: true,
+    });
+
+    expect(referred.status).toBe(201);
+    expect(referralsTable).toHaveLength(1);
+    expect(referralsTable[0]).toMatchObject({ status: 'PENDING' });
+  });
+
+  it('silently ignores an unknown referral code rather than failing registration', async () => {
+    const response = await request(app).post('/auth/register').send({
+      phone_number: '+919876543222',
+      password: 'SuperSecret123',
+      role: 'PLAYER',
+      referral_code: 'BF9999999',
+      waiver_accepted: true,
+    });
+
+    expect(response.status).toBe(201);
+    expect(referralsTable).toHaveLength(0);
   });
 
   it('assigns strictly increasing, unique BFAM IDs to concurrent registrations', async () => {

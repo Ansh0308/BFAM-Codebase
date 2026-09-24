@@ -105,6 +105,11 @@ export const registerUserSchema = z.object({
   // not every signup flow collects it up front — createUserAccount only
   // enforces the gate when a value is actually supplied.
   date_of_birth: dateOnly.nullable().optional(),
+  // Long tail — Referral System (PRD §12.53): the referrer's own BFAM ID,
+  // entered by the new player if a friend shared one. Optional and
+  // best-effort — an invalid/unknown code is silently ignored rather than
+  // blocking registration (see referralService.ts).
+  referral_code: z.string().max(15).nullable().optional(),
   // Liability waiver consent (PRD §32.9) — must be an affirmative true,
   // never defaulted or inferred. Registration is rejected outright
   // without it, so a users row with liability_waiver_accepted_at set is
@@ -165,6 +170,9 @@ export const socialCompleteSchema = z.object({
   full_name: z.string().max(100).nullable().optional(),
   // Backlog G-22 — same reasoning as registerUserSchema above.
   date_of_birth: dateOnly.nullable().optional(),
+  // Long tail — Referral System (PRD §12.53) — same reasoning as
+  // registerUserSchema above.
+  referral_code: z.string().max(15).nullable().optional(),
   // Same liability waiver requirement as phone/password registration
   // (registerUserSchema) — the social signup branch must not skip it.
   waiver_accepted: z.literal(true),

@@ -19,6 +19,7 @@ import {
 import { oversNotationToLegalBalls } from '../domain/scoring';
 import { MatchNotFoundError, PlayerProfileNotFoundError } from '../domain/errors';
 import { sendNotification } from './notificationService';
+import { qualifyReferralIfPending } from './referralService';
 
 interface MatchRow {
   match_id: string;
@@ -100,8 +101,25 @@ export async function materializeMatchStatistics(matchId: string) {
   await materializeRatingEvents(matchId, Array.from(lines.values()));
   await materializeFairPlayEvents(matchId, Array.from(lines.values()));
   await materializeReliabilityEvents(matchId);
+  await qualifyReferralsForMatch(matchId);
 
   return { match_id: matchId, players_materialized: lines.size };
+}
+
+// Long tail — Referral System (PRD §12.53): the first time a referred
+// player appears on a completed match's confirmed roster is necessarily
+// their first completed match (their referral row, if any, was created at
+// signup — before they could have played anything) — see
+// referralService.ts's qualifyReferralIfPending for why this is safe to
+// call on every materialize, including the manual re-materialize route.
+async function qualifyReferralsForMatch(matchId: string): Promise<void> {
+  const roster = await sequelize.query<{ player_id: string }>(
+    "SELECT player_id, match_team_id FROM match_players WHERE match_id = :matchId AND invitation_status = 'CONFIRMED'",
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+  for (const { player_id } of roster) {
+    await qualifyReferralIfPending(player_id, undefined);
+  }
 }
 
 // Fair Play Rating (backlog B-5, split into its own FAIR_PLAY dimension by

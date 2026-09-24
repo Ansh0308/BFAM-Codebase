@@ -45,8 +45,7 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `59d8e2a` — "Add
-Peak-viewer analytics (long tail, G-25)". Working tree is clean,
+`main` branch, latest commit at time of writing: see git log — most recent item: Referral System. Working tree is clean,
 everything up to and including it is committed and pushed.
 
 **The entire well-scoped backlog from `BFAM_Remaining_Backlog_2026-09-23.md`
@@ -302,6 +301,19 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     already removed the live active-viewer count from that badge to
     keep it minimal, and peak count is inherently a post-match number
     anyway.
+
+26. **Referral System (long tail, PRD §12.53)**
+    Referral code = the referrer's own BFAM ID (no new identifier).
+    New table (one per referred player; also widens
+    with REFERRAL_REWARD), ( at signup — invalid/unknown codes are
+    silently ignored; — idempotent, awards
+    100 coins MVP default to the referrer), optional on
+    register/social-complete, qualification hooked into
+    (qualifying action = referred player's
+    first completed match), , and a mobile
+    reached from Profile. **Not done**: the mobile
+    signup screens don't yet have a field to enter a referral code
+    (api-client's RegisterPayload accepts it) — small follow-up.
 
 ### What's next
 

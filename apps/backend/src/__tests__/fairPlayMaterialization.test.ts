@@ -159,6 +159,7 @@ jest.mock('../config/sequelize', () => {
         ) {
           return [];
         }
+        if (sql.includes('FROM referrals')) return [];
         throw new Error(`Unexpected query in test fake: ${sql}`);
       },
       transaction: async (fn: (t: unknown) => Promise<unknown>) => fn({}),

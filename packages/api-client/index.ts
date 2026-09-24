@@ -60,6 +60,7 @@ import {
   XpTransaction,
   AchievementStatus,
   MatchStreaks,
+  Referral,
   RebookInfo,
   StatisticsScope,
   Notification,
@@ -163,6 +164,8 @@ export interface RegisterPayload {
   favorite_cricketer_external_id?: string | null;
   // Backlog A-9 — shown in place of the BFAM ID everywhere a player is listed.
   full_name?: string | null;
+  // Long tail — Referral System (PRD §12.53): a friend's BFAM ID.
+  referral_code?: string | null;
   // Liability waiver consent (PRD §32.9) — must be true; the backend
   // rejects registration without it.
   waiver_accepted: true;
@@ -991,6 +994,11 @@ export class BFAMApiClient {
 
   async getPlayerXpHistory(playerId: string): Promise<{ results: XpTransaction[] }> {
     return this.request(`/players/${playerId}/xp/history`);
+  }
+
+  // Long tail — Referral System (PRD §12.53).
+  async getMyReferrals(): Promise<{ results: Referral[] }> {
+    return this.request('/players/me/referrals');
   }
 
   // Long tail — Match Streaks (PRD §12.38).

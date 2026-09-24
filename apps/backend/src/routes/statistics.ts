@@ -17,6 +17,7 @@ import {
 import { getPlayerLevelProgress, getXpHistory } from '../services/xpService';
 import { getPlayerAchievements } from '../services/achievementService';
 import { getPlayerMatchStreaks } from '../services/matchStreakService';
+import { listMyReferrals } from '../services/referralService';
 
 const router = Router();
 
@@ -159,6 +160,25 @@ router.get(
       const playerId = await resolvePlayerIdParam(req);
       const streaks = await getPlayerMatchStreaks(playerId);
       return res.status(200).json(streaks);
+    } catch (error) {
+      if (error instanceof PlayerProfileNotFoundError) {
+        return res.status(422).json({ error: { message: error.message, status: 422 } });
+      }
+      throw error;
+    }
+  }),
+);
+
+// GET /players/:playerId/referrals — every friend this player has
+// referred, with reward status (long tail, PRD §12.53).
+router.get(
+  '/players/:playerId/referrals',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const playerId = await resolvePlayerIdParam(req);
+      const results = await listMyReferrals(playerId);
+      return res.status(200).json({ results });
     } catch (error) {
       if (error instanceof PlayerProfileNotFoundError) {
         return res.status(422).json({ error: { message: error.message, status: 422 } });

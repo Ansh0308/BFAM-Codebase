@@ -321,6 +321,7 @@ app.post('/auth/register', async (req: Request, res: Response) => {
       favoriteCricketerExternalId: profile.favorite_cricketer_external_id,
       fullName: profile.full_name,
       dateOfBirth: profile.date_of_birth,
+      referralCode: profile.referral_code,
     });
 
     const token = issueJwt({ userId, role: profile.role, bfamId });
@@ -710,6 +711,7 @@ app.post('/auth/social/complete', async (req: Request, res: Response) => {
       favoriteCricketerExternalId: favorite_cricketer_external_id,
       fullName: full_name,
       dateOfBirth: parsed.data.date_of_birth,
+      referralCode: parsed.data.referral_code,
     });
 
     const token = issueJwt({ userId, role: role as UserRole, bfamId });

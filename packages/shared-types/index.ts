@@ -1041,6 +1041,18 @@ export interface AdminTurf {
   created_at: string;
 }
 
+// Long tail — Referral System (PRD §12.53).
+export interface Referral {
+  referral_id: string;
+  referred_player_id: string;
+  referred_bfam_id: string;
+  referred_full_name: string | null;
+  status: 'PENDING' | 'QUALIFIED';
+  reward_coins: number | null;
+  created_at: string;
+  qualified_at: string | null;
+}
+
 // Long tail — Match Streaks (PRD §12.38). See domain/matchStreaks.ts for
 // why this is weekly-participation-based, not win-based.
 export interface MatchStreaks {

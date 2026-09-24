@@ -17,6 +17,7 @@ import { UserRole } from './authService';
 import { calculateAge, MINIMUM_AGE_YEARS, MINOR_UNTIL_AGE_YEARS } from './profileService';
 import { UnderMinimumAgeError } from '../domain/errors';
 import { recordConsent } from './consentService';
+import { recordReferralIfValid } from './referralService';
 
 export interface CreateAccountInput {
   phoneNumber: string;
@@ -35,6 +36,8 @@ export interface CreateAccountInput {
   fullName?: string | null;
   /** Backlog G-22 — when supplied, enforces the minimum-age gate at signup itself. */
   dateOfBirth?: string | null;
+  /** Long tail — Referral System (PRD §12.53): the referrer's BFAM ID, if supplied. */
+  referralCode?: string | null;
 }
 
 export interface CreatedAccount {
@@ -105,11 +108,12 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
       .getQueryInterface()
       .bulkInsert('users', [{ ...baseUserRow, bfam_id: bfamId }], { transaction });
 
+    const playerId = randomUUID();
     await sequelize.getQueryInterface().bulkInsert(
       'players',
       [
         {
-          player_id: randomUUID(),
+          player_id: playerId,
           user_id: userId,
           bfam_id: bfamId,
           playing_role: null,
@@ -134,6 +138,10 @@ export async function createUserAccount(input: CreateAccountInput): Promise<Crea
     );
 
     await recordConsent(userId, 'TERMS', now, transaction);
+
+    if (input.referralCode) {
+      await recordReferralIfValid(input.referralCode, playerId, transaction);
+    }
 
     return userId;
   }, jerseyNumberSuffix);

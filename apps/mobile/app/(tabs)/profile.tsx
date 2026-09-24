@@ -233,6 +233,20 @@ export default function Profile() {
             </Pressable>
 
             <Pressable
+              onPress={() => router.push('/referrals')}
+              className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
+              testID="referrals-section"
+            >
+              <Feather name="users" size={24} color="#D80000" />
+              <Text className="font-display text-card-title uppercase text-ink-black mt-2">
+                Refer a Friend
+              </Text>
+              <Text className="font-ui text-body text-text-tertiary text-center mt-1">
+                Share your code and earn coins when friends start playing.
+              </Text>
+            </Pressable>
+
+            <Pressable
               onPress={() => router.push('/match-streaks')}
               className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
               testID="match-streaks-section"
