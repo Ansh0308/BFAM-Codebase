@@ -312,18 +312,43 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     (qualifying action = referred player's
     first completed match), , and a mobile
     reached from Profile. **Not done**: the mobile
-    signup screens don't yet have a field to enter a referral code
-    (api-client's RegisterPayload accepts it) — small follow-up.
+    signup screens don't yet have a field — DONE in item 27a below.
+
+27. **"Small five" (2026-09-24)** — all committed + pushed:
+    a. Referral code field on mobile Player signup (role-selection screen,
+    passed through signupStore -> completeAccountCreation).
+    b. **Rewards catalog (PRD §12.36)**: rewards + reward_redemptions tables,
+    /rewards routes, coin-priced, redemption = PENDING row fulfilled
+    manually; mobile Rewards screen.
+    c. **Memberships (PRD §12.51)**: membership_plans + player_memberships,
+    /memberships routes; bought with COINS (no recurring-payment flow
+    exists); renewing while active extends from current expiry;
+    discount_percent stored/shown but NOT applied at checkout (needs
+    design vs promo+coin stacking). Mobile Membership screen.
+    d. **Special Recognition (PRD §12.39)**: GET /recognition?month=YYYY-MM,
+    computed on the fly (no table): Batting Star, Bowling Star, Player of
+    the Month (runs + 20 x wickets — judgement call), Sportsman of the
+    Month (CURRENT fair-play snapshot, not historical). Tournament awards
+    and persisted Hall of Fame deferred. Mobile Recognition screen.
+    e. **Skill-aware team balancing (PRD §12.28)**: pure domain/teamBalance.ts
+    (greedy strongest-first, sizes within 1, role as tie-break only),
+    GET /matches/:id/balanced-teams (organizer/scorer, read-only
+    suggestion over CONFIRMED roster); "Suggest Balanced Teams" button
+    in the Game Room.
+    Tests at that point: backend 608, mobile 284 passing, tsc clean.
+
+**NEXT STEP requested by user: a MANUAL TEST of everything built so far by
+actually running the project** (backend + web + mobile-web via preview
+tools; needs MySQL + running all migrations incl. 20260924* files, which
+have only ever been exercised via mocked tests). Record findings honestly.
 
 ### What's next
 
 Everything else in the "long tail" section of
-`BFAM_Remaining_Backlog_2026-09-23.md` (Special Recognition,
-Tournaments & Leagues, Match Recording & Highlights, Memberships, a
-real Offers taxonomy beyond generic promo codes,
-Café, a real Maintenance task tracker, in-match Fair Play
-rotation/alerts/new-player-protection, skill-aware team balancing, a
-broader rewards catalog, and map/navigation) — lowest priority, pick
+`BFAM_Remaining_Backlog_2026-09-23.md` (Tournaments & Leagues, Match
+Recording & Highlights, a real Offers taxonomy beyond generic promo
+codes, Café, a real Maintenance task tracker, in-match Fair Play
+rotation/alerts/new-player-protection, and map/navigation) — lowest priority, pick
 based on what seems highest-value; none of it blocks anything else,
 and each is a substantial, mostly-independent feature build rather
 than a small well-scoped fix like everything completed above. **If working

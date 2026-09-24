@@ -1057,6 +1057,22 @@ export interface RewardRedemption {
   created_at: string;
 }
 
+// Long tail — skill-aware team balancing (PRD §12.28).
+export interface BalancedTeamPlayer {
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+  skill_rating: number;
+  playing_role: string | null;
+}
+
+export interface BalancedTeamsSuggestion {
+  team_a: BalancedTeamPlayer[];
+  team_b: BalancedTeamPlayer[];
+  strength_a: number;
+  strength_b: number;
+}
+
 // Long tail — Special Recognition (PRD §12.39).
 export type RecognitionAwardType =
   'BATTING_STAR' | 'BOWLING_STAR' | 'PLAYER_OF_THE_MONTH' | 'SPORTSMAN_OF_THE_MONTH';

@@ -66,6 +66,7 @@ import {
   MembershipPlan,
   Membership,
   RecognitionAward,
+  BalancedTeamsSuggestion,
   RebookInfo,
   StatisticsScope,
   Notification,
@@ -1015,6 +1016,11 @@ export class BFAMApiClient {
 
   async getMyRedemptions(): Promise<{ results: RewardRedemption[] }> {
     return this.request('/rewards/redemptions/mine');
+  }
+
+  // Long tail — skill-aware team balancing (PRD §12.28).
+  async getBalancedTeams(matchId: string): Promise<BalancedTeamsSuggestion> {
+    return this.request(`/matches/${matchId}/balanced-teams`);
   }
 
   // Long tail — Special Recognition (PRD §12.39).

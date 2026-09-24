@@ -6,6 +6,7 @@ import { getObligationsForBooking } from './paymentService';
 import { sendNotification } from './notificationService';
 import { assertStaffVerified } from './staffService';
 import { postSystemMessage } from './chatService';
+import { balanceTeams } from '../domain/teamBalance';
 import { isActiveTeamMember, listActiveTeamMemberPlayerIds } from './teamService';
 import {
   ForbiddenActionError,
@@ -1026,5 +1027,46 @@ export async function getRebookInfo(matchId: string, actorUserId: string): Promi
     overs_per_innings: match.overs_per_innings,
     scoring_mode: match.scoring_mode,
     roster,
+  };
+}
+
+// Skill-aware team balancing (PRD §12.28) — organizer/scorer-only,
+// read-only suggestion over the CONFIRMED roster. See domain/teamBalance.ts.
+export async function suggestBalancedTeams(matchId: string, actorUserId: string) {
+  const match = await fetchMatchOrThrow(matchId);
+  await assertCanManageMatch(match, actorUserId);
+
+  const roster = await sequelize.query<{
+    player_id: string;
+    bfam_id: string;
+    full_name: string | null;
+    skill_rating: number;
+    playing_role: string | null;
+  }>(
+    `SELECT p.player_id, p.bfam_id, p.full_name, p.skill_rating, p.playing_role
+     FROM match_players mp
+     JOIN players p ON p.player_id = mp.player_id
+     WHERE mp.match_id = :matchId AND mp.invitation_status = 'CONFIRMED'`,
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+
+  const balanced = balanceTeams(roster);
+  const byId = new Map(roster.map((r) => [r.player_id, r]));
+  const describe = (ids: string[]) =>
+    ids.map((id) => {
+      const r = byId.get(id)!;
+      return {
+        player_id: r.player_id,
+        bfam_id: r.bfam_id,
+        full_name: r.full_name,
+        skill_rating: Number(r.skill_rating),
+        playing_role: r.playing_role,
+      };
+    });
+  return {
+    team_a: describe(balanced.team_a),
+    team_b: describe(balanced.team_b),
+    strength_a: balanced.strength_a,
+    strength_b: balanced.strength_b,
   };
 }

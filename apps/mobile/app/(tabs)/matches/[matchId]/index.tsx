@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import type { GameRoom, MatchPlayer } from '@bfam/shared-types';
+import type { BalancedTeamsSuggestion, GameRoom, MatchPlayer } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
@@ -49,6 +49,7 @@ export default function GameRoomScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [balanced, setBalanced] = useState<BalancedTeamsSuggestion | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -256,6 +257,38 @@ export default function GameRoomScreen() {
               onPress={() => router.push(`/(tabs)/matches/${matchId}/invite`)}
               testID="open-invite"
             />
+          </View>
+        )}
+        {isManager && (
+          <View className="mt-3">
+            <Button
+              label="Suggest Balanced Teams"
+              variant="secondary"
+              iconLeft={<Feather name="shuffle" size={16} color="#D80000" />}
+              onPress={() =>
+                withBusy(async () => {
+                  setBalanced(await apiClient.getBalancedTeams(matchId));
+                })
+              }
+              testID="suggest-balanced-teams"
+            />
+          </View>
+        )}
+        {balanced && (
+          <View className="mt-3 bg-surface-alt rounded-lg p-4" testID="balanced-teams">
+            {(['team_a', 'team_b'] as const).map((side) => (
+              <View key={side} className="mb-2">
+                <Text className="font-ui font-bold text-micro uppercase text-text-secondary">
+                  {side === 'team_a' ? 'Side A' : 'Side B'} · strength{' '}
+                  {side === 'team_a' ? balanced.strength_a : balanced.strength_b}
+                </Text>
+                {balanced[side].map((p) => (
+                  <Text key={p.player_id} className="font-ui text-body text-text-primary">
+                    {p.full_name ?? p.bfam_id}
+                  </Text>
+                ))}
+              </View>
+            ))}
           </View>
         )}
         {isManager && (

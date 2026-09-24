@@ -43,6 +43,7 @@ import {
   respondToMatchInvitation,
   respondToMatchInvitationByMatch,
   setPlayerAttendance,
+  suggestBalancedTeams,
   suggestReplacements,
   updateMyAttendance,
   vacateSpot,
@@ -148,6 +149,22 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     const matches = await listLiveMatches();
     return res.status(200).json({ results: matches });
+  }),
+);
+
+// GET /matches/:matchId/balanced-teams — skill-aware team balancing
+// suggestion (PRD §12.28), organizer/scorer only.
+router.get(
+  '/:matchId/balanced-teams',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      return res.status(200).json(await suggestBalancedTeams(req.params.matchId, req.auth!.sub));
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
   }),
 );
 
