@@ -45,8 +45,8 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `0d80a75` — "Add
-Match Streaks (long tail, PRD §12.38)". Working tree is clean,
+`main` branch, latest commit at time of writing: `59d8e2a` — "Add
+Peak-viewer analytics (long tail, G-25)". Working tree is clean,
 everything up to and including it is committed and pushed.
 
 **The entire well-scoped backlog from `BFAM_Remaining_Backlog_2026-09-23.md`
@@ -290,21 +290,31 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     list) deliberately NOT implemented — needs its own idempotency
     record to avoid re-granting on every read, plus undefined reward
     amounts; this is tracking/display only.
+25. **Peak-viewer analytics (long tail, G-25)**
+    New `matches.peak_viewer_count` column (cached running value, only
+    ever increases per match), `updatePeakViewerCountIfHigher` in
+    `services/presenceService.ts` — piggybacks on the existing
+    `broadcastViewerCount` called on every join/leave, no new event
+    wiring needed. Exposed via the existing `GET /matches/:matchId/viewers`
+    route (new `peak` field) and the `match:viewer_count` socket event.
+    Surfaced on the Match Result screen's Match Summary block —
+    deliberately NOT on the live `ViewerCountBadge`, since backlog A-23
+    already removed the live active-viewer count from that badge to
+    keep it minimal, and peak count is inherently a post-match number
+    anyway.
 
 ### What's next
 
 Everything else in the "long tail" section of
 `BFAM_Remaining_Backlog_2026-09-23.md` (Special Recognition,
-Tournaments & Leagues, Match Recording & Highlights, Peak-viewer
-analytics (G-25), Memberships, a real Offers taxonomy beyond generic
-promo codes, Referral System, Café, a real Maintenance task tracker,
-in-match Fair Play rotation/alerts/new-player-protection, skill-aware
-team balancing, a
+Tournaments & Leagues, Match Recording & Highlights, Memberships, a
+real Offers taxonomy beyond generic promo codes, Referral System,
+Café, a real Maintenance task tracker, in-match Fair Play
+rotation/alerts/new-player-protection, skill-aware team balancing, a
 broader rewards catalog, and map/navigation) — lowest priority, pick
 based on what seems highest-value; none of it blocks anything else,
 and each is a substantial, mostly-independent feature build rather
-than a small
-well-scoped fix like everything completed above. **If working
+than a small well-scoped fix like everything completed above. **If working
 autonomously with no user present**, pick ONE, scope it deliberately
 (look for existing partial infrastructure first, the way E-3/E-4/E-5
 found `turf_status`/`team_status`/`reviews` already half-there), and
