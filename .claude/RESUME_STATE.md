@@ -45,15 +45,16 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `5fadb5b` — "Add
-Reports to Admin Web (E-6) — closes the E-2..E-6 Admin Panel gap".
-Working tree is clean, everything up to and including E-6 is
-committed and pushed.
+`main` branch, latest commit at time of writing: `24f81f0` — "Add
+Rankings & Leaderboards (long tail, PRD §12.33)". Working tree is
+clean, everything up to and including it is committed and pushed.
 
 **The entire well-scoped backlog from `BFAM_Remaining_Backlog_2026-09-23.md`
 Section D is now DONE**: A-13, A-14, G-22, G-23, G-24, G-21, E-3, E-5,
-E-4, E-2, E-6. Only the "long tail" (see below) remains — everything
-else this file used to track as "what's next" is complete.
+E-4, E-2, E-6. Now working through the "long tail" one item at a
+time, same discipline as everything else (reproduce/verify, fix,
+test, typecheck, full suite, commit+push) — see "Completed this
+cycle" below for progress and "What's next" for what's left of it.
 
 **Admin Web now has**: Reports (KPI tiles), Players, Matches, Turfs,
 Teams, and Reviews directories (the latter four each with a moderation
@@ -220,17 +221,35 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     §12.49/§12.50 imply eventually (no date-range filtering, no per-
     turf/per-owner breakdowns, no exports) — this closes out the
     original E-2 through E-6 Admin Panel gap list entirely.
+21. **Rankings & Leaderboards (long tail, PRD §12.33)**
+    New `apps/backend/src/services/leaderboardService.ts`
+    (`aggregateByPlayer` — a pure, independently-tested function
+    grouping `player_match_statistics` rows per player, correctly
+    summing cricket-notation overs via `oversNotationToLegalBalls`
+    rather than SQL `SUM`, which would silently miscompute; `getLeaderboard`
+    covers MOST_RUNS/MOST_WICKETS/MOST_SIXES/BEST_STRIKE_RATE/
+    BEST_ECONOMY from match stats plus HIGHEST_SKILL_RATING/FAIR_PLAY/
+    RELIABILITY straight from `players` columns), route
+    `GET /leaderboards?category=...`, and a new mobile screen
+    (`app/leaderboards.tsx`, horizontal category picker) reached from
+    Profile. Rate-based categories have a documented qualifying minimum
+    (30 balls faced / 6 overs bowled) to stop a one-match fluke from
+    topping the board forever. Deliberately left out: MVP (no scoring
+    formula defined anywhere), all-rounder ranking (no combined formula
+    specified), Tournament leaderboard (no tournament entity exists —
+    separate long-tail item).
 
 ### What's next
 
-Everything in the "long tail" section of `BFAM_Remaining_Backlog_2026-09-23.md`
-(Rankings/Leaderboards, XP & Levels, Achievements & Badges, Match
-Streaks, Special Recognition, Tournaments & Leagues, Match Recording &
-Highlights, Peak-viewer analytics (G-25), Memberships, a real Offers
-taxonomy beyond generic promo codes, Referral System, Café, a real
-Maintenance task tracker, in-match Fair Play rotation/alerts/new-
-player-protection, skill-aware team balancing, a broader rewards
-catalog, and map/navigation) — lowest priority, pick based on what
+Everything else in the "long tail" section of
+`BFAM_Remaining_Backlog_2026-09-23.md` (XP & Levels, Achievements &
+Badges, Match Streaks, Special Recognition, Tournaments & Leagues,
+Match Recording & Highlights, Peak-viewer analytics (G-25),
+Memberships, a real Offers taxonomy beyond generic promo codes,
+Referral System, Café, a real Maintenance task tracker, in-match Fair
+Play rotation/alerts/new-player-protection, skill-aware team
+balancing, a broader rewards catalog, and map/navigation) — lowest
+priority, pick based on what
 seems highest-value; none of it blocks anything else, and each is a
 substantial, mostly-independent feature build rather than a small
 well-scoped fix like everything completed above. **If working
