@@ -45,19 +45,20 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `e317b7f` — "Add
-Match Management to Admin Web (E-2)". Working tree is clean,
-everything up to and including E-2 is committed and pushed.
+`main` branch, latest commit at time of writing: `5fadb5b` — "Add
+Reports to Admin Web (E-6) — closes the E-2..E-6 Admin Panel gap".
+Working tree is clean, everything up to and including E-6 is
+committed and pushed.
 
-**Admin Web now has**: Players, Matches, Turfs, Teams, and Reviews
-directories (the latter four each with a moderation action), plus the
-Home Banners CMS
-(`apps/web/src/app/admin/{players,matches,turfs,teams,reviews,banners}/page.tsx`).
-Only **E-6 (Reports)** remains of the original E-2..E-6 gap list —
-unlike E-2/E-3/E-4/E-5, this one is NOT a "directory + moderation"
-shape; it's real aggregate business metrics (PRD §12.49 Business
-Analytics), which has never existed anywhere in the app. Scope it as
-its own thing, not a fifth copy of the same pattern.
+**The entire well-scoped backlog from `BFAM_Remaining_Backlog_2026-09-23.md`
+Section D is now DONE**: A-13, A-14, G-22, G-23, G-24, G-21, E-3, E-5,
+E-4, E-2, E-6. Only the "long tail" (see below) remains — everything
+else this file used to track as "what's next" is complete.
+
+**Admin Web now has**: Reports (KPI tiles), Players, Matches, Turfs,
+Teams, and Reviews directories (the latter four each with a moderation
+action), plus the Home Banners CMS
+(`apps/web/src/app/admin/{reports,players,matches,turfs,teams,reviews,banners}/page.tsx`).
 
 Full context: the canonical, continuously-updated status doc is
 `BFAM_Gap_Analysis_and_TODO.md` at the repo root — read it for the full
@@ -205,25 +206,39 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     `apps/web/src/app/admin/matches/page.tsx` (directory + search +
     confirm-then-force-cancel). Unlike E-3, there was no existing
     organizer-facing cancel flow to relax an ownership check on —
-    force-cancel is a new, admin-only action from scratch. This closes
-    out the original E-2..E-6 gap list except E-6.
+    force-cancel is a new, admin-only action from scratch.
+20. **E-6 — Reports in Admin Web (Business Analytics, PRD §12.49)**
+    New `apps/backend/src/services/adminReportsService.ts`
+    (`getBusinessReport()` — 8 independent aggregate queries run in
+    parallel: total/cancelled bookings, cancellation rate, revenue,
+    refunds, active player/turf/team counts, matches completed; run as
+    separate queries rather than one join, since joining
+    bookings/payments/matches/teams together would fan out and
+    double-count unrelated rows), route `GET /admin/reports`, and
+    `apps/web/src/app/admin/reports/page.tsx` (a KPI tile grid).
+    Deliberately a first cut, not the full analytics platform PRD
+    §12.49/§12.50 imply eventually (no date-range filtering, no per-
+    turf/per-owner breakdowns, no exports) — this closes out the
+    original E-2 through E-6 Admin Panel gap list entirely.
 
-### What's next, in priority order (per `BFAM_Gap_Analysis_and_TODO.md` Part 4 / the remaining-backlog doc's Section D)
+### What's next
 
-1. **E-6 — Reports (Business Analytics, PRD §12.49)**. Different shape
-   from E-2/E-3/E-4/E-5 — not a directory+moderation page, since there's
-   no existing "reports" concept anywhere to extend. Needs real
-   aggregate queries (bookings/revenue over time, cancellation rate,
-   active player/turf/team counts) that don't exist yet. Scope
-   deliberately: a first cut of the highest-value KPIs of PRD §12.49 is
-   fine — a small `adminReportsService.ts` + one `GET /admin/reports`
-   endpoint + one Admin Web page, not the full analytics platform PRD
-   §12.49/§12.50 implies eventually. Note what's deferred in the commit
-   message.
-2. Everything in the "long tail" section of the remaining-backlog doc
-   (Rankings, XP/Levels, Achievements, Tournaments, etc.) — lowest
-   priority, pick based on what seems highest-value; none of it blocks
-   anything else.
+Everything in the "long tail" section of `BFAM_Remaining_Backlog_2026-09-23.md`
+(Rankings/Leaderboards, XP & Levels, Achievements & Badges, Match
+Streaks, Special Recognition, Tournaments & Leagues, Match Recording &
+Highlights, Peak-viewer analytics (G-25), Memberships, a real Offers
+taxonomy beyond generic promo codes, Referral System, Café, a real
+Maintenance task tracker, in-match Fair Play rotation/alerts/new-
+player-protection, skill-aware team balancing, a broader rewards
+catalog, and map/navigation) — lowest priority, pick based on what
+seems highest-value; none of it blocks anything else, and each is a
+substantial, mostly-independent feature build rather than a small
+well-scoped fix like everything completed above. **If working
+autonomously with no user present**, pick ONE, scope it deliberately
+(look for existing partial infrastructure first, the way E-3/E-4/E-5
+found `turf_status`/`team_status`/`reviews` already half-there), and
+follow the same one-item-at-a-time, fully-tested, fully-verified,
+committed+pushed discipline as everything above.
 
 ### Needs founder/user input (skip these if working autonomously, don't guess)
 
