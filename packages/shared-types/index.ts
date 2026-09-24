@@ -1038,6 +1038,27 @@ export interface AdminTurf {
   created_at: string;
 }
 
+// Long tail — Rankings & Leaderboards (PRD §12.33). See
+// leaderboardService.ts for exactly which categories this first cut
+// covers.
+export type LeaderboardCategory =
+  | 'MOST_RUNS'
+  | 'MOST_WICKETS'
+  | 'MOST_SIXES'
+  | 'BEST_STRIKE_RATE'
+  | 'BEST_ECONOMY'
+  | 'HIGHEST_SKILL_RATING'
+  | 'FAIR_PLAY'
+  | 'RELIABILITY';
+
+export interface LeaderboardEntry {
+  rank: number;
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+  value: number;
+}
+
 // Backlog E-6: Reports / Business Analytics in Admin Web — a deliberately
 // small first cut (see adminReportsService.ts for what's deferred).
 export interface BusinessReport {

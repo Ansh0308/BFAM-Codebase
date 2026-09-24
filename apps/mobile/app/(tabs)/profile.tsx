@@ -190,6 +190,20 @@ export default function Profile() {
               </Text>
             </Pressable>
 
+            <Pressable
+              onPress={() => router.push('/leaderboards')}
+              className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
+              testID="leaderboards-section"
+            >
+              <Feather name="trending-up" size={24} color="#D80000" />
+              <Text className="font-display text-card-title uppercase text-ink-black mt-2">
+                Leaderboards
+              </Text>
+              <Text className="font-ui text-body text-text-tertiary text-center mt-1">
+                See who's topping runs, wickets, skill rating, and more.
+              </Text>
+            </Pressable>
+
             <View
               className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
               testID="ratings-section"

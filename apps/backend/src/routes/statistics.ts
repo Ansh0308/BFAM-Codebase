@@ -9,6 +9,11 @@ import {
   type StatisticsScope,
 } from '../services/statisticsService';
 import { MatchNotFoundError, PlayerProfileNotFoundError } from '../domain/errors';
+import {
+  getLeaderboard,
+  LEADERBOARD_CATEGORIES,
+  type LeaderboardCategory,
+} from '../services/leaderboardService';
 
 const router = Router();
 
@@ -80,6 +85,31 @@ router.post(
       }
       throw error;
     }
+  }),
+);
+
+function isLeaderboardCategory(value: unknown): value is LeaderboardCategory {
+  return (LEADERBOARD_CATEGORIES as readonly unknown[]).includes(value);
+}
+
+// GET /leaderboards?category=MOST_RUNS — Rankings & Leaderboards (PRD
+// §12.33). See leaderboardService.ts for exactly which categories this
+// first cut covers and why.
+router.get(
+  '/leaderboards',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!isLeaderboardCategory(req.query.category)) {
+      return res.status(400).json({
+        error: {
+          message: `Invalid category. Must be one of: ${LEADERBOARD_CATEGORIES.join(', ')}`,
+          status: 400,
+        },
+      });
+    }
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+    const results = await getLeaderboard(req.query.category, limit);
+    return res.status(200).json({ category: req.query.category, results });
   }),
 );
 

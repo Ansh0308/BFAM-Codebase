@@ -54,6 +54,8 @@ import {
   UpdateProfilePayload,
   PlayerStatistics,
   PlayerRating,
+  LeaderboardCategory,
+  LeaderboardEntry,
   RebookInfo,
   StatisticsScope,
   Notification,
@@ -974,6 +976,13 @@ export class BFAMApiClient {
 
   async getRebookInfo(matchId: string): Promise<RebookInfo> {
     return this.request<RebookInfo>(`/matches/${matchId}/rebook`);
+  }
+
+  // Long tail — Rankings & Leaderboards (PRD §12.33).
+  async getLeaderboard(
+    category: LeaderboardCategory,
+  ): Promise<{ category: LeaderboardCategory; results: LeaderboardEntry[] }> {
+    return this.request(`/leaderboards${toQueryString({ category })}`);
   }
 
   // ---- Module 2.11: Notifications ----
