@@ -82,6 +82,7 @@ import {
   SupportTicket,
   SupportCategory,
   AdminPlayer,
+  AdminReview,
   AdminTurf,
   HomeBanner,
   CreateBannerInput,
@@ -1234,6 +1235,16 @@ export class BFAMApiClient {
       method: 'PATCH',
       body: JSON.stringify({ turf_status: turfStatus }),
     });
+  }
+
+  // ---- Backlog E-5: Reviews Management in Admin Web ----
+
+  async getAllReviewsAdmin(): Promise<{ results: AdminReview[] }> {
+    return this.request('/admin/reviews');
+  }
+
+  async deleteReviewAdmin(reviewId: string): Promise<void> {
+    await this.request(`/admin/reviews/${reviewId}`, { method: 'DELETE' });
   }
 
   // ---- Backlog B-6: Home Page Carousel ----

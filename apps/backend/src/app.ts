@@ -47,6 +47,7 @@ import {
 } from './services/adminBfamIdService';
 import { listAllPlayers } from './services/adminUserService';
 import { listAllTurfsForAdmin, setTurfStatusAsAdmin } from './services/adminTurfService';
+import { listAllReviewsForAdmin, deleteReviewAsAdmin } from './services/adminReviewService';
 import { createPromoCode, listPromoCodes } from './services/promoCodeService';
 import {
   createPromoCodeSchema,
@@ -55,7 +56,12 @@ import {
   setTurfStatusSchema,
 } from './validation/schemas';
 import { createBanner, deleteBanner, listAllBanners, updateBanner } from './services/bannerService';
-import { BannerNotFoundError, TurfNotFoundError, UnderMinimumAgeError } from './domain/errors';
+import {
+  BannerNotFoundError,
+  ReviewNotFoundError,
+  TurfNotFoundError,
+  UnderMinimumAgeError,
+} from './domain/errors';
 import bannersRouter from './routes/banners';
 import {
   getMyProfile,
@@ -1140,6 +1146,36 @@ app.patch(
       return res.status(200).json(turf);
     } catch (error) {
       if (error instanceof TurfNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      throw error;
+    }
+  },
+);
+
+// Backlog E-5 — Reviews Management in Admin Web (PRD §9.1): a full
+// cross-turf/cross-player review directory, plus removal for moderation
+// (abusive text, fraudulent ratings) — see adminReviewService.ts's
+// comment for why this is a hard delete, not a soft one.
+app.get(
+  '/admin/reviews',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (_req: Request, res: Response) => {
+    const reviews = await listAllReviewsForAdmin();
+    return res.status(200).json({ results: reviews });
+  },
+);
+app.delete(
+  '/admin/reviews/:reviewId',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (req: Request, res: Response) => {
+    try {
+      await deleteReviewAsAdmin(req.params.reviewId, req.auth!.sub);
+      return res.status(204).send();
+    } catch (error) {
+      if (error instanceof ReviewNotFoundError) {
         return res.status(404).json({ error: { message: error.message, status: 404 } });
       }
       throw error;

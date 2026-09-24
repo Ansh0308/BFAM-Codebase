@@ -7,17 +7,19 @@ import { DashboardShell } from '../../components/DashboardShell';
 const NAV_ITEMS = [
   { href: '/admin/players', label: 'Players' },
   { href: '/admin/turfs', label: 'Turfs' },
+  { href: '/admin/reviews', label: 'Reviews' },
   { href: '/admin/banners', label: 'Home Banners' },
 ];
 
 // Admin Web (PRD §9.1) — web-only, no mobile equivalent (unlike Owner/
 // Staff, which get both). Started with just the player directory; backlog
-// B-6 added the Home page carousel's content-management surface, and
-// backlog E-3 added a cross-owner turf directory + suspend/reactivate
-// moderation (deliberately not the fuller pricing/hours editor Owner Web
-// already has — see adminTurfService.ts). The rest of §9.1's scope
-// (tournament management, payment oversight, reports) is a larger,
-// separate build.
+// B-6 added the Home page carousel's content-management surface, backlog
+// E-3 added a cross-owner turf directory + suspend/reactivate moderation
+// (deliberately not the fuller pricing/hours editor Owner Web already
+// has — see adminTurfService.ts), and backlog E-5 added a cross-turf
+// review directory + delete moderation (adminReviewService.ts). The rest
+// of §9.1's scope (Match/Team management, tournament management, payment
+// oversight, reports) is a larger, separate build.
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useRequireRole('ADMIN');
 

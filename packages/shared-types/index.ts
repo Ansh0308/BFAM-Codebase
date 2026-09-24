@@ -1038,6 +1038,19 @@ export interface AdminTurf {
   created_at: string;
 }
 
+// Backlog E-5: Reviews Management in Admin Web.
+export interface AdminReview {
+  review_id: string;
+  match_id: string | null;
+  turf_id: string;
+  turf_name: string;
+  player_id: string;
+  player_name: string | null;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+}
+
 export interface LiveMatchSession {
   viewer_session_id: string;
   match_id: string;

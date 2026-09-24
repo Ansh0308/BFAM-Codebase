@@ -353,6 +353,14 @@ export class ReviewAlreadySubmittedError extends Error {
   }
 }
 
+// Backlog E-5: Admin Web review moderation.
+export class ReviewNotFoundError extends Error {
+  constructor(reviewId: string) {
+    super(`Review ${reviewId} not found`);
+    this.name = 'ReviewNotFoundError';
+  }
+}
+
 export class MatchNotYetCompletedError extends Error {
   constructor() {
     super('You can only review a match after it has finished.');
