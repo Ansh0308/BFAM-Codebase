@@ -57,7 +57,7 @@ describe('Game Room — Start/Resume Match button (backlog A-26)', () => {
     jest.clearAllMocks();
   });
 
-  it('shows "Start Match" and goes straight to Intro for a match that has not started', async () => {
+  it('shows "Start Match" and goes to Match Setup (teams, rules) for a match that has not started', async () => {
     mockGetGameRoom.mockResolvedValue({ ...BASE_ROOM, match_status: 'CONFIRMED' });
 
     const { findByTestId } = await render(<GameRoomScreen />);
@@ -66,7 +66,7 @@ describe('Game Room — Start/Resume Match button (backlog A-26)', () => {
     await fireEvent.press(button);
 
     expect(mockGetLiveScore).not.toHaveBeenCalled();
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/(tabs)/matches/match-1/intro'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/(tabs)/matches/match-1/setup'));
   });
 
   it('shows "Resume Match" and jumps to Scoring when an innings is already underway', async () => {

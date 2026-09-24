@@ -10,7 +10,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
-import type { IntroMatchTeam, PlayingXiPlayer } from '@bfam/shared-types';
+import { matchTeamLabel, type IntroMatchTeam, type PlayingXiPlayer } from '@bfam/shared-types';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { getSocket, joinMatchRoom, leaveMatchRoom } from '../../../../src/lib/socket';
 import { playTriggerSound } from '../../../../src/lib/sounds';
@@ -26,7 +26,9 @@ function displayName(p: { full_name?: string | null; bfam_id?: string }): string
   return p.full_name || p.bfam_id || '';
 }
 
-// Cinematic Match Countdown Intro (module 2.7, PRD §12.61). Design
+// Cinematic Match Countdown Intro (module 2.7, PRD §12.61). Sides are named
+// and populated on the Match Setup screen before this sequence starts, so
+// every label below uses the team's name, never a bare "Team A/B". Design
 // Document §5 calls this out as "the strongest expression of the brand-
 // red/black/white system" — full black stage, oversized diagonal red
 // geometry, and scoreboard-style typography, more than anywhere else in
@@ -53,11 +55,16 @@ export default function MatchIntroScreen() {
   const [tossWinnerSide, setTossWinnerSide] = useState<'TEAM_A' | 'TEAM_B' | null>(null);
   const [tossDecision, setTossDecision] = useState<'BAT' | 'BOWL' | null>(null);
   const [tossRecorded, setTossRecorded] = useState(false);
+  // Coin toss, like a real one: a team calls, the coin lands, the caller wins
+  // if the call was right.
+  const [caller, setCaller] = useState<'TEAM_A' | 'TEAM_B' | null>(null);
+  const [call, setCall] = useState<'HEADS' | 'TAILS' | null>(null);
+  const [coinOutcome, setCoinOutcome] = useState<'HEADS' | 'TAILS' | null>(null);
 
   // Backlog A-6 — a playful coin-flip presentation alongside the manual
   // toss that was already here. Either mode ends up calling the exact same
   // submitToss()/recordToss, just deciding tossWinnerSide differently.
-  const [tossMode, setTossMode] = useState<'MANUAL' | 'COIN'>('MANUAL');
+  const [tossMode, setTossMode] = useState<'MANUAL' | 'COIN'>('COIN');
   const [flipping, setFlipping] = useState(false);
   const coinRotation = useSharedValue(0);
   const coinAnimatedStyle = useAnimatedStyle(() => ({
@@ -65,6 +72,11 @@ export default function MatchIntroScreen() {
   }));
 
   const emittedStages = useRef(new Set<Stage>());
+
+  const teamName = (side: 'TEAM_A' | 'TEAM_B'): string => {
+    const t = matchTeams.find((m) => m.side_label === side);
+    return t ? matchTeamLabel(t) : matchTeamLabel({ side_label: side, team_name: null });
+  };
 
   const emitStage = useCallback(
     (nextStage: Stage, data: unknown) => {
@@ -185,36 +197,47 @@ export default function MatchIntroScreen() {
     return () => clearTimeout(timer);
   }, [isOrganizer, stage, emitStage, musicEnabled]);
 
-  // Decorative spin timed on the JS thread (same split as CountdownNumber
-  // below — Reanimated only drives the visual, plain state/timeout drives
-  // the logic), landing on a random side that then feeds tossWinnerSide
-  // exactly as if the organizer had tapped it manually.
+  // Decorative spin timed on the JS thread (Reanimated only drives the
+  // visual, plain state/timeout drives the logic). The coin's real outcome is
+  // random; the caller wins the toss only if their call matches it.
   function flipCoin() {
-    if (flipping) return;
+    if (flipping || !caller || !call) return;
     setFlipping(true);
     setTossWinnerSide(null);
-    const result: 'TEAM_A' | 'TEAM_B' = Math.random() < 0.5 ? 'TEAM_A' : 'TEAM_B';
+    setCoinOutcome(null);
+    const outcome: 'HEADS' | 'TAILS' = Math.random() < 0.5 ? 'HEADS' : 'TAILS';
+    const other: 'TEAM_A' | 'TEAM_B' = caller === 'TEAM_A' ? 'TEAM_B' : 'TEAM_A';
     coinRotation.value = 0;
     coinRotation.value = withTiming(1800, { duration: 1400, easing: Easing.out(Easing.cubic) });
     setTimeout(() => {
       setFlipping(false);
-      setTossWinnerSide(result);
+      setCoinOutcome(outcome);
+      setTossWinnerSide(outcome === call ? caller : other);
     }, 1400);
   }
 
-  async function submitToss() {
-    if (!tossWinnerSide || !tossDecision) return;
-    const winnerMatchTeamId = matchTeams.find(
-      (t) => t.side_label === tossWinnerSide,
-    )?.match_team_id;
+  function tossAgain() {
+    setTossWinnerSide(null);
+    setTossDecision(null);
+    setCoinOutcome(null);
+  }
+
+  async function submitToss(
+    winnerSide: 'TEAM_A' | 'TEAM_B' | null = tossWinnerSide,
+    decision: 'BAT' | 'BOWL' | null = tossDecision,
+  ) {
+    if (!winnerSide || !decision) return;
+    const winnerMatchTeamId = matchTeams.find((t) => t.side_label === winnerSide)?.match_team_id;
     if (!winnerMatchTeamId) return;
     try {
-      await apiClient.recordToss(matchId, winnerMatchTeamId, tossDecision);
+      await apiClient.recordToss(matchId, winnerMatchTeamId, decision);
     } catch {
       // don't block the sequence on a network hiccup — the result is
       // still shown locally, and the organizer can be the source of
       // truth if a retry is needed.
     }
+    setTossWinnerSide(winnerSide);
+    setTossDecision(decision);
     setTossRecorded(true);
   }
 
@@ -284,11 +307,11 @@ export default function MatchIntroScreen() {
                 {hasSides ? (
                   <View style={styles.xiTeamsRow}>
                     <View style={styles.xiTeamColumn}>
-                      <Text style={styles.xiTeamHeader}>TEAM A</Text>
+                      <Text style={styles.xiTeamHeader}>{teamName('TEAM_A').toUpperCase()}</Text>
                       {teamA.map(renderPlayer)}
                     </View>
                     <View style={styles.xiTeamColumn}>
-                      <Text style={styles.xiTeamHeader}>TEAM B</Text>
+                      <Text style={styles.xiTeamHeader}>{teamName('TEAM_B').toUpperCase()}</Text>
                       {teamB.map(renderPlayer)}
                     </View>
                   </View>
@@ -305,85 +328,113 @@ export default function MatchIntroScreen() {
             {!tossRecorded ? (
               isOrganizer ? (
                 <View style={{ width: '100%' }}>
-                  <View style={styles.chipRow}>
-                    {(['MANUAL', 'COIN'] as const).map((mode) => (
-                      <Pressable
-                        key={mode}
-                        onPress={() => {
-                          setTossMode(mode);
-                          setTossWinnerSide(null);
-                        }}
-                        style={[styles.chip, tossMode === mode && styles.chipSelected]}
-                        testID={`toss-mode-${mode}`}
-                      >
-                        <Text style={styles.chipText}>
-                          {mode === 'MANUAL' ? 'Manual Toss' : 'Flip a Coin'}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-
-                  {tossMode === 'MANUAL' ? (
-                    <View style={styles.chipRow}>
-                      {(['TEAM_A', 'TEAM_B'] as const).map((side) => (
-                        <Pressable
-                          key={side}
-                          onPress={() => setTossWinnerSide(side)}
-                          style={[styles.chip, tossWinnerSide === side && styles.chipSelected]}
-                          testID={`toss-winner-${side}`}
-                        >
-                          <Text style={styles.chipText}>
-                            {side === 'TEAM_A' ? 'Team A' : 'Team B'}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  ) : (
+                  {/* The coin: a decorative spin (Reanimated) landing on the
+                      real random outcome that decides the winner below. */}
+                  {tossMode === 'COIN' && (
                     <View style={styles.coinContainer} testID="coin-flip">
                       <Animated.View style={[styles.coin, coinAnimatedStyle]}>
                         <Text style={styles.coinText}>
-                          {tossWinnerSide === 'TEAM_A'
-                            ? 'A'
-                            : tossWinnerSide === 'TEAM_B'
-                              ? 'B'
-                              : '?'}
+                          {coinOutcome === 'TAILS' ? 'T' : coinOutcome === 'HEADS' ? 'H' : '?'}
                         </Text>
                       </Animated.View>
-                      {tossWinnerSide ? (
-                        <PopReveal revealKey={tossWinnerSide}>
-                          <Text style={styles.tossResult} testID="coin-flip-result">
-                            {tossWinnerSide === 'TEAM_A' ? 'Team A' : 'Team B'} won the toss!
+                      {coinOutcome && !flipping && (
+                        <PopReveal revealKey={coinOutcome} testID="coin-outcome">
+                          <Text style={styles.outcomePill}>
+                            {coinOutcome === 'HEADS' ? 'Heads!' : 'Tails!'}
                           </Text>
                         </PopReveal>
-                      ) : (
-                        <Pressable
-                          onPress={flipCoin}
-                          disabled={flipping}
-                          style={[styles.primaryButton, flipping && { opacity: 0.4 }]}
-                          testID="flip-coin-button"
-                        >
-                          <Text style={styles.primaryButtonText}>
-                            {flipping ? 'FLIPPING…' : 'FLIP COIN'}
-                          </Text>
-                        </Pressable>
                       )}
                     </View>
                   )}
 
-                  {/* Backlog D-3: manual toss previously had no reveal
-                      moment at all — the coin-flip path already announced
-                      its winner, so this brings manual mode to the same
-                      "regardless of how the winner is decided" bar. */}
-                  {tossMode === 'MANUAL' && tossWinnerSide && (
-                    <PopReveal revealKey={tossWinnerSide} testID="manual-toss-result">
-                      <Text style={styles.tossResult}>
-                        {tossWinnerSide === 'TEAM_A' ? 'Team A' : 'Team B'} won the toss!
-                      </Text>
-                    </PopReveal>
+                  {tossMode === 'COIN' && !tossWinnerSide && (
+                    <>
+                      <Text style={styles.tossLabel}>Who&apos;s calling?</Text>
+                      <View style={styles.chipRow}>
+                        {matchTeams.map((t) => (
+                          <Pressable
+                            key={t.match_team_id}
+                            onPress={() => setCaller(t.side_label)}
+                            disabled={flipping}
+                            style={[styles.chip, caller === t.side_label && styles.chipSelected]}
+                            testID={`toss-caller-${t.side_label}`}
+                          >
+                            <Text style={styles.chipText} numberOfLines={1}>
+                              {teamName(t.side_label)}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      <Text style={styles.tossLabel}>Their call?</Text>
+                      <View style={styles.chipRow}>
+                        {(['HEADS', 'TAILS'] as const).map((c) => (
+                          <Pressable
+                            key={c}
+                            onPress={() => setCall(c)}
+                            disabled={flipping}
+                            style={[styles.chip, call === c && styles.chipSelected]}
+                            testID={`toss-call-${c}`}
+                          >
+                            <Text style={styles.chipText}>{c === 'HEADS' ? 'Heads' : 'Tails'}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      <Pressable
+                        onPress={flipCoin}
+                        disabled={flipping || !caller || !call}
+                        style={[
+                          styles.primaryButton,
+                          (flipping || !caller || !call) && { opacity: 0.4 },
+                        ]}
+                        testID="flip-coin-button"
+                      >
+                        <Text style={styles.primaryButtonText}>
+                          {flipping ? 'TOSSING…' : 'TOSS COIN'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          setTossMode('MANUAL');
+                          setTossWinnerSide(null);
+                          setCoinOutcome(null);
+                        }}
+                        testID="toss-mode-MANUAL"
+                      >
+                        <Text style={styles.linkText}>Already tossed? Enter the result</Text>
+                      </Pressable>
+                    </>
                   )}
 
-                  {(tossMode === 'MANUAL' || tossWinnerSide) && (
+                  {tossMode === 'MANUAL' && (
                     <>
+                      <Text style={styles.tossLabel}>Who won the toss?</Text>
+                      <View style={styles.chipRow}>
+                        {matchTeams.map((t) => (
+                          <Pressable
+                            key={t.match_team_id}
+                            onPress={() => setTossWinnerSide(t.side_label)}
+                            style={[
+                              styles.chip,
+                              tossWinnerSide === t.side_label && styles.chipSelected,
+                            ]}
+                            testID={`toss-winner-${t.side_label}`}
+                          >
+                            <Text style={styles.chipText} numberOfLines={1}>
+                              {teamName(t.side_label)}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      {/* Backlog D-3: the manual path gets the same "moment"
+                          reveal as the coin. */}
+                      {tossWinnerSide && (
+                        <PopReveal revealKey={tossWinnerSide} testID="manual-toss-result">
+                          <Text style={styles.tossResult}>
+                            {teamName(tossWinnerSide)} won the toss!
+                          </Text>
+                        </PopReveal>
+                      )}
+                      <Text style={styles.tossLabel}>They chose to…</Text>
                       <View style={styles.chipRow}>
                         {(['BAT', 'BOWL'] as const).map((decision) => (
                           <Pressable
@@ -397,7 +448,7 @@ export default function MatchIntroScreen() {
                         ))}
                       </View>
                       <Pressable
-                        onPress={submitToss}
+                        onPress={() => submitToss()}
                         disabled={!tossWinnerSide || !tossDecision}
                         style={[
                           styles.primaryButton,
@@ -406,6 +457,47 @@ export default function MatchIntroScreen() {
                         testID="record-toss-button"
                       >
                         <Text style={styles.primaryButtonText}>RECORD TOSS</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          setTossMode('COIN');
+                          setTossWinnerSide(null);
+                          setTossDecision(null);
+                        }}
+                        testID="toss-mode-COIN"
+                      >
+                        <Text style={styles.linkText}>Flip a coin instead</Text>
+                      </Pressable>
+                    </>
+                  )}
+
+                  {tossMode === 'COIN' && tossWinnerSide && !flipping && (
+                    <>
+                      <PopReveal revealKey={tossWinnerSide} testID="coin-flip-result">
+                        <Text style={styles.wonBanner}>
+                          {teamName(tossWinnerSide)} won the toss!
+                        </Text>
+                      </PopReveal>
+                      <Text style={styles.tossLabel}>What do they choose?</Text>
+                      <View style={styles.chipRow}>
+                        {(['BAT', 'BOWL'] as const).map((decision) => (
+                          <Pressable
+                            key={decision}
+                            onPress={() => {
+                              setTossDecision(decision);
+                              submitToss(tossWinnerSide, decision);
+                            }}
+                            style={styles.decisionButton}
+                            testID={`toss-decision-${decision}`}
+                          >
+                            <Text style={styles.primaryButtonText}>
+                              {decision === 'BAT' ? 'BAT FIRST' : 'BOWL FIRST'}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      <Pressable onPress={tossAgain} testID="toss-again">
+                        <Text style={styles.linkText}>Toss again</Text>
                       </Pressable>
                     </>
                   )}
@@ -420,7 +512,7 @@ export default function MatchIntroScreen() {
                   testID="toss-final-result"
                 >
                   <Text style={styles.tossResult}>
-                    {tossWinnerSide === 'TEAM_A' ? 'Team A' : 'Team B'} won the toss, chose to{' '}
+                    {tossWinnerSide ? teamName(tossWinnerSide) : 'A team'} won the toss, chose to{' '}
                     {tossDecision === 'BAT' ? 'bat' : 'bowl'}
                   </Text>
                 </PopReveal>
@@ -571,9 +663,9 @@ const styles = StyleSheet.create({
   tossContainer: { width: '100%', alignItems: 'center' },
   coinContainer: { width: '100%', alignItems: 'center', marginBottom: 8 },
   coin: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 132,
+    height: 132,
+    borderRadius: 66,
     backgroundColor: '#D80000',
     borderWidth: 3,
     borderColor: '#FFFFFF',
@@ -582,7 +674,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     backfaceVisibility: 'hidden',
   },
-  coinText: { fontFamily: 'Anton', fontSize: 36, color: '#FFFFFF' },
+  coinText: { fontFamily: 'Anton', fontSize: 56, color: '#FFFFFF' },
   chipRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 16 },
   chip: {
     borderWidth: 1,
@@ -603,6 +695,51 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { fontFamily: 'Inter-Bold', fontSize: 15, color: '#FFFFFF', letterSpacing: 1 },
   waitingText: { fontFamily: 'Inter', fontSize: 16, color: '#9A9A9A' },
+  tossLabel: {
+    fontFamily: 'Inter-Bold',
+    fontSize: 13,
+    color: '#9A9A9A',
+    letterSpacing: 1,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  linkText: {
+    fontFamily: 'Inter',
+    fontSize: 14,
+    color: '#B5B5B5',
+    textDecorationLine: 'underline',
+    textAlign: 'center',
+    marginTop: 18,
+  },
+  outcomePill: {
+    fontFamily: 'Inter-Bold',
+    fontSize: 16,
+    color: '#0D0D0D',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    overflow: 'hidden',
+  },
+  wonBanner: {
+    fontFamily: 'Inter-Bold',
+    fontSize: 20,
+    color: '#FFFFFF',
+    backgroundColor: '#D80000',
+    borderRadius: 22,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    overflow: 'hidden',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  decisionButton: {
+    backgroundColor: '#D80000',
+    borderRadius: 30,
+    paddingVertical: 16,
+    paddingHorizontal: 22,
+    marginHorizontal: 6,
+  },
   tossResult: {
     fontFamily: 'Inter-Bold',
     fontSize: 18,

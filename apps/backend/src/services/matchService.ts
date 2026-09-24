@@ -1052,7 +1052,8 @@ export async function getRebookInfo(matchId: string, actorUserId: string): Promi
 }
 
 // Skill-aware team balancing (PRD §12.28) — organizer/scorer-only,
-// read-only suggestion over the CONFIRMED roster. See domain/teamBalance.ts.
+// read-only suggestion over everyone who hasn't said they can't play (the
+// same rule as the rest of the match flow — see getPlayingXi). See domain/teamBalance.ts.
 export async function suggestBalancedTeams(matchId: string, actorUserId: string) {
   const match = await fetchMatchOrThrow(matchId);
   await assertCanManageMatch(match, actorUserId);
@@ -1067,7 +1068,7 @@ export async function suggestBalancedTeams(matchId: string, actorUserId: string)
     `SELECT p.player_id, p.bfam_id, p.full_name, p.skill_rating, p.playing_role
      FROM match_players mp
      JOIN players p ON p.player_id = mp.player_id
-     WHERE mp.match_id = :matchId AND mp.invitation_status = 'CONFIRMED'`,
+     WHERE mp.match_id = :matchId AND mp.invitation_status != 'CANT_PLAY'`,
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
 

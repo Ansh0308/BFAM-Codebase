@@ -145,6 +145,7 @@ describe('Match Countdown Intro (module 2.7)', () => {
     });
     await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
 
+    await fireEvent.press(getByTestId('toss-mode-MANUAL'));
     await fireEvent.press(getByTestId('toss-winner-TEAM_A'));
     await fireEvent.press(getByTestId('toss-decision-BAT'));
     await fireEvent.press(getByTestId('record-toss-button'));
@@ -173,6 +174,7 @@ describe('Match Countdown Intro (module 2.7)', () => {
     });
     await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
 
+    await fireEvent.press(getByTestId('toss-mode-MANUAL'));
     expect(queryByTestId('manual-toss-result')).toBeNull();
 
     await fireEvent.press(getByTestId('toss-winner-TEAM_B'));
@@ -185,40 +187,10 @@ describe('Match Countdown Intro (module 2.7)', () => {
     expect(getByTestId('toss-final-result')).toBeTruthy();
   });
 
-  it('records a coin-flip toss result through the same recordToss call as the manual path (backlog A-6)', async () => {
+  it('coin toss: the caller wins when their call matches the coin, then picks bat/bowl and it is recorded (backlog A-6)', async () => {
     const originalRandom = Math.random;
-    Math.random = () => 0.1; // < 0.5 -> TEAM_A wins the flip
+    Math.random = () => 0.1; // < 0.5 -> the coin lands HEADS
 
-    const { getByTestId } = await render(<MatchIntroScreen />);
-    await waitFor(() => expect(getByTestId('intro-countdown')).toBeTruthy());
-
-    await act(async () => {
-      jest.advanceTimersByTime(10_000);
-    });
-    await waitFor(() => expect(getByTestId('intro-xi-reveal')).toBeTruthy());
-
-    await act(async () => {
-      jest.advanceTimersByTime(4_000);
-    });
-    await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
-
-    await fireEvent.press(getByTestId('toss-mode-COIN'));
-    await fireEvent.press(getByTestId('flip-coin-button'));
-
-    await act(async () => {
-      jest.advanceTimersByTime(1_400);
-    });
-    await waitFor(() => expect(getByTestId('coin-flip-result')).toBeTruthy());
-
-    await fireEvent.press(getByTestId('toss-decision-BOWL'));
-    await fireEvent.press(getByTestId('record-toss-button'));
-
-    await waitFor(() => expect(mockRecordToss).toHaveBeenCalledWith('match-1', 'mt-a', 'BOWL'));
-
-    Math.random = originalRandom;
-  });
-
-  it('switching back to Manual Toss after picking Coin Toss shows the manual chips again', async () => {
     const { getByTestId, queryByTestId } = await render(<MatchIntroScreen />);
     await waitFor(() => expect(getByTestId('intro-countdown')).toBeTruthy());
 
@@ -232,13 +204,82 @@ describe('Match Countdown Intro (module 2.7)', () => {
     });
     await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
 
-    await fireEvent.press(getByTestId('toss-mode-COIN'));
+    // Toss button stays disabled until a team calls and a call is chosen.
+    await fireEvent.press(getByTestId('flip-coin-button'));
+    await act(async () => {
+      jest.advanceTimersByTime(1_400);
+    });
+    expect(queryByTestId('coin-flip-result')).toBeNull();
+
+    await fireEvent.press(getByTestId('toss-caller-TEAM_A'));
+    await fireEvent.press(getByTestId('toss-call-HEADS'));
+    await fireEvent.press(getByTestId('flip-coin-button'));
+
+    await act(async () => {
+      jest.advanceTimersByTime(1_400);
+    });
+    await waitFor(() => expect(getByTestId('coin-flip-result')).toBeTruthy());
+
+    // Called heads, coin landed heads -> the caller (Team A) won.
+    await fireEvent.press(getByTestId('toss-decision-BOWL'));
+    await waitFor(() => expect(mockRecordToss).toHaveBeenCalledWith('match-1', 'mt-a', 'BOWL'));
+    expect(getByTestId('toss-final-result')).toBeTruthy();
+
+    Math.random = originalRandom;
+  });
+
+  it('coin toss: the OTHER team wins when the caller calls wrong', async () => {
+    const originalRandom = Math.random;
+    Math.random = () => 0.9; // >= 0.5 -> TAILS
+
+    const { getByTestId } = await render(<MatchIntroScreen />);
+    await waitFor(() => expect(getByTestId('intro-countdown')).toBeTruthy());
+    await act(async () => {
+      jest.advanceTimersByTime(10_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-xi-reveal')).toBeTruthy());
+    await act(async () => {
+      jest.advanceTimersByTime(4_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
+
+    await fireEvent.press(getByTestId('toss-caller-TEAM_A'));
+    await fireEvent.press(getByTestId('toss-call-HEADS'));
+    await fireEvent.press(getByTestId('flip-coin-button'));
+    await act(async () => {
+      jest.advanceTimersByTime(1_400);
+    });
+    await waitFor(() => expect(getByTestId('coin-flip-result')).toBeTruthy());
+
+    await fireEvent.press(getByTestId('toss-decision-BAT'));
+    await waitFor(() => expect(mockRecordToss).toHaveBeenCalledWith('match-1', 'mt-b', 'BAT'));
+
+    Math.random = originalRandom;
+  });
+
+  it('the coin toss is the default and manual entry is one tap away (and back)', async () => {
+    const { getByTestId, queryByTestId } = await render(<MatchIntroScreen />);
+    await waitFor(() => expect(getByTestId('intro-countdown')).toBeTruthy());
+
+    await act(async () => {
+      jest.advanceTimersByTime(10_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-xi-reveal')).toBeTruthy());
+
+    await act(async () => {
+      jest.advanceTimersByTime(4_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
+
     expect(getByTestId('coin-flip')).toBeTruthy();
     expect(queryByTestId('toss-winner-TEAM_A')).toBeNull();
 
     await fireEvent.press(getByTestId('toss-mode-MANUAL'));
     expect(getByTestId('toss-winner-TEAM_A')).toBeTruthy();
     expect(queryByTestId('coin-flip')).toBeNull();
+
+    await fireEvent.press(getByTestId('toss-mode-COIN'));
+    expect(getByTestId('coin-flip')).toBeTruthy();
   });
 
   // Feedback: Playing XI should show real names, not BFAM IDs, and split
@@ -277,6 +318,49 @@ describe('Match Countdown Intro (module 2.7)', () => {
     expect(getByText('Aditya Rathod')).toBeTruthy();
     expect(getByText('TEAM A')).toBeTruthy();
     expect(getByText('TEAM B')).toBeTruthy();
+  });
+
+  it('uses the team names set on Match Setup everywhere instead of "Team A / Team B"', async () => {
+    const named = [
+      { match_team_id: 'mt-a', side_label: 'TEAM_A', team_name: 'Royals' },
+      { match_team_id: 'mt-b', side_label: 'TEAM_B', team_name: 'Owls' },
+    ];
+    mockStartMatchIntro.mockResolvedValue({
+      intro: { background_music_enabled: false },
+      players: [
+        {
+          player_id: 'p1',
+          bfam_id: 'BF1',
+          full_name: 'Rohan',
+          participant_role: 'CAPTAIN',
+          side_label: 'TEAM_A',
+        },
+        {
+          player_id: 'p2',
+          bfam_id: 'BF2',
+          full_name: 'Aditya',
+          participant_role: 'PLAYER',
+          side_label: 'TEAM_B',
+        },
+      ],
+      matchTeams: named,
+    });
+
+    const { getByTestId, getByText } = await render(<MatchIntroScreen />);
+    await waitFor(() => expect(getByTestId('intro-countdown')).toBeTruthy());
+    await act(async () => {
+      jest.advanceTimersByTime(10_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-xi-reveal')).toBeTruthy());
+    expect(getByText('ROYALS')).toBeTruthy();
+    expect(getByText('OWLS')).toBeTruthy();
+
+    await act(async () => {
+      jest.advanceTimersByTime(4_000);
+    });
+    await waitFor(() => expect(getByTestId('intro-toss')).toBeTruthy());
+    expect(getByText('Royals')).toBeTruthy(); // the caller chip
+    expect(getByText('Owls')).toBeTruthy();
   });
 
   it('a passive (non-manager) viewer never calls the manager-only start endpoint and only mirrors broadcast stages', async () => {

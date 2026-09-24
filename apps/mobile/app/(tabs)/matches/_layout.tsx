@@ -27,6 +27,7 @@ export default function MatchesLayout() {
         name="[matchId]/intro"
         options={{ headerShown: false, gestureEnabled: false }}
       />
+      <Stack.Screen name="[matchId]/setup" options={{ headerShown: false }} />
       <Stack.Screen name="[matchId]/live" options={{ headerShown: false }} />
       <Stack.Screen name="[matchId]/scoring" options={{ headerShown: false }} />
       <Stack.Screen name="[matchId]/scorecard" options={{ title: 'Scorecard' }} />

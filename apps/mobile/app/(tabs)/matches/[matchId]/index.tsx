@@ -87,8 +87,10 @@ export default function GameRoomScreen() {
   // Intro is still the right screen, and it now resolves its own correct
   // stage instead of always beginning at COUNTDOWN.
   async function startOrResumeMatch() {
+    // Not started yet: Match Setup first (team names, who plays for which
+    // side, overs, rules) so the toss that follows is between named teams.
     if (room?.match_status !== 'IN_PROGRESS') {
-      router.push(`/(tabs)/matches/${matchId}/intro`);
+      router.push(`/(tabs)/matches/${matchId}/setup`);
       return;
     }
     setBusy(true);

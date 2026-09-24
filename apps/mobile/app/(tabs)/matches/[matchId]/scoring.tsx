@@ -2,7 +2,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import type { GameRoom, Innings, IntroMatchTeam, LiveScore, WicketType } from '@bfam/shared-types';
+import {
+  matchTeamLabel,
+  type GameRoom,
+  type Innings,
+  type IntroMatchTeam,
+  type LiveScore,
+  type WicketType,
+} from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
@@ -571,7 +578,7 @@ export default function ScoringInterfaceScreen() {
                       <Text
                         className={`font-ui text-micro ${selected ? 'text-white font-bold' : 'text-text-primary'}`}
                       >
-                        {t.side_label === 'TEAM_A' ? 'Team A' : 'Team B'}
+                        {matchTeamLabel(t)}
                       </Text>
                     </Pressable>
                   );
@@ -603,7 +610,7 @@ export default function ScoringInterfaceScreen() {
               label="Batting Side"
               options={matchTeams.map((t) => ({
                 value: t.match_team_id,
-                label: t.side_label === 'TEAM_A' ? 'Team A' : 'Team B',
+                label: matchTeamLabel(t),
               }))}
               value={battingSide}
               onChange={(v) => {
