@@ -45,9 +45,9 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `42c8f79` — "Add
-Achievements & Badges (long tail, PRD §12.37)". Working tree is
-clean, everything up to and including it is committed and pushed.
+`main` branch, latest commit at time of writing: `0d80a75` — "Add
+Match Streaks (long tail, PRD §12.38)". Working tree is clean,
+everything up to and including it is committed and pushed.
 
 **The entire well-scoped backlog from `BFAM_Remaining_Backlog_2026-09-23.md`
 Section D is now DONE**: A-13, A-14, G-22, G-23, G-24, G-21, E-3, E-5,
@@ -275,16 +275,31 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     for one achievement's threshold check; §12.38 wants its own
     dedicated "current streak / best streak / consecutive
     participation / streak rewards" screen, which doesn't exist.
+    (Update: done next — see item 24.)
+24. **Match Streaks (long tail, PRD §12.38)**
+    New `domain/matchStreaks.ts` (`computeMatchStreaks` — pure,
+    independently tested; weekly-participation streak, Monday-Sunday
+    UTC weeks — deliberately a DIFFERENT metric from Achievements'
+    win-based MATCH_STREAK badge despite the shared name; a streak
+    stays "alive" if the player played this week OR last week, so an
+    in-progress week never falsely breaks it), `services/matchStreakService.ts`,
+    route `GET /players/:playerId/match-streaks`, and a new mobile
+    screen (`app/match-streaks.tsx` — current/best streak tiles)
+    reached from a new "Match Streaks" Profile entry point. "Streak
+    rewards and bonuses" (named in §12.38 and §12.34's coin-earning
+    list) deliberately NOT implemented — needs its own idempotency
+    record to avoid re-granting on every read, plus undefined reward
+    amounts; this is tracking/display only.
 
 ### What's next
 
 Everything else in the "long tail" section of
-`BFAM_Remaining_Backlog_2026-09-23.md` (Match Streaks — PRD §12.38,
-see note above; Special Recognition, Tournaments & Leagues, Match
-Recording & Highlights, Peak-viewer analytics (G-25), Memberships, a
-real Offers taxonomy beyond generic promo codes, Referral System,
-Café, a real Maintenance task tracker, in-match Fair Play
-rotation/alerts/new-player-protection, skill-aware team balancing, a
+`BFAM_Remaining_Backlog_2026-09-23.md` (Special Recognition,
+Tournaments & Leagues, Match Recording & Highlights, Peak-viewer
+analytics (G-25), Memberships, a real Offers taxonomy beyond generic
+promo codes, Referral System, Café, a real Maintenance task tracker,
+in-match Fair Play rotation/alerts/new-player-protection, skill-aware
+team balancing, a
 broader rewards catalog, and map/navigation) — lowest priority, pick
 based on what seems highest-value; none of it blocks anything else,
 and each is a substantial, mostly-independent feature build rather
