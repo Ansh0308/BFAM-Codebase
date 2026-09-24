@@ -233,6 +233,20 @@ export default function Profile() {
             </Pressable>
 
             <Pressable
+              onPress={() => router.push('/rewards')}
+              className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
+              testID="rewards-section"
+            >
+              <Feather name="gift" size={24} color="#D80000" />
+              <Text className="font-display text-card-title uppercase text-ink-black mt-2">
+                Rewards
+              </Text>
+              <Text className="font-ui text-body text-text-tertiary text-center mt-1">
+                Spend your BFAM Coins on discounts, passes, and merchandise.
+              </Text>
+            </Pressable>
+
+            <Pressable
               onPress={() => router.push('/referrals')}
               className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
               testID="referrals-section"

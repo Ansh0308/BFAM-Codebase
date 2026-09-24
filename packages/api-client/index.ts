@@ -61,6 +61,8 @@ import {
   AchievementStatus,
   MatchStreaks,
   Referral,
+  Reward,
+  RewardRedemption,
   RebookInfo,
   StatisticsScope,
   Notification,
@@ -995,6 +997,21 @@ export class BFAMApiClient {
 
   async getPlayerXpHistory(playerId: string): Promise<{ results: XpTransaction[] }> {
     return this.request(`/players/${playerId}/xp/history`);
+  }
+
+  // Long tail — Rewards catalog (PRD §12.36).
+  async getRewards(): Promise<{ results: Reward[] }> {
+    return this.request('/rewards');
+  }
+
+  async redeemReward(
+    rewardId: string,
+  ): Promise<{ redemption_id: string; reward_name: string; coin_balance: number }> {
+    return this.request(`/rewards/${rewardId}/redeem`, { method: 'POST' });
+  }
+
+  async getMyRedemptions(): Promise<{ results: RewardRedemption[] }> {
+    return this.request('/rewards/redemptions/mine');
   }
 
   // Long tail — Referral System (PRD §12.53).

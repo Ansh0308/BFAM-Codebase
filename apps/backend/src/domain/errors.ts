@@ -462,3 +462,11 @@ export class ChallengeNotFoundError extends Error {
     this.name = 'ChallengeNotFoundError';
   }
 }
+
+// Long tail — Rewards catalog (PRD §12.36).
+export class RewardNotFoundError extends Error {
+  constructor(rewardId: string) {
+    super(`Reward ${rewardId} not found`);
+    this.name = 'RewardNotFoundError';
+  }
+}

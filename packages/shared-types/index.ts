@@ -1041,6 +1041,22 @@ export interface AdminTurf {
   created_at: string;
 }
 
+// Long tail — Rewards catalog (PRD §12.36).
+export interface Reward {
+  reward_id: string;
+  name: string;
+  description: string | null;
+  coin_cost: number;
+}
+
+export interface RewardRedemption {
+  redemption_id: string;
+  reward_name: string;
+  coins_spent: number;
+  status: 'PENDING' | 'FULFILLED';
+  created_at: string;
+}
+
 // Long tail — Referral System (PRD §12.53).
 export interface Referral {
   referral_id: string;

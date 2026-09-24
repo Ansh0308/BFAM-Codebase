@@ -107,6 +107,7 @@ import ownerRouter from './routes/owner';
 import staffRouter from './routes/staff';
 import supportRouter from './routes/support';
 import consentsRouter from './routes/consents';
+import rewardsRouter from './routes/rewards';
 
 interface UserRow {
   user_id: string;
@@ -1378,6 +1379,8 @@ app.use('/staff', staffRouter);
 app.use('/support', supportRouter);
 // Backlog G-21 — Consent capture with policy versioning (PRD §32.8).
 app.use('/consents', consentsRouter);
+// Long tail — Rewards catalog (PRD §12.36).
+app.use('/rewards', rewardsRouter);
 
 // Sentry Error Handler setup for v8
 if (process.env.SENTRY_DSN) {

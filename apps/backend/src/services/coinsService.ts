@@ -18,7 +18,11 @@ export async function getCoinBalance(playerId: string, transaction?: unknown): P
 }
 
 export type CoinReason =
-  'REVIEW_REWARD' | 'BOOKING_REDEMPTION' | 'ADMIN_ADJUSTMENT' | 'REFERRAL_REWARD';
+  | 'REVIEW_REWARD'
+  | 'BOOKING_REDEMPTION'
+  | 'ADMIN_ADJUSTMENT'
+  | 'REFERRAL_REWARD'
+  | 'REWARD_REDEMPTION';
 
 async function recordCoinTransaction(
   playerId: string,
