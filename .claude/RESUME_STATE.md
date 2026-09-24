@@ -45,16 +45,16 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `85c7cf7` — "Add
-consent capture with policy versioning (G-21)". Working tree is clean,
-everything up to and including G-21 is committed and pushed.
+`main` branch, latest commit at time of writing: `3dd4a0a` — "Add Turf
+Management to Admin Web (E-3)". Working tree is clean, everything up
+to and including E-3 is committed and pushed.
 
-**Also noticed while testing G-21**: `apps/web/__tests__/admin-banners.test.tsx`
-and `admin-players.test.tsx` exist and pass — meaning some Admin Web
-surface already exists (banner management, player directory), despite
-this file's "E-2 through E-6 not started" framing. Check what's
-actually there under `apps/web/src/app/admin/` before assuming E-3
-(Turf Management) or any other admin module starts from zero.
+**Admin Web now has**: Players directory, Home Banners CMS, and Turf
+directory + suspend/reactivate (`apps/web/src/app/admin/{players,
+banners,turfs}/page.tsx`). Still missing (E-2/E-4/E-5/E-6): Match
+Management, Team Management, Reviews Management, Reports. Check
+`apps/web/src/app/admin/` directly before starting any of these —
+don't trust this file's item numbering alone, it can drift.
 
 Full context: the canonical, continuously-updated status doc is
 `BFAM_Gap_Analysis_and_TODO.md` at the repo root — read it for the full
@@ -167,19 +167,25 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     exist: `useContactsMatch.ts` (CONTACTS) and the Turf Discovery
     screen's location effect (LOCATION). `PAYMENT_DATA` has no UI wiring
     — flagged under "Needs founder input" below.
+16. **E-3 — Turf Management in Admin Web**
+    New `apps/backend/src/services/adminTurfService.ts`
+    (`listAllTurfsForAdmin`, `setTurfStatusAsAdmin` — writes a
+    `TURF_STATUS_CHANGED` audit_logs entry via G-24's `writeAuditLog()`),
+    routes `GET /admin/turfs` / `PATCH /admin/turfs/:turfId/status`, and
+    `apps/web/src/app/admin/turfs/page.tsx` (directory + search +
+    Suspend/Reactivate). Deliberately NOT a duplicate of Owner Web's
+    pricing/hours/blocks editor — scoped to what only Admin should do
+    (cross-owner directory + moderation), not what Owner already owns.
 
 ### What's next, in priority order (per `BFAM_Gap_Analysis_and_TODO.md` Part 4 / the remaining-backlog doc's Section D)
 
-1. **E-3** — Turf Management in Admin Web. **Check first**: some Admin
-   Web already exists (`admin-banners.test.tsx`, `admin-players.test.tsx`
-   pass in `apps/web/__tests__`) — look at `apps/web/src/app/admin/`
-   before assuming this starts from zero; it may just need the turf
-   module added alongside what's already there, not a new admin shell.
-2. **E-2, E-4, E-5, E-6** — rest of the Admin Panel (Match/Team/Reviews
-   Management, Reports). Same "check what already exists first" caution
-   as E-3. Once any of these lands, wire `writeAuditLog()` (see G-24
-   above) into its write paths at the same time, not as a follow-up.
-3. Everything in the "long tail" section of the remaining-backlog doc
+1. **E-2, E-4, E-5, E-6** — rest of the Admin Panel (Match/Team/Reviews
+   Management, Reports). Check `apps/web/src/app/admin/` directly first
+   — don't trust backlog-doc item numbers, they can drift (E-3 turned
+   out already-partially-scoped when checked). Once any of these lands,
+   wire `writeAuditLog()` (see G-24 above) into its write paths at the
+   same time, not as a follow-up.
+2. Everything in the "long tail" section of the remaining-backlog doc
    (Rankings, XP/Levels, Achievements, Tournaments, etc.) — lowest
    priority, pick based on what seems highest-value; none of it blocks
    anything else.
