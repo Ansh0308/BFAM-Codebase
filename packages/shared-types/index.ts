@@ -1041,6 +1041,14 @@ export interface AdminTurf {
   created_at: string;
 }
 
+// Long tail — Match Streaks (PRD §12.38). See domain/matchStreaks.ts for
+// why this is weekly-participation-based, not win-based.
+export interface MatchStreaks {
+  current_streak: number;
+  best_streak: number;
+  participated_week_starts: string[];
+}
+
 // Long tail — Achievements & Badges (PRD §12.37). See
 // domain/achievements.ts for the unlock criteria.
 export type AchievementId =

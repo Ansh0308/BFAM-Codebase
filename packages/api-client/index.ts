@@ -59,6 +59,7 @@ import {
   LevelProgress,
   XpTransaction,
   AchievementStatus,
+  MatchStreaks,
   RebookInfo,
   StatisticsScope,
   Notification,
@@ -988,6 +989,11 @@ export class BFAMApiClient {
 
   async getPlayerXpHistory(playerId: string): Promise<{ results: XpTransaction[] }> {
     return this.request(`/players/${playerId}/xp/history`);
+  }
+
+  // Long tail — Match Streaks (PRD §12.38).
+  async getPlayerMatchStreaks(playerId: string): Promise<MatchStreaks> {
+    return this.request<MatchStreaks>(`/players/${playerId}/match-streaks`);
   }
 
   // Long tail — Achievements & Badges (PRD §12.37).
