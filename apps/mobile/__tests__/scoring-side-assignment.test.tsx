@@ -9,52 +9,54 @@ jest.mock('../src/lib/apiClient', () => ({
     getLiveScore: jest.fn(),
     getScorecard: jest.fn(),
     assignPlayerSides: jest.fn(),
-    startInnings: jest.fn(),
     setExtrasCountTowardScore: jest.fn(),
+    startInnings: jest.fn(),
   },
-}));
-
-jest.mock('../src/lib/sounds', () => ({
-  playTriggerSound: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ matchId: 'match-1' }),
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
 }));
 
 const mockGetGameRoom = apiClient.getGameRoom as jest.Mock;
 const mockGetMatchIntro = apiClient.getMatchIntro as jest.Mock;
 const mockGetLiveScore = apiClient.getLiveScore as jest.Mock;
 const mockGetScorecard = apiClient.getScorecard as jest.Mock;
-const mockAssignSides = apiClient.assignPlayerSides as jest.Mock;
-const mockStartInnings = apiClient.startInnings as jest.Mock;
-const mockSetExtrasCountTowardScore = apiClient.setExtrasCountTowardScore as jest.Mock;
+const mockAssign = apiClient.assignPlayerSides as jest.Mock;
+const mockSetExtras = apiClient.setExtrasCountTowardScore as jest.Mock;
+const mockStart = apiClient.startInnings as jest.Mock;
 
 import ScoringInterfaceScreen from '../app/(tabs)/matches/[matchId]/scoring';
 
-const MATCH_TEAMS = [
-  { match_team_id: 'mt-a', side_label: 'TEAM_A' },
-  { match_team_id: 'mt-b', side_label: 'TEAM_B' },
-];
-
+// Matches created before Match Setup existed can still reach scoring with
+// players who have no side — the old assignment step survives as a fallback,
+// shown only in that case (backlog A-10).
 const ROOM = {
   organizer_id: 'organizer-user',
   assigned_scorer_id: null,
+  overs_per_innings: 6,
   players: [
     { player_id: 'p1', bfam_id: 'BF1001', invitation_status: 'CONFIRMED', match_team_id: null },
     { player_id: 'p2', bfam_id: 'BF1002', invitation_status: 'CONFIRMED', match_team_id: null },
   ],
 };
 
-// Backlog A-10: batter/bowler selection restricted to the correct side.
-describe('Scoring Interface — assign players to a side (backlog A-10)', () => {
+describe('Scoring Interface — legacy side assignment fallback (backlog A-10)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetGameRoom.mockResolvedValue(ROOM);
     mockGetMatchIntro.mockResolvedValue({
-      intro: { background_music_enabled: true },
-      matchTeams: MATCH_TEAMS,
+      intro: {
+        background_music_enabled: false,
+        toss_winner_match_team_id: 'mt-a',
+        toss_decision: 'BAT',
+        toss_completed_at: 'now',
+      },
+      matchTeams: [
+        { match_team_id: 'mt-a', side_label: 'TEAM_A' },
+        { match_team_id: 'mt-b', side_label: 'TEAM_B' },
+      ],
     });
     mockGetLiveScore.mockResolvedValue({ match_id: 'match-1', innings: null });
     mockGetScorecard.mockResolvedValue({
@@ -62,56 +64,43 @@ describe('Scoring Interface — assign players to a side (backlog A-10)', () => 
       extras_count_toward_score: true,
       innings: [],
     });
-    mockAssignSides.mockResolvedValue({ players: [] });
-    mockStartInnings.mockResolvedValue(undefined);
-    mockSetExtrasCountTowardScore.mockResolvedValue({ extras_count_toward_score: true });
+    mockAssign.mockResolvedValue({ players: [] });
+    mockSetExtras.mockResolvedValue({});
+    mockStart.mockResolvedValue({});
   });
 
-  it('disables Start Innings until every confirmed player has a side', async () => {
-    const { getByTestId } = await render(<ScoringInterfaceScreen />);
-    await waitFor(() => expect(getByTestId('start-innings-screen')).toBeTruthy());
+  it('disables Start Innings until every player has a side', async () => {
+    const { findByTestId, getByTestId } = await render(<ScoringInterfaceScreen />);
+    expect(await findByTestId('legacy-sides')).toBeTruthy();
 
-    await fireEvent.press(getByTestId('batting-side'));
-
-    expect(getByTestId('start-innings-button').props.accessibilityState.disabled).toBe(true);
-  });
-
-  it('enables Start Innings once every player is assigned, then saves the assignments', async () => {
-    const { getByTestId } = await render(<ScoringInterfaceScreen />);
-    await waitFor(() => expect(getByTestId('start-innings-screen')).toBeTruthy());
+    await fireEvent.press(getByTestId('start-innings-button'));
+    expect(mockStart).not.toHaveBeenCalled();
 
     await fireEvent.press(getByTestId('assign-p1-TEAM_A'));
     await fireEvent.press(getByTestId('assign-p2-TEAM_B'));
-    await fireEvent.press(getByTestId('batting-side-mt-a'));
+    await fireEvent.press(getByTestId('start-innings-button'));
+    await waitFor(() => expect(mockStart).toHaveBeenCalled());
+  });
 
-    expect(getByTestId('start-innings-button').props.accessibilityState.disabled).toBe(false);
+  it('saves the assignments and the extras toggle when starting the first innings', async () => {
+    const { findByTestId, getByTestId } = await render(<ScoringInterfaceScreen />);
+    await findByTestId('legacy-sides');
 
+    await fireEvent.press(getByTestId('assign-p1-TEAM_A'));
+    await fireEvent.press(getByTestId('assign-p2-TEAM_B'));
+    await fireEvent(getByTestId('extras-count-toggle'), 'valueChange', false);
     await fireEvent.press(getByTestId('start-innings-button'));
 
     await waitFor(() =>
-      expect(mockAssignSides).toHaveBeenCalledWith('match-1', [
+      expect(mockAssign).toHaveBeenCalledWith('match-1', [
         { player_id: 'p1', match_team_id: 'mt-a' },
         { player_id: 'p2', match_team_id: 'mt-b' },
       ]),
     );
-    expect(mockStartInnings).toHaveBeenCalled();
-  });
-
-  // Backlog A-8: extras-count-toward-score toggle, defaulted on, set once
-  // before the very first innings alongside side assignment.
-  it('sends the extras toggle when starting the first innings', async () => {
-    const { getByTestId } = await render(<ScoringInterfaceScreen />);
-    await waitFor(() => expect(getByTestId('start-innings-screen')).toBeTruthy());
-
-    await fireEvent.press(getByTestId('extras-count-toggle-switch'));
-    await fireEvent.press(getByTestId('assign-p1-TEAM_A'));
-    await fireEvent.press(getByTestId('assign-p2-TEAM_B'));
-    await fireEvent.press(getByTestId('batting-side-mt-a'));
-    await fireEvent.press(getByTestId('start-innings-button'));
-
-    await waitFor(() =>
-      expect(mockSetExtrasCountTowardScore).toHaveBeenCalledWith('match-1', false),
+    expect(mockSetExtras).toHaveBeenCalledWith('match-1', false);
+    expect(mockStart).toHaveBeenCalledWith(
+      'match-1',
+      expect.objectContaining({ batting_match_team_id: 'mt-a', bowling_match_team_id: 'mt-b' }),
     );
-    expect(mockStartInnings).toHaveBeenCalled();
   });
 });

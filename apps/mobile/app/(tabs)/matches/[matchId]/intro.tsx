@@ -327,15 +327,17 @@ export default function MatchIntroScreen() {
             <Text style={styles.stageHeader}>TOSS</Text>
             {!tossRecorded ? (
               isOrganizer ? (
-                <View style={{ width: '100%' }}>
+                <View style={styles.tossPanel}>
                   {/* The coin: a decorative spin (Reanimated) landing on the
                       real random outcome that decides the winner below. */}
                   {tossMode === 'COIN' && (
                     <View style={styles.coinContainer} testID="coin-flip">
                       <Animated.View style={[styles.coin, coinAnimatedStyle]}>
-                        <Text style={styles.coinText}>
-                          {coinOutcome === 'TAILS' ? 'T' : coinOutcome === 'HEADS' ? 'H' : '?'}
-                        </Text>
+                        <View style={styles.coinInner}>
+                          <Text style={styles.coinText}>
+                            {coinOutcome === 'TAILS' ? 'T' : coinOutcome === 'HEADS' ? 'H' : '?'}
+                          </Text>
+                        </View>
                       </Animated.View>
                       {coinOutcome && !flipping && (
                         <PopReveal revealKey={coinOutcome} testID="coin-outcome">
@@ -666,15 +668,39 @@ const styles = StyleSheet.create({
     width: 132,
     height: 132,
     borderRadius: 66,
-    backgroundColor: '#D80000',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
+    backgroundColor: '#B8862B',
+    borderWidth: 6,
+    borderColor: '#E9C46A',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
     backfaceVisibility: 'hidden',
+    shadowColor: '#000000',
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
-  coinText: { fontFamily: 'Anton', fontSize: 56, color: '#FFFFFF' },
+  coinInner: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 2,
+    borderColor: '#7A5313',
+    backgroundColor: '#C99A3B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Dark backing so the toss controls stay legible over the red geometry.
+  tossPanel: {
+    width: '100%',
+    backgroundColor: 'rgba(0,0,0,0.78)',
+    borderRadius: 24,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  coinText: { fontFamily: 'Anton', fontSize: 52, color: '#5E3D0B' },
   chipRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 16 },
   chip: {
     borderWidth: 1,

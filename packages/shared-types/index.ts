@@ -644,6 +644,13 @@ export interface RecordBallInput {
   fielder_player_id?: string | null;
 }
 
+export interface LiveOverBall {
+  runs_scored: number;
+  extra_type: ExtraType;
+  extra_runs: number;
+  is_wicket: boolean;
+}
+
 export interface LiveScore {
   match_id: string;
   innings: Innings | null;
@@ -651,6 +658,18 @@ export interface LiveScore {
   current_striker_player_id?: string | null;
   current_non_striker_player_id?: string | null;
   current_bowler_player_id?: string | null;
+  // Box-cricket single-batter mode: no non-striker, no strike rotation.
+  no_non_striker?: boolean;
+  // Balls of the over in progress (wides/no-balls included, in order).
+  current_over_balls?: LiveOverBall[];
+  // The most recent ball — enough to work out who is at the crease now.
+  last_ball?: {
+    runs_scored: number;
+    extra_type: ExtraType;
+    extra_runs: number;
+    is_wicket: boolean;
+    dismissed_player_id?: string | null;
+  } | null;
   current_run_rate?: number;
   required_run_rate?: number | null;
   // Backlog A-19: lets the Scoring Interface show the real reason a

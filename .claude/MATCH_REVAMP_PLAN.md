@@ -54,7 +54,47 @@ the phased plan so work can resume from it.
   remaining batters; auto-picks when only one is left.
 - Redo from the reference is skipped (backend only supports undo).
 
-## Phases (each: implement, test, full suites, commit, push)
+## Status (2026-09-24) — A, B and C are DONE, committed and pushed
+
+- **A** — auto result (`domain/matchOutcome.ts`, idempotent POST /matches/:id/result
+  with no body), premium result screen (winner, both scores, Player of the Match
+  by NAME + stats), `match_teams.team_name`, `matches.no_non_striker` migration
+  (20260925000000), PATCH /matches/:id/setup.
+- **B** — Match Setup screen (`[matchId]/setup.tsx`: team names, per-player side
+  assignment, skill auto-balance, overs, single-batter + extras rules); Game
+  Room "Start Match" now goes there first; intro XI reveal + toss use team
+  names; toss = caller -> heads/tails -> coin -> bat/bowl first (manual entry
+  still available).
+- **C** — scoring screen rebuilt (`[matchId]/scoring.tsx`): red score header,
+  this-over ball bubbles (from `getLiveScore.current_over_balls`), WKT + extras
+  - run pad, "more runs" 7-12 sheet, one-tap wicket types, "Who's coming in?"
+    (lone remaining batter walks in automatically), next-bowler prompt at over
+    end, ends change at over end, single-batter mode (backend all-out cap =
+    team size; no strike rotation), crease restored from the last ball on
+    reopen (`src/lib/crease.ts`), undo restores the crease
+    (`undoBall.undone_event`).
+
+Verified by hand on the real stack (MySQL + backend + mobile-web): setup ->
+toss -> scoring (single batter, wicket, over end, chase) -> Finish Match ->
+auto result "OWLS WON by 2 wickets", Player of the Match "Aditya Shah".
+
+### Known gaps / follow-ups (not done)
+
+- Fielder (catch/run-out credit) is still not collected; POTM ignores fielding.
+- "Free hit" and "change overs mid-match" gully rules from the reference app are
+  NOT implemented (no backing logic; would be fake toggles).
+- Redo (reference app) skipped — backend only supports undo.
+- A newly chosen batter is not persisted until a ball is bowled, so reopening
+  right after a wicket asks "who's coming in?" again.
+- The bottom tab bar is still visible on setup/intro/scoring/result (they sit
+  inside the tabs group).
+- Old matches (created before this) default to two-batter mode
+  (`no_non_striker = false`); their old manual results (e.g. a WIN with no
+  winning side) are left as recorded.
+- 401 on an expired session shows "Could not load this match" instead of
+  sending the user to login (pre-existing app-wide behaviour).
+
+## Original phases
 
 - **A** — auto result + premium summary + team names/migration (this file's
   first commit).

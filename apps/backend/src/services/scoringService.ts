@@ -464,6 +464,7 @@ export async function undoLastBall(inningsId: string, actorUserId: string) {
 
   let updatedInnings: InningsRow | undefined;
   let correctedEventId: string | undefined;
+  let undoneEvent: ScoreEventRow | undefined;
 
   await sequelize.transaction(async (transaction) => {
     const innings = await fetchInningsForUpdate(inningsId, transaction);
@@ -511,6 +512,7 @@ export async function undoLastBall(inningsId: string, actorUserId: string) {
     );
 
     correctedEventId = lastEvent.score_event_id;
+    undoneEvent = lastEvent;
     updatedInnings = {
       ...innings,
       ...totalsAfter,
@@ -523,7 +525,17 @@ export async function undoLastBall(inningsId: string, actorUserId: string) {
     undone_event_id: correctedEventId,
     innings: updatedInnings,
   });
-  return { undone_event_id: correctedEventId!, innings: updatedInnings! };
+  // The reversed ball's crease (who faced / was at the other end / bowled) —
+  // exactly the state before that ball, so the scorer can put it back.
+  return {
+    undone_event_id: correctedEventId!,
+    innings: updatedInnings!,
+    undone_event: {
+      striker_player_id: undoneEvent!.striker_player_id,
+      non_striker_player_id: undoneEvent!.non_striker_player_id,
+      bowler_player_id: undoneEvent!.bowler_player_id,
+    },
+  };
 }
 
 // Live Score viewer (PRD §12.18 requirement 3): header info for the
@@ -546,6 +558,24 @@ export async function getLiveScore(matchId: string) {
   );
 
   const legalBalls = oversNotationToLegalBalls(Number(innings.overs_completed));
+  // The over in progress: score_events.over_number is the over a ball belongs
+  // to (a wide after the 6th legal ball is already in the NEXT over), so the
+  // current over is floor(legal balls / 6).
+  const currentOverNumber = Math.floor(legalBalls / 6);
+  const currentOverBalls = await sequelize.query<{
+    runs_scored: number;
+    extra_type: string;
+    extra_runs: number;
+    is_wicket: boolean;
+  }>(
+    `SELECT runs_scored, extra_type, extra_runs, is_wicket FROM score_events
+     WHERE innings_id = :inningsId AND is_corrected = FALSE AND over_number = :overNumber
+     ORDER BY sequence_number ASC`,
+    {
+      type: QueryTypes.SELECT,
+      replacements: { inningsId: innings.innings_id, overNumber: currentOverNumber },
+    },
+  );
   const crr = legalBalls > 0 ? innings.total_runs / (legalBalls / 6) : 0;
   let rrr: number | null = null;
   if (innings.target_runs != null) {
@@ -565,6 +595,17 @@ export async function getLiveScore(matchId: string) {
     current_striker_player_id: lastEvent?.striker_player_id ?? null,
     current_non_striker_player_id: lastEvent?.non_striker_player_id ?? null,
     current_bowler_player_id: lastEvent?.bowler_player_id ?? null,
+    no_non_striker: Boolean(match.no_non_striker),
+    current_over_balls: currentOverBalls.map((b) => ({ ...b, is_wicket: Boolean(b.is_wicket) })),
+    last_ball: lastEvent
+      ? {
+          runs_scored: lastEvent.runs_scored,
+          extra_type: lastEvent.extra_type,
+          extra_runs: lastEvent.extra_runs,
+          is_wicket: Boolean(lastEvent.is_wicket),
+          dismissed_player_id: lastEvent.dismissed_player_id,
+        }
+      : null,
     current_run_rate: Math.round(crr * 100) / 100,
     required_run_rate: rrr != null ? Math.round(rrr * 100) / 100 : null,
     overs_per_innings: match.overs_per_innings,

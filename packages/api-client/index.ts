@@ -914,7 +914,15 @@ export class BFAMApiClient {
     });
   }
 
-  async undoBall(inningsId: string): Promise<{ undone_event_id: string; innings: Innings }> {
+  async undoBall(inningsId: string): Promise<{
+    undone_event_id: string;
+    innings: Innings;
+    undone_event?: {
+      striker_player_id: string;
+      non_striker_player_id: string | null;
+      bowler_player_id: string;
+    };
+  }> {
     return this.request(`/innings/${inningsId}/undo`, { method: 'POST' });
   }
 

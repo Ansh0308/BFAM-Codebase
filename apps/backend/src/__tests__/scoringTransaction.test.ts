@@ -17,6 +17,7 @@ interface MatchRow {
   scoring_mode: string;
   match_status: string;
   overs_per_innings: number;
+  no_non_striker?: boolean;
 }
 interface InningsRow {
   innings_id: string;
@@ -399,6 +400,74 @@ describe('A-21: wicket cap at (assigned batting players - 1), auto all-out', () 
     const finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
     expect(finalInnings.total_wickets).toBe(1);
     expect(finalInnings.innings_status).toBe('IN_PROGRESS');
+  });
+});
+
+describe('single-batter (box cricket) mode: every batter gets to bat', () => {
+  beforeEach(() => {
+    matches = [
+      {
+        match_id: MATCH_ID,
+        organizer_id: ORGANIZER_USER,
+        assigned_scorer_id: null,
+        scoring_mode: 'PLAYER_MANAGED',
+        match_status: 'IN_PROGRESS',
+        overs_per_innings: 8,
+        no_non_striker: true,
+      },
+    ];
+    innings = [
+      {
+        innings_id: INNINGS_ID,
+        match_id: MATCH_ID,
+        innings_number: 1,
+        batting_match_team_id: 'mt-a',
+        bowling_match_team_id: 'mt-b',
+        total_runs: 0,
+        total_wickets: 0,
+        overs_completed: 0,
+        innings_status: 'IN_PROGRESS',
+        target_runs: null,
+      },
+    ];
+    scoreEvents = [];
+    // 3 batters: with a non-striker the cap would be 2 wickets; single-batter
+    // mode has nobody left at the other end, so all 3 must be out.
+    matchPlayers = [
+      { match_id: MATCH_ID, match_team_id: 'mt-a', invitation_status: 'CONFIRMED' },
+      { match_id: MATCH_ID, match_team_id: 'mt-a', invitation_status: 'CONFIRMED' },
+      { match_id: MATCH_ID, match_team_id: 'mt-a', invitation_status: 'CONFIRMED' },
+    ];
+    rowLocks.clear();
+  });
+
+  it('does not end the innings at team size - 1 wickets, only when every batter is out', async () => {
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    expect(innings.find((i) => i.innings_id === INNINGS_ID)!.innings_status).toBe('IN_PROGRESS');
+
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    const finalInnings = innings.find((i) => i.innings_id === INNINGS_ID)!;
+    expect(finalInnings.total_wickets).toBe(3);
+    expect(finalInnings.innings_status).toBe('COMPLETED');
+  });
+
+  it('undoing the last wicket reopens the innings', async () => {
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    await recordBall(INNINGS_ID, ORGANIZER_USER, wicketBall());
+    await undoLastBall(INNINGS_ID, ORGANIZER_USER);
+    expect(innings.find((i) => i.innings_id === INNINGS_ID)!.innings_status).toBe('IN_PROGRESS');
+  });
+
+  it('undo reports who was at the crease before the undone ball, so the scorer can restore it', async () => {
+    await recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(1));
+    const result = await undoLastBall(INNINGS_ID, ORGANIZER_USER);
+    expect(result.undone_event).toEqual({
+      striker_player_id: expect.any(String),
+      non_striker_player_id: expect.anything(),
+      bowler_player_id: expect.any(String),
+    });
   });
 });
 

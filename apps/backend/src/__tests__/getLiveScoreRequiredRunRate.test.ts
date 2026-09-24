@@ -9,6 +9,7 @@ interface MatchRow {
   match_id: string;
   extras_count_toward_score: boolean;
   overs_per_innings: number;
+  no_non_striker?: boolean;
 }
 interface InningsRow {
   innings_id: string;
@@ -23,6 +24,8 @@ interface InningsRow {
 
 let match: MatchRow;
 let innings: InningsRow;
+let overBalls: Array<Record<string, unknown>> = [];
+let lastOverNumberQueried: unknown;
 
 jest.mock('../config/sequelize', () => {
   return {
@@ -34,6 +37,11 @@ jest.mock('../config/sequelize', () => {
         }
         if (sql.includes('FROM innings WHERE match_id')) {
           return innings.match_id === r.matchId ? [innings] : [];
+        }
+        // This over's balls (getLiveScore's current_over_balls).
+        if (sql.includes('over_number = :overNumber')) {
+          lastOverNumberQueried = r.overNumber;
+          return overBalls;
         }
         if (sql.includes('FROM score_events WHERE innings_id')) {
           return [];
@@ -48,6 +56,8 @@ import { getLiveScore } from '../services/scoringService';
 
 describe("getLiveScore — Required Run Rate uses the match's real overs (fix for A-19)", () => {
   beforeEach(() => {
+    overBalls = [];
+    lastOverNumberQueried = undefined;
     match = {
       match_id: 'match-1',
       extras_count_toward_score: true,
@@ -85,5 +95,46 @@ describe("getLiveScore — Required Run Rate uses the match's real overs (fix fo
     const result = await getLiveScore('match-1');
 
     expect(result.required_run_rate).toBeNull();
+  });
+});
+
+describe('getLiveScore — match-revamp additions', () => {
+  beforeEach(() => {
+    overBalls = [];
+    match = { match_id: 'match-1', extras_count_toward_score: true, overs_per_innings: 8 };
+    innings = {
+      innings_id: 'innings-1',
+      match_id: 'match-1',
+      innings_number: 1,
+      total_runs: 12,
+      total_wickets: 0,
+      overs_completed: 1.2, // 8 legal balls -> over index 1
+      innings_status: 'IN_PROGRESS',
+      target_runs: null,
+    };
+  });
+
+  it('reports single-batter mode', async () => {
+    match.no_non_striker = true;
+    expect((await getLiveScore('match-1')).no_non_striker).toBe(true);
+    match.no_non_striker = false;
+    expect((await getLiveScore('match-1')).no_non_striker).toBe(false);
+  });
+
+  it('returns the balls of the over in progress, asking for over floor(legal balls / 6)', async () => {
+    overBalls = [
+      { runs_scored: 1, extra_type: 'NONE', extra_runs: 0, is_wicket: 0 },
+      { runs_scored: 0, extra_type: 'WIDE', extra_runs: 1, is_wicket: 0 },
+    ];
+    const result = await getLiveScore('match-1');
+    expect(lastOverNumberQueried).toBe(1);
+    expect(result.current_over_balls).toEqual([
+      { runs_scored: 1, extra_type: 'NONE', extra_runs: 0, is_wicket: false },
+      { runs_scored: 0, extra_type: 'WIDE', extra_runs: 1, is_wicket: false },
+    ]);
+  });
+
+  it('has no last ball before anything is bowled', async () => {
+    expect((await getLiveScore('match-1')).last_ball).toBeNull();
   });
 });
