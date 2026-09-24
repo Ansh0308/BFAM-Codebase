@@ -6,6 +6,7 @@ import { SelfServiceUserRole } from '@bfam/shared-types';
 import { AuthScreenBackground } from '../src/components/AuthScreenBackground';
 import { RoleCard } from '../src/components/RoleCard';
 import { Button } from '../src/components/Button';
+import { TextField } from '../src/components/TextField';
 import { useSignupStore } from '../src/store/signupStore';
 import { useAuthStore } from '../src/store/authStore';
 import { completeAccountCreation } from '../src/services/completeAccountCreation';
@@ -34,6 +35,8 @@ export default function RoleSelection() {
   const setSession = useAuthStore((s) => s.setSession);
   const waiverAccepted = useSignupStore((s) => s.waiverAccepted);
   const setWaiverAccepted = useSignupStore((s) => s.setWaiverAccepted);
+  const referralCode = useSignupStore((s) => s.referralCode);
+  const setReferralCode = useSignupStore((s) => s.setReferralCode);
 
   const [selected, setSelected] = useState<SelfServiceUserRole | null>(null);
   const [loading, setLoading] = useState(false);
@@ -116,6 +119,17 @@ export default function RoleSelection() {
           testID={`role-card-${role}`}
         />
       ))}
+
+      {selected === 'PLAYER' && (
+        <TextField
+          label="Referral Code (optional)"
+          value={referralCode}
+          onChangeText={setReferralCode}
+          placeholder="A friend's BFAM ID, e.g. BF1001"
+          autoCapitalize="characters"
+          testID="referral-code-input"
+        />
+      )}
 
       <Pressable
         onPress={() => setWaiverAccepted(!waiverAccepted)}

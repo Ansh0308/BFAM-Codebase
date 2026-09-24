@@ -24,6 +24,7 @@ export default function FavoriteCricketer() {
   const identifier = useSignupStore((s) => s.identifier);
   const password = useSignupStore((s) => s.password);
   const signupToken = useSignupStore((s) => s.signupToken);
+  const referralCode = useSignupStore((s) => s.referralCode);
   const socialTicket = useSignupStore((s) => s.socialTicket);
   const role = useSignupStore((s) => s.role);
   const setFavoriteCricketer = useSignupStore((s) => s.setFavoriteCricketer);
@@ -67,6 +68,7 @@ export default function FavoriteCricketer() {
         socialTicket,
         favoriteCricketerName: name,
         favoriteCricketerExternalId: externalId,
+        referralCode: referralCode.trim() || null,
         // Guaranteed true — Role Selection (the previous screen on this
         // path) blocks Continue until the waiver checkbox is accepted.
         waiverAccepted: true,

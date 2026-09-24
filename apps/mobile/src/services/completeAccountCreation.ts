@@ -13,6 +13,7 @@ export interface AccountCreationInput {
   // their own "Continue" action on this rather than passing false, since
   // the backend rejects registration without it either way.
   waiverAccepted: true;
+  referralCode?: string | null;
 }
 
 /**
@@ -31,6 +32,7 @@ export async function completeAccountCreation(input: AccountCreationInput) {
       role: input.role,
       favorite_cricketer_name: input.favoriteCricketerName,
       favorite_cricketer_external_id: input.favoriteCricketerExternalId,
+      referral_code: input.referralCode || null,
       waiver_accepted: input.waiverAccepted,
     });
   }
@@ -42,6 +44,7 @@ export async function completeAccountCreation(input: AccountCreationInput) {
     signup_token: input.signupToken ?? undefined,
     favorite_cricketer_name: input.favoriteCricketerName,
     favorite_cricketer_external_id: input.favoriteCricketerExternalId,
+    referral_code: input.referralCode || null,
     waiver_accepted: input.waiverAccepted,
   });
 }

@@ -186,6 +186,7 @@ export interface CompleteSocialSignupPayload {
   favorite_cricketer_name?: string | null;
   favorite_cricketer_external_id?: string | null;
   full_name?: string | null;
+  referral_code?: string | null;
   waiver_accepted: true;
 }
 

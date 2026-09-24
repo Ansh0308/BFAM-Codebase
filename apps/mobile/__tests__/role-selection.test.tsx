@@ -36,6 +36,19 @@ describe('RoleSelection screen', () => {
     expect(queryByTestId('role-card-ADMIN')).toBeNull();
   });
 
+  // Long tail — Referral System (PRD §12.53).
+  it('shows an optional referral code field for Player only, and stores what is typed', async () => {
+    const { getByTestId, queryByTestId } = await render(<RoleSelection />);
+    expect(queryByTestId('referral-code-input')).toBeNull();
+
+    await fireEvent.press(getByTestId('role-card-TURF_OWNER'));
+    expect(queryByTestId('referral-code-input')).toBeNull();
+
+    await fireEvent.press(getByTestId('role-card-PLAYER'));
+    await fireEvent.changeText(getByTestId('referral-code-input'), 'BF1001');
+    expect(useSignupStore.getState().referralCode).toBe('BF1001');
+  });
+
   it('selecting Player navigates to Favorite Cricketer instead of creating the account directly', async () => {
     const { getByTestId } = await render(<RoleSelection />);
 

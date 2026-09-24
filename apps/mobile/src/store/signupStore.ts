@@ -25,6 +25,8 @@ interface SignupState {
   // completeAccountCreation (Role Selection itself for Owner/Staff,
   // Favorite Cricketer for Player).
   waiverAccepted: boolean;
+  // Long tail — Referral System (PRD §12.53): optional friend's BFAM ID.
+  referralCode: string;
 
   setPhonePasswordSignup: (identifier: string, password: string) => void;
   setIdentifier: (identifier: string) => void;
@@ -33,6 +35,7 @@ interface SignupState {
   setRole: (role: SelfServiceUserRole) => void;
   setFavoriteCricketer: (name: string | null, externalId: string | null) => void;
   setWaiverAccepted: (accepted: boolean) => void;
+  setReferralCode: (code: string) => void;
   reset: () => void;
 }
 
@@ -46,6 +49,7 @@ const initialState = {
   favoriteCricketerName: null,
   favoriteCricketerExternalId: null,
   waiverAccepted: false,
+  referralCode: '',
 };
 
 export const useSignupStore = create<SignupState>((set) => ({
@@ -61,5 +65,6 @@ export const useSignupStore = create<SignupState>((set) => ({
   setFavoriteCricketer: (name, externalId) =>
     set({ favoriteCricketerName: name, favoriteCricketerExternalId: externalId }),
   setWaiverAccepted: (accepted) => set({ waiverAccepted: accepted }),
+  setReferralCode: (code) => set({ referralCode: code }),
   reset: () => set(initialState),
 }));
