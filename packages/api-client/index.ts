@@ -65,6 +65,7 @@ import {
   RewardRedemption,
   MembershipPlan,
   Membership,
+  RecognitionAward,
   RebookInfo,
   StatisticsScope,
   Notification,
@@ -1016,6 +1017,13 @@ export class BFAMApiClient {
     return this.request('/rewards/redemptions/mine');
   }
 
+  // Long tail — Special Recognition (PRD §12.39).
+  async getMonthlyRecognition(
+    month?: string,
+  ): Promise<{ month: string; awards: RecognitionAward[] }> {
+    return this.request(`/recognition${toQueryString({ month })}`);
+  }
+
   // Long tail — Memberships (PRD §12.51).
   async getMembershipPlans(): Promise<{ results: MembershipPlan[] }> {
     return this.request('/memberships/plans');
@@ -1025,9 +1033,7 @@ export class BFAMApiClient {
     return this.request('/memberships/mine');
   }
 
-  async subscribeToMembership(
-    planId: string,
-  ): Promise<{
+  async subscribeToMembership(planId: string): Promise<{
     membership_id: string;
     plan_name: string;
     expires_at: string;

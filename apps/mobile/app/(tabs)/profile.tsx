@@ -247,6 +247,20 @@ export default function Profile() {
             </Pressable>
 
             <Pressable
+              onPress={() => router.push('/recognition')}
+              className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
+              testID="recognition-section"
+            >
+              <Feather name="thumbs-up" size={24} color="#D80000" />
+              <Text className="font-display text-card-title uppercase text-ink-black mt-2">
+                Recognition
+              </Text>
+              <Text className="font-ui text-body text-text-tertiary text-center mt-1">
+                Player of the Month, Batting and Bowling Stars, Sportsman of the Month.
+              </Text>
+            </Pressable>
+
+            <Pressable
               onPress={() => router.push('/membership')}
               className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
               testID="membership-section"

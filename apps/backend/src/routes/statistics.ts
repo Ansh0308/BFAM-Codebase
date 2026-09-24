@@ -14,6 +14,7 @@ import {
   LEADERBOARD_CATEGORIES,
   type LeaderboardCategory,
 } from '../services/leaderboardService';
+import { getMonthlyRecognition, monthRange } from '../services/recognitionService';
 import { getPlayerLevelProgress, getXpHistory } from '../services/xpService';
 import { getPlayerAchievements } from '../services/achievementService';
 import { getPlayerMatchStreaks } from '../services/matchStreakService';
@@ -210,6 +211,23 @@ router.get(
     const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
     const results = await getLeaderboard(req.query.category, limit);
     return res.status(200).json({ category: req.query.category, results });
+  }),
+);
+
+// GET /recognition?month=YYYY-MM — monthly awards (long tail, PRD §12.39).
+// Defaults to the current UTC month.
+router.get(
+  '/recognition',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const month =
+      typeof req.query.month === 'string' ? req.query.month : new Date().toISOString().slice(0, 7);
+    if (!monthRange(month)) {
+      return res
+        .status(400)
+        .json({ error: { message: 'month must be formatted YYYY-MM', status: 400 } });
+    }
+    return res.status(200).json({ month, awards: await getMonthlyRecognition(month) });
   }),
 );
 

@@ -1057,6 +1057,18 @@ export interface RewardRedemption {
   created_at: string;
 }
 
+// Long tail — Special Recognition (PRD §12.39).
+export type RecognitionAwardType =
+  'BATTING_STAR' | 'BOWLING_STAR' | 'PLAYER_OF_THE_MONTH' | 'SPORTSMAN_OF_THE_MONTH';
+
+export interface RecognitionAward {
+  award: RecognitionAwardType;
+  player_id: string;
+  bfam_id: string;
+  full_name: string | null;
+  value: number;
+}
+
 // Long tail — Memberships (PRD §12.51).
 export interface MembershipPlan {
   plan_id: string;
