@@ -45,16 +45,17 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `7de32dc` — "Add
-Reviews Management to Admin Web (E-5)". Working tree is clean,
-everything up to and including E-5 is committed and pushed.
+`main` branch, latest commit at time of writing: `831cf1f` — "Add Team
+Management to Admin Web (E-4)". Working tree is clean, everything up
+to and including E-4 is committed and pushed.
 
 **Admin Web now has**: Players directory, Home Banners CMS, Turf
-directory + suspend/reactivate, and Reviews directory + delete
-(`apps/web/src/app/admin/{players,banners,turfs,reviews}/page.tsx`).
-Still missing (E-2/E-4/E-6): Match Management, Team Management,
-Reports. Check `apps/web/src/app/admin/` directly before starting any
-of these — don't trust this file's item numbering alone, it can drift.
+directory + suspend/reactivate, Team directory + archive/reactivate,
+and Reviews directory + delete
+(`apps/web/src/app/admin/{players,banners,turfs,teams,reviews}/page.tsx`).
+Still missing (E-2/E-6): Match Management, Reports. Check
+`apps/web/src/app/admin/` directly before starting either — don't
+trust this file's item numbering alone, it can drift.
 
 Full context: the canonical, continuously-updated status doc is
 `BFAM_Gap_Analysis_and_TODO.md` at the repo root — read it for the full
@@ -184,15 +185,25 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     entry), routes `GET /admin/reviews` / `DELETE /admin/reviews/:reviewId`,
     and `apps/web/src/app/admin/reviews/page.tsx` (directory + search +
     confirm-then-delete).
+18. **E-4 — Team Management in Admin Web**
+    New `apps/backend/src/services/adminTeamService.ts`
+    (`listAllTeamsForAdmin` — captain name/phone via a join, active
+    member count via a `team_members` subquery; `setTeamStatusAsAdmin` —
+    writes a `TEAM_STATUS_CHANGED` audit_logs entry), routes
+    `GET /admin/teams` / `PATCH /admin/teams/:teamId/status`, and
+    `apps/web/src/app/admin/teams/page.tsx` (directory + search +
+    Archive/Reactivate). Same directory+moderation shape as E-3/E-5.
 
 ### What's next, in priority order (per `BFAM_Gap_Analysis_and_TODO.md` Part 4 / the remaining-backlog doc's Section D)
 
-1. **E-2, E-4, E-6** — rest of the Admin Panel (Match Management, Team
-   Management, Reports). Check `apps/web/src/app/admin/` directly first
-   — don't trust backlog-doc item numbers, they can drift (E-3 and E-5
-   both turned out to need less new ground than their original notes
-   implied — real gap was "no cross-cutting directory + moderation
-   action exists," not a full feature build). Once any of these lands,
+1. **E-2, E-6** — rest of the Admin Panel (Match Management, Reports).
+   Check `apps/web/src/app/admin/` directly first — don't trust
+   backlog-doc item numbers, they can drift (E-3/E-4/E-5 all turned out
+   to need less new ground than their original notes implied — the real
+   gap each time was "no cross-cutting directory + moderation action
+   exists," not a full feature build; E-2 likely follows the same
+   shape — check matchService.ts for what moderation action would even
+   mean for a match, e.g. force-cancel/void a match). Once either lands,
    wire `writeAuditLog()` (see G-24 above) into its write paths at the
    same time, not as a follow-up.
 2. Everything in the "long tail" section of the remaining-backlog doc
