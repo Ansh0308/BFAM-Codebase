@@ -39,6 +39,22 @@ describe('boolTinyIntTypeCast (fix for the Scoring Interface Start Innings 400 b
     expect(next).toHaveBeenCalled();
   });
 
+  it('returns a DATE column as its raw YYYY-MM-DD string, not a JS Date', () => {
+    const next = jest.fn();
+    expect(boolTinyIntTypeCast(fakeField('DATE', 10, '2026-09-24'), next)).toBe('2026-09-24');
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('keeps a NULL DATE as null', () => {
+    expect(boolTinyIntTypeCast(fakeField('DATE', 10, null), jest.fn())).toBeNull();
+  });
+
+  it('leaves DATETIME columns to the default cast (a real instant, so a Date is right)', () => {
+    const next = jest.fn().mockReturnValue(new Date(0));
+    boolTinyIntTypeCast(fakeField('DATETIME', 19, '1970-01-01 00:00:00'), next);
+    expect(next).toHaveBeenCalled();
+  });
+
   it('leaves every other MySQL column type to the default cast', () => {
     const next = jest.fn().mockReturnValue('unchanged');
     expect(boolTinyIntTypeCast(fakeField('VARCHAR', 255, 'hello'), next)).toBe('unchanged');

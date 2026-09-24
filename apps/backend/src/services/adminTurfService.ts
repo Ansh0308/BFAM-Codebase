@@ -27,10 +27,11 @@ export interface AdminTurfRow {
 export async function listAllTurfsForAdmin(): Promise<AdminTurfRow[]> {
   return sequelize.query<AdminTurfRow>(
     `SELECT t.turf_id, t.turf_name, t.city, t.turf_status, t.average_rating,
-            t.owner_id, u.full_name AS owner_name, u.phone_number AS owner_phone,
+            t.owner_id, p.full_name AS owner_name, u.phone_number AS owner_phone,
             t.created_at
      FROM turfs t
      JOIN users u ON u.user_id = t.owner_id
+     LEFT JOIN players p ON p.user_id = u.user_id
      WHERE t.deleted_at IS NULL
      ORDER BY t.created_at DESC`,
     { type: QueryTypes.SELECT },

@@ -41,6 +41,15 @@ export function boolTinyIntTypeCast(field: MysqlTypeCastField, next: () => unkno
     const value = field.string();
     return value === null ? null : value === '1';
   }
+  // Supplying our own typeCast replaces Sequelize's built-in parsers, which
+  // is what normally turns a DATE column into a 'YYYY-MM-DD' string. Without
+  // this, mysql2 hands back a JS Date at server-local midnight — so
+  // createMatch's scheduled-start construction was
+  // an Invalid Date and every date-only column (booking_date, DOBs...)
+  // serialized to JSON as a timezone-shifted ISO timestamp.
+  if (field.type === 'DATE') {
+    return field.string();
+  }
   return next();
 }
 

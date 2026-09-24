@@ -337,7 +337,36 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     in the Game Room.
     Tests at that point: backend 608, mobile 284 passing, tsc clean.
 
-**NEXT STEP requested by user: a MANUAL TEST of everything built so far by
+28. **Manual test run (2026-09-24) — DONE.** Ran a throwaway MySQL 8.4 (data dir in
+    the session scratchpad, mysqld --initialize-insecure, then created
+    bfam_dev/bfam_user from apps/backend/.env), ran ALL 29 migrations up (and
+    the last 6 down+up) cleanly, seeded phase1 + demo, and exercised the API,
+    mobile-web (Profile tiles, Membership, Rewards, Recognition, Referrals,
+    Leaderboards, XP, Achievements, Streaks, Stats, Game Room balanced teams)
+    and admin web (Reports/Players/Matches/Turfs/Teams/Reviews/Banners), plus
+    booking create/reschedule via API.
+    **Two real bugs found and fixed** (both invisible to the mocked suites):
+    a. dialectOptions.typeCast (added for the TINYINT bool fix) replaced
+    Sequelize's DATE parser, so every raw-query DATE column came back as a
+    JS Date: createMatch built "Invalid Date" (demo seed and real match
+    creation broken) and dates JSON-serialized timezone-shifted. Fixed in
+    config/sequelize.ts (DATE -> raw 'YYYY-MM-DD' string) + tests.
+    b. GET /admin/turfs 500'd: adminTurfService selected u.full_name but
+    full_name lives on players. Now LEFT JOINs players (owners have no
+    player row, so owner_name is null and the UI shows the phone).
+    Also fixed "1 wickets" pluralization on the Recognition screen.
+    Observed, NOT fixed: Profile's "Basic Skill Rating" tile still says Fair
+    Play/Reliability/Community are "coming in a later module" (stale copy);
+    XP is 0 for seeded players because XP is only earned via reviews (by
+    design); referral QUALIFICATION (first completed match -> 100 coins) and
+    the mobile signup UI field were not clicked through end to end (API
+    register-with-referral-code verified; qualification is unit-tested only);
+    demo seed re-runs duplicate data (harmless).
+    To re-run: start MySQL (see above), npm run db:migrate, seeds, then
+    preview_start backend / mobile-web / web. Logins: player
+    +919916300600 / Demo@1234; admin +91987654323 / BfamPhase1!234.
+
+**(Historical) The user asked for a MANUAL TEST of everything built so far by
 actually running the project** (backend + web + mobile-web via preview
 tools; needs MySQL + running all migrations incl. 20260924* files, which
 have only ever been exercised via mocked tests). Record findings honestly.

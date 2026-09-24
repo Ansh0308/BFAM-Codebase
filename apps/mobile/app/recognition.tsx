@@ -7,10 +7,13 @@ import type { RecognitionAward, RecognitionAwardType } from '@bfam/shared-types'
 import { apiClient } from '../src/lib/apiClient';
 import { colors } from '../src/theme/tokens';
 
-const AWARD_LABELS: Record<RecognitionAwardType, { title: string; unit: string }> = {
+const AWARD_LABELS: Record<
+  RecognitionAwardType,
+  { title: string; unit: string; singular?: string }
+> = {
   PLAYER_OF_THE_MONTH: { title: 'Player of the Month', unit: 'pts' },
   BATTING_STAR: { title: 'Batting Star', unit: 'runs' },
-  BOWLING_STAR: { title: 'Bowling Star', unit: 'wickets' },
+  BOWLING_STAR: { title: 'Bowling Star', unit: 'wickets', singular: 'wicket' },
   SPORTSMAN_OF_THE_MONTH: { title: 'Sportsman of the Month', unit: 'fair-play rating' },
 };
 
@@ -103,7 +106,10 @@ export default function RecognitionScreen() {
                 {a.full_name ?? a.bfam_id}
               </Text>
               <Text className="font-ui text-micro text-text-tertiary mt-1">
-                {a.value} {AWARD_LABELS[a.award].unit}
+                {a.value}{' '}
+                {a.value === 1 && AWARD_LABELS[a.award].singular
+                  ? AWARD_LABELS[a.award].singular
+                  : AWARD_LABELS[a.award].unit}
               </Text>
             </View>
           ))}
