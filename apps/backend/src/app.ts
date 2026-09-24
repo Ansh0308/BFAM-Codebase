@@ -50,6 +50,7 @@ import { listAllTurfsForAdmin, setTurfStatusAsAdmin } from './services/adminTurf
 import { listAllReviewsForAdmin, deleteReviewAsAdmin } from './services/adminReviewService';
 import { listAllTeamsForAdmin, setTeamStatusAsAdmin } from './services/adminTeamService';
 import { listAllMatchesForAdmin, forceCancelMatchAsAdmin } from './services/adminMatchService';
+import { getBusinessReport } from './services/adminReportsService';
 import { createPromoCode, listPromoCodes } from './services/promoCodeService';
 import {
   createPromoCodeSchema,
@@ -1257,6 +1258,19 @@ app.post(
       }
       throw error;
     }
+  },
+);
+
+// Backlog E-6 — Reports / Business Analytics in Admin Web (PRD §12.49):
+// a first cut of the KPIs an admin would check day to day — see
+// adminReportsService.ts for what's deliberately deferred.
+app.get(
+  '/admin/reports',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (_req: Request, res: Response) => {
+    const report = await getBusinessReport();
+    return res.status(200).json(report);
   },
 );
 

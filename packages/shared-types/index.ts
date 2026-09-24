@@ -1038,6 +1038,20 @@ export interface AdminTurf {
   created_at: string;
 }
 
+// Backlog E-6: Reports / Business Analytics in Admin Web — a deliberately
+// small first cut (see adminReportsService.ts for what's deferred).
+export interface BusinessReport {
+  total_bookings: number;
+  cancelled_bookings: number;
+  cancellation_rate: number;
+  total_revenue: number;
+  total_refunds: number;
+  active_players: number;
+  active_turfs: number;
+  active_teams: number;
+  matches_completed: number;
+}
+
 // Backlog E-2: Match Management in Admin Web — a cross-organizer
 // directory entry, not the fuller Match/GameRoom shape the organizer's
 // own screens use.

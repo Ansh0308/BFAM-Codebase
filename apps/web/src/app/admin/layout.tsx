@@ -5,6 +5,7 @@ import { useRequireRole } from '../../lib/auth';
 import { DashboardShell } from '../../components/DashboardShell';
 
 const NAV_ITEMS = [
+  { href: '/admin/reports', label: 'Reports' },
   { href: '/admin/players', label: 'Players' },
   { href: '/admin/matches', label: 'Matches' },
   { href: '/admin/turfs', label: 'Turfs' },
@@ -21,10 +22,13 @@ const NAV_ITEMS = [
 // has — see adminTurfService.ts), backlog E-5 added a cross-turf review
 // directory + delete moderation (adminReviewService.ts), backlog E-4
 // added a cross-captain team directory + archive/reactivate moderation
-// (adminTeamService.ts), and backlog E-2 added a cross-organizer match
-// directory + force-cancel moderation (adminMatchService.ts). The rest
-// of §9.1's scope (tournament management, payment oversight, reports) is
-// a larger, separate build.
+// (adminTeamService.ts), backlog E-2 added a cross-organizer match
+// directory + force-cancel moderation (adminMatchService.ts), and
+// backlog E-6 added a first-cut business metrics report
+// (adminReportsService.ts) — this closes out the original E-2..E-6 gap
+// list. The rest of §9.1's scope (tournament management, payment
+// oversight) and the fuller analytics platform PRD §12.49/§12.50 imply
+// eventually are larger, separate builds.
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useRequireRole('ADMIN');
 

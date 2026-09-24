@@ -86,6 +86,7 @@ import {
   AdminReview,
   AdminTeam,
   AdminTurf,
+  BusinessReport,
   HomeBanner,
   CreateBannerInput,
   UpdateBannerInput,
@@ -1273,6 +1274,12 @@ export class BFAMApiClient {
 
   async forceCancelMatchAdmin(matchId: string): Promise<AdminMatch> {
     return this.request(`/admin/matches/${matchId}/force-cancel`, { method: 'POST' });
+  }
+
+  // ---- Backlog E-6: Reports / Business Analytics in Admin Web ----
+
+  async getBusinessReport(): Promise<BusinessReport> {
+    return this.request('/admin/reports');
   }
 
   // ---- Backlog B-6: Home Page Carousel ----
