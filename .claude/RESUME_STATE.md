@@ -45,7 +45,7 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: see git log — most recent item: Referral System. Working tree is clean,
+`main` branch, latest commit at time of writing: see `git log` (most recent item: Referral System). Working tree is clean,
 everything up to and including it is committed and pushed.
 
 **The entire well-scoped backlog from `BFAM_Remaining_Backlog_2026-09-23.md`
@@ -320,7 +320,7 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
 Everything else in the "long tail" section of
 `BFAM_Remaining_Backlog_2026-09-23.md` (Special Recognition,
 Tournaments & Leagues, Match Recording & Highlights, Memberships, a
-real Offers taxonomy beyond generic promo codes, Referral System,
+real Offers taxonomy beyond generic promo codes,
 Café, a real Maintenance task tracker, in-match Fair Play
 rotation/alerts/new-player-protection, skill-aware team balancing, a
 broader rewards catalog, and map/navigation) — lowest priority, pick
