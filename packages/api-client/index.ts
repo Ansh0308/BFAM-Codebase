@@ -58,6 +58,7 @@ import {
   LeaderboardEntry,
   LevelProgress,
   XpTransaction,
+  AchievementStatus,
   RebookInfo,
   StatisticsScope,
   Notification,
@@ -987,6 +988,11 @@ export class BFAMApiClient {
 
   async getPlayerXpHistory(playerId: string): Promise<{ results: XpTransaction[] }> {
     return this.request(`/players/${playerId}/xp/history`);
+  }
+
+  // Long tail — Achievements & Badges (PRD §12.37).
+  async getPlayerAchievements(playerId: string): Promise<{ results: AchievementStatus[] }> {
+    return this.request(`/players/${playerId}/achievements`);
   }
 
   // Long tail — Rankings & Leaderboards (PRD §12.33).

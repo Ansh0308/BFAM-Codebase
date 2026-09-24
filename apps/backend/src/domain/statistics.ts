@@ -58,8 +58,9 @@ function emptyLine(playerId: string): PlayerMatchStatLine {
 }
 
 // A run-out isn't credited to the bowler (mirrors scoringService's
-// getScorecard rule) — every other wicket type is.
-function creditsBowlerWithWicket(wicketType: WicketType | null): boolean {
+// getScorecard rule) — every other wicket type is. Exported for reuse by
+// achievementService.ts's hat-trick detection.
+export function creditsBowlerWithWicket(wicketType: WicketType | null): boolean {
   return wicketType !== null && wicketType !== 'RUN_OUT';
 }
 

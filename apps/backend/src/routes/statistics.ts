@@ -15,6 +15,7 @@ import {
   type LeaderboardCategory,
 } from '../services/leaderboardService';
 import { getPlayerLevelProgress, getXpHistory } from '../services/xpService';
+import { getPlayerAchievements } from '../services/achievementService';
 
 const router = Router();
 
@@ -118,6 +119,25 @@ router.get(
       const playerId = await resolvePlayerIdParam(req);
       const history = await getXpHistory(playerId);
       return res.status(200).json({ results: history });
+    } catch (error) {
+      if (error instanceof PlayerProfileNotFoundError) {
+        return res.status(422).json({ error: { message: error.message, status: 422 } });
+      }
+      throw error;
+    }
+  }),
+);
+
+// GET /players/:playerId/achievements — every badge, earned or not (long
+// tail, PRD §12.37). See domain/achievements.ts for the unlock criteria.
+router.get(
+  '/players/:playerId/achievements',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const playerId = await resolvePlayerIdParam(req);
+      const results = await getPlayerAchievements(playerId);
+      return res.status(200).json({ results });
     } catch (error) {
       if (error instanceof PlayerProfileNotFoundError) {
         return res.status(422).json({ error: { message: error.message, status: 422 } });

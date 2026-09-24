@@ -218,6 +218,20 @@ export default function Profile() {
               </Text>
             </Pressable>
 
+            <Pressable
+              onPress={() => router.push('/achievements')}
+              className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
+              testID="achievements-section"
+            >
+              <Feather name="award" size={24} color="#D80000" />
+              <Text className="font-display text-card-title uppercase text-ink-black mt-2">
+                Achievements
+              </Text>
+              <Text className="font-ui text-body text-text-tertiary text-center mt-1">
+                Badges you've earned for milestones and playing well.
+              </Text>
+            </Pressable>
+
             <View
               className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
               testID="ratings-section"

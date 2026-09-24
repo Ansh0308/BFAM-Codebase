@@ -1041,6 +1041,26 @@ export interface AdminTurf {
   created_at: string;
 }
 
+// Long tail — Achievements & Badges (PRD §12.37). See
+// domain/achievements.ts for the unlock criteria.
+export type AchievementId =
+  | 'FIRST_MATCH'
+  | 'CENTURY_CLUB'
+  | 'SIX_MACHINE'
+  | 'HAT_TRICK_HERO'
+  | 'MATCH_STREAK'
+  | 'BFAM_LEGEND'
+  | 'FAIR_PLAY_CHAMPION'
+  | 'RELIABLE_PLAYER'
+  | 'TOP_PERFORMER';
+
+export interface AchievementStatus {
+  id: AchievementId;
+  name: string;
+  description: string;
+  earned: boolean;
+}
+
 // Long tail — XP & Player Levels (PRD §12.35).
 export type PlayerLevel = 'Newbie' | 'Rookie' | 'Player' | 'Pro' | 'Elite' | 'Legend';
 
