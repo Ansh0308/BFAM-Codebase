@@ -1038,6 +1038,20 @@ export interface AdminTurf {
   created_at: string;
 }
 
+// Backlog E-4: Team Management in Admin Web — a cross-captain directory
+// entry, not the fuller TeamDetails shape the captain's own screen edits.
+export interface AdminTeam {
+  team_id: string;
+  team_name: string;
+  home_city: string | null;
+  skill_level: string | null;
+  team_status: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+  captain_name: string | null;
+  captain_phone: string;
+  member_count: number;
+  created_at: string;
+}
+
 // Backlog E-5: Reviews Management in Admin Web.
 export interface AdminReview {
   review_id: string;

@@ -937,6 +937,12 @@ export const setTurfStatusSchema = z.object({
   turf_status: z.enum(TURF_STATUSES),
 });
 
+// ---- Backlog E-4: Team Management in Admin Web ----
+
+export const setTeamStatusSchema = z.object({
+  team_status: z.enum(TEAM_STATUSES),
+});
+
 // ---- Backlog B-11: Pre-Match Room (lobby) ----
 
 export const createRoomSchema = z.object({

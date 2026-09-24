@@ -7,6 +7,7 @@ import { DashboardShell } from '../../components/DashboardShell';
 const NAV_ITEMS = [
   { href: '/admin/players', label: 'Players' },
   { href: '/admin/turfs', label: 'Turfs' },
+  { href: '/admin/teams', label: 'Teams' },
   { href: '/admin/reviews', label: 'Reviews' },
   { href: '/admin/banners', label: 'Home Banners' },
 ];
@@ -16,10 +17,12 @@ const NAV_ITEMS = [
 // B-6 added the Home page carousel's content-management surface, backlog
 // E-3 added a cross-owner turf directory + suspend/reactivate moderation
 // (deliberately not the fuller pricing/hours editor Owner Web already
-// has — see adminTurfService.ts), and backlog E-5 added a cross-turf
-// review directory + delete moderation (adminReviewService.ts). The rest
-// of §9.1's scope (Match/Team management, tournament management, payment
-// oversight, reports) is a larger, separate build.
+// has — see adminTurfService.ts), backlog E-5 added a cross-turf review
+// directory + delete moderation (adminReviewService.ts), and backlog E-4
+// added a cross-captain team directory + archive/reactivate moderation
+// (adminTeamService.ts). The rest of §9.1's scope (Match management,
+// tournament management, payment oversight, reports) is a larger,
+// separate build.
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useRequireRole('ADMIN');
 

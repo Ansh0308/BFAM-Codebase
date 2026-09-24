@@ -48,17 +48,20 @@ import {
 import { listAllPlayers } from './services/adminUserService';
 import { listAllTurfsForAdmin, setTurfStatusAsAdmin } from './services/adminTurfService';
 import { listAllReviewsForAdmin, deleteReviewAsAdmin } from './services/adminReviewService';
+import { listAllTeamsForAdmin, setTeamStatusAsAdmin } from './services/adminTeamService';
 import { createPromoCode, listPromoCodes } from './services/promoCodeService';
 import {
   createPromoCodeSchema,
   createBannerSchema,
   updateBannerSchema,
   setTurfStatusSchema,
+  setTeamStatusSchema,
 } from './validation/schemas';
 import { createBanner, deleteBanner, listAllBanners, updateBanner } from './services/bannerService';
 import {
   BannerNotFoundError,
   ReviewNotFoundError,
+  TeamNotFoundError,
   TurfNotFoundError,
   UnderMinimumAgeError,
 } from './domain/errors';
@@ -1176,6 +1179,45 @@ app.delete(
       return res.status(204).send();
     } catch (error) {
       if (error instanceof ReviewNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      throw error;
+    }
+  },
+);
+
+// Backlog E-4 — Team Management in Admin Web (PRD §9.1): a cross-captain
+// team directory, plus moderation (ACTIVE/INACTIVE/ARCHIVED) — same shape
+// as E-3's turf directory, see adminTeamService.ts for the full reasoning.
+app.get(
+  '/admin/teams',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (_req: Request, res: Response) => {
+    const teams = await listAllTeamsForAdmin();
+    return res.status(200).json({ results: teams });
+  },
+);
+app.patch(
+  '/admin/teams/:teamId/status',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (req: Request, res: Response) => {
+    const parsed = setTeamStatusSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'Invalid team status payload', status: 400 } });
+    }
+    try {
+      const team = await setTeamStatusAsAdmin(
+        req.params.teamId,
+        parsed.data.team_status,
+        req.auth!.sub,
+      );
+      return res.status(200).json(team);
+    } catch (error) {
+      if (error instanceof TeamNotFoundError) {
         return res.status(404).json({ error: { message: error.message, status: 404 } });
       }
       throw error;

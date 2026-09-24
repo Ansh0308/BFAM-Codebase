@@ -83,6 +83,7 @@ import {
   SupportCategory,
   AdminPlayer,
   AdminReview,
+  AdminTeam,
   AdminTurf,
   HomeBanner,
   CreateBannerInput,
@@ -1245,6 +1246,22 @@ export class BFAMApiClient {
 
   async deleteReviewAdmin(reviewId: string): Promise<void> {
     await this.request(`/admin/reviews/${reviewId}`, { method: 'DELETE' });
+  }
+
+  // ---- Backlog E-4: Team Management in Admin Web ----
+
+  async getAllTeamsAdmin(): Promise<{ results: AdminTeam[] }> {
+    return this.request('/admin/teams');
+  }
+
+  async setTeamStatusAdmin(
+    teamId: string,
+    teamStatus: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED',
+  ): Promise<AdminTeam> {
+    return this.request(`/admin/teams/${teamId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ team_status: teamStatus }),
+    });
   }
 
   // ---- Backlog B-6: Home Page Carousel ----
