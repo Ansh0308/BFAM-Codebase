@@ -10,7 +10,7 @@ const TURF_ID = 'eeeeeeee-0000-4000-8000-000000000505';
 
 let match: { match_id: string; match_status: string; booking_id: string } | null;
 let reviews: { review_id: string; match_id: string; player_id: string; rating: number }[];
-let player: { player_id: string; user_id: string; coin_balance: number };
+let player: { player_id: string; user_id: string; coin_balance: number; xp_total: number };
 let turf: { turf_id: string; average_rating: number | null };
 
 jest.mock('../config/sequelize', () => {
@@ -23,6 +23,9 @@ jest.mock('../config/sequelize', () => {
         }
         if (sql.includes('SELECT coin_balance FROM players WHERE player_id')) {
           return r.playerId === player.player_id ? [{ coin_balance: player.coin_balance }] : [];
+        }
+        if (sql.includes('SELECT xp_total FROM players WHERE player_id')) {
+          return r.playerId === player.player_id ? [{ xp_total: player.xp_total }] : [];
         }
         if (sql.includes('FROM matches WHERE match_id')) {
           return match && match.match_id === r.matchId ? [match] : [];
@@ -77,13 +80,17 @@ jest.mock('../config/sequelize', () => {
   };
 });
 
-import { submitReview, COIN_REWARD_PER_REVIEW } from '../services/reviewService';
+import {
+  submitReview,
+  COIN_REWARD_PER_REVIEW,
+  XP_REWARD_PER_REVIEW,
+} from '../services/reviewService';
 
 describe('submitReview (backlog B-4)', () => {
   beforeEach(() => {
     match = { match_id: MATCH_ID, match_status: 'COMPLETED', booking_id: BOOKING_ID };
     reviews = [];
-    player = { player_id: PLAYER_ID, user_id: USER_ID, coin_balance: 0 };
+    player = { player_id: PLAYER_ID, user_id: USER_ID, coin_balance: 0, xp_total: 0 };
     turf = { turf_id: TURF_ID, average_rating: null };
   });
 
@@ -94,6 +101,11 @@ describe('submitReview (backlog B-4)', () => {
     expect(result.coin_balance).toBe(COIN_REWARD_PER_REVIEW);
     expect(player.coin_balance).toBe(COIN_REWARD_PER_REVIEW);
     expect(turf.average_rating).toBe(4);
+    // Long tail — XP & Player Levels (PRD §12.35): the same review reward
+    // also grants XP.
+    expect(result.xp_awarded).toBe(XP_REWARD_PER_REVIEW);
+    expect(result.xp_total).toBe(XP_REWARD_PER_REVIEW);
+    expect(player.xp_total).toBe(XP_REWARD_PER_REVIEW);
   });
 
   it('rejects a second review for the same match by the same player', async () => {

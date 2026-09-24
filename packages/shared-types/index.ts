@@ -716,6 +716,9 @@ export interface ReviewSubmissionResult {
   review_id: string;
   coins_awarded: number;
   coin_balance: number;
+  // Long tail — XP & Player Levels (PRD §12.35).
+  xp_awarded: number;
+  xp_total: number;
 }
 
 // Backlog B-6: Home page carousel banner / admin CMS.
@@ -1035,6 +1038,28 @@ export interface AdminTurf {
   owner_id: string;
   owner_name: string | null;
   owner_phone: string;
+  created_at: string;
+}
+
+// Long tail — XP & Player Levels (PRD §12.35).
+export type PlayerLevel = 'Newbie' | 'Rookie' | 'Player' | 'Pro' | 'Elite' | 'Legend';
+
+export interface LevelProgress {
+  xp_total: number;
+  level: PlayerLevel;
+  xp_into_level: number;
+  xp_for_next_level: number | null;
+  next_level: PlayerLevel | null;
+  progress_percent: number;
+}
+
+export interface XpTransaction {
+  xp_transaction_id: string;
+  reason: 'REVIEW_REWARD' | 'ADMIN_ADJUSTMENT';
+  amount: number;
+  resulting_total: number;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
   created_at: string;
 }
 

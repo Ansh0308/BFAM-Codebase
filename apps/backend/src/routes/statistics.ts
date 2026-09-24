@@ -14,6 +14,7 @@ import {
   LEADERBOARD_CATEGORIES,
   type LeaderboardCategory,
 } from '../services/leaderboardService';
+import { getPlayerLevelProgress, getXpHistory } from '../services/xpService';
 
 const router = Router();
 
@@ -82,6 +83,44 @@ router.post(
     } catch (error) {
       if (error instanceof MatchNotFoundError) {
         return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      throw error;
+    }
+  }),
+);
+
+// GET /players/:playerId/xp — current XP total, level, and progress to the
+// next level (long tail, PRD §12.35).
+router.get(
+  '/players/:playerId/xp',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const playerId = await resolvePlayerIdParam(req);
+      const progress = await getPlayerLevelProgress(playerId);
+      return res.status(200).json(progress);
+    } catch (error) {
+      if (error instanceof PlayerProfileNotFoundError) {
+        return res.status(422).json({ error: { message: error.message, status: 422 } });
+      }
+      throw error;
+    }
+  }),
+);
+
+// GET /players/:playerId/xp/history — the append-only XP ledger, most
+// recent first.
+router.get(
+  '/players/:playerId/xp/history',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const playerId = await resolvePlayerIdParam(req);
+      const history = await getXpHistory(playerId);
+      return res.status(200).json({ results: history });
+    } catch (error) {
+      if (error instanceof PlayerProfileNotFoundError) {
+        return res.status(422).json({ error: { message: error.message, status: 422 } });
       }
       throw error;
     }

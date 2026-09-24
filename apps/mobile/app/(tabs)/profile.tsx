@@ -204,6 +204,20 @@ export default function Profile() {
               </Text>
             </Pressable>
 
+            <Pressable
+              onPress={() => router.push('/xp-level')}
+              className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
+              testID="xp-level-section"
+            >
+              <Feather name="star" size={24} color="#D80000" />
+              <Text className="font-display text-card-title uppercase text-ink-black mt-2">
+                Level &amp; XP
+              </Text>
+              <Text className="font-ui text-body text-text-tertiary text-center mt-1">
+                Your progression level and XP history — tap to view.
+              </Text>
+            </Pressable>
+
             <View
               className="bg-surface-alt rounded-lg p-5 mb-4 items-center"
               testID="ratings-section"

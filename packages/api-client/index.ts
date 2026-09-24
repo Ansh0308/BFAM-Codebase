@@ -56,6 +56,8 @@ import {
   PlayerRating,
   LeaderboardCategory,
   LeaderboardEntry,
+  LevelProgress,
+  XpTransaction,
   RebookInfo,
   StatisticsScope,
   Notification,
@@ -976,6 +978,15 @@ export class BFAMApiClient {
 
   async getRebookInfo(matchId: string): Promise<RebookInfo> {
     return this.request<RebookInfo>(`/matches/${matchId}/rebook`);
+  }
+
+  // Long tail — XP & Player Levels (PRD §12.35).
+  async getPlayerLevel(playerId: string): Promise<LevelProgress> {
+    return this.request<LevelProgress>(`/players/${playerId}/xp`);
+  }
+
+  async getPlayerXpHistory(playerId: string): Promise<{ results: XpTransaction[] }> {
+    return this.request(`/players/${playerId}/xp/history`);
   }
 
   // Long tail — Rankings & Leaderboards (PRD §12.33).

@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { earnCoins } from './coinsService';
+import { earnXp } from './xpService';
 import {
   MatchNotFoundError,
   MatchNotYetCompletedError,
@@ -12,6 +13,13 @@ import {
 // Backlog B-4: post-match review reward. No prior product decision on the
 // exact amount — documented here as the concrete MVP default.
 export const COIN_REWARD_PER_REVIEW = 20;
+// Long tail — XP & Player Levels (PRD §12.35): the same review-submission
+// event is the one real "player did something positive" trigger that
+// exists in the codebase today, so it's the natural first XP source —
+// same reasoning as G-24 extending audit logging to the one real write
+// path that existed rather than inventing new ones. No prior product
+// decision on the exact amount either; MVP default.
+export const XP_REWARD_PER_REVIEW = 10;
 
 interface MatchRow {
   match_id: string;
@@ -91,6 +99,7 @@ export async function submitReview(actorUserId: string, input: SubmitReviewInput
   const now = new Date();
 
   let coinBalance = 0;
+  let xpTotal = 0;
   await sequelize.transaction(async (transaction) => {
     await sequelize.getQueryInterface().bulkInsert(
       'reviews',
@@ -117,6 +126,14 @@ export async function submitReview(actorUserId: string, input: SubmitReviewInput
       transaction,
     );
 
+    xpTotal = await earnXp(
+      playerId,
+      XP_REWARD_PER_REVIEW,
+      'REVIEW_REWARD',
+      { type: 'review', id: reviewId },
+      transaction,
+    );
+
     await recomputeTurfAverageRating(turfId, transaction);
   });
 
@@ -124,6 +141,8 @@ export async function submitReview(actorUserId: string, input: SubmitReviewInput
     review_id: reviewId,
     coins_awarded: COIN_REWARD_PER_REVIEW,
     coin_balance: coinBalance,
+    xp_awarded: XP_REWARD_PER_REVIEW,
+    xp_total: xpTotal,
   };
 }
 
