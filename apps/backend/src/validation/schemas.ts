@@ -931,6 +931,12 @@ export const createBannerSchema = z.object({
 
 export const updateBannerSchema = createBannerSchema.partial();
 
+// ---- Backlog E-3: Turf Management in Admin Web ----
+
+export const setTurfStatusSchema = z.object({
+  turf_status: z.enum(TURF_STATUSES),
+});
+
 // ---- Backlog B-11: Pre-Match Room (lobby) ----
 
 export const createRoomSchema = z.object({

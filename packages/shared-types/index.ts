@@ -1024,6 +1024,20 @@ export interface AdminPlayer {
   created_at: string;
 }
 
+// Backlog E-3: Turf Management in Admin Web — a cross-owner directory
+// entry, not the fuller Turf/TurfDetails shape Owner Web edits.
+export interface AdminTurf {
+  turf_id: string;
+  turf_name: string;
+  city: string;
+  turf_status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  average_rating: string | null;
+  owner_id: string;
+  owner_name: string | null;
+  owner_phone: string;
+  created_at: string;
+}
+
 export interface LiveMatchSession {
   viewer_session_id: string;
   match_id: string;

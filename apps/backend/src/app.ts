@@ -46,14 +46,16 @@ import {
   AdminBfamIdError,
 } from './services/adminBfamIdService';
 import { listAllPlayers } from './services/adminUserService';
+import { listAllTurfsForAdmin, setTurfStatusAsAdmin } from './services/adminTurfService';
 import { createPromoCode, listPromoCodes } from './services/promoCodeService';
 import {
   createPromoCodeSchema,
   createBannerSchema,
   updateBannerSchema,
+  setTurfStatusSchema,
 } from './validation/schemas';
 import { createBanner, deleteBanner, listAllBanners, updateBanner } from './services/bannerService';
-import { BannerNotFoundError, UnderMinimumAgeError } from './domain/errors';
+import { BannerNotFoundError, TurfNotFoundError, UnderMinimumAgeError } from './domain/errors';
 import bannersRouter from './routes/banners';
 import {
   getMyProfile,
@@ -1097,6 +1099,47 @@ app.delete(
       return res.status(204).send();
     } catch (error) {
       if (error instanceof BannerNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      throw error;
+    }
+  },
+);
+
+// Backlog E-3 — Turf Management in Admin Web (PRD §9.1): a cross-owner
+// directory of every turf, plus moderation (ACTIVE/INACTIVE/SUSPENDED) —
+// see adminTurfService.ts's comment for why this is scoped to a directory
+// + status change rather than duplicating Owner Web's full pricing/hours
+// editing UI.
+app.get(
+  '/admin/turfs',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (_req: Request, res: Response) => {
+    const turfs = await listAllTurfsForAdmin();
+    return res.status(200).json({ results: turfs });
+  },
+);
+app.patch(
+  '/admin/turfs/:turfId/status',
+  authenticateJwt,
+  requireRoles('ADMIN'),
+  async (req: Request, res: Response) => {
+    const parsed = setTurfStatusSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'Invalid turf status payload', status: 400 } });
+    }
+    try {
+      const turf = await setTurfStatusAsAdmin(
+        req.params.turfId,
+        parsed.data.turf_status,
+        req.auth!.sub,
+      );
+      return res.status(200).json(turf);
+    } catch (error) {
+      if (error instanceof TurfNotFoundError) {
         return res.status(404).json({ error: { message: error.message, status: 404 } });
       }
       throw error;

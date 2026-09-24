@@ -82,6 +82,7 @@ import {
   SupportTicket,
   SupportCategory,
   AdminPlayer,
+  AdminTurf,
   HomeBanner,
   CreateBannerInput,
   UpdateBannerInput,
@@ -1217,6 +1218,22 @@ export class BFAMApiClient {
 
   async getAllPlayers(): Promise<{ results: AdminPlayer[] }> {
     return this.request('/admin/players');
+  }
+
+  // ---- Backlog E-3: Turf Management in Admin Web ----
+
+  async getAllTurfsAdmin(): Promise<{ results: AdminTurf[] }> {
+    return this.request('/admin/turfs');
+  }
+
+  async setTurfStatusAdmin(
+    turfId: string,
+    turfStatus: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED',
+  ): Promise<AdminTurf> {
+    return this.request(`/admin/turfs/${turfId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ turf_status: turfStatus }),
+    });
   }
 
   // ---- Backlog B-6: Home Page Carousel ----
