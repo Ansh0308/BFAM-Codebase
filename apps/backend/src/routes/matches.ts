@@ -14,10 +14,12 @@ import {
   submitPlayerRatingSchema,
   submitReviewSchema,
   updateAttendanceSchema,
+  updateMatchSetupSchema,
 } from '../validation/schemas';
 import {
   assignPlayerSides,
   completeIntro,
+  updateMatchSetup,
   confirmPlayingXi,
   getIntroContext,
   recordToss,
@@ -517,6 +519,27 @@ router.post(
         parsed.data.assignments,
       );
       return res.status(200).json(result);
+    } catch (error) {
+      const handled = handleMatchError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// PATCH /matches/:matchId/setup — Match Setup: side names, overs, rules.
+router.patch(
+  '/:matchId/setup',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = updateMatchSetupSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid setup payload', status: 400 } });
+    }
+    try {
+      return res
+        .status(200)
+        .json(await updateMatchSetup(req.params.matchId, req.auth!.sub, parsed.data));
     } catch (error) {
       const handled = handleMatchError(error, res);
       if (handled) return handled;

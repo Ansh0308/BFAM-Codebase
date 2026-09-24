@@ -85,6 +85,9 @@ async function getPlayingXi(matchId: string): Promise<PlayingXiPlayer[]> {
 interface MatchTeamRow {
   match_team_id: string;
   side_label: 'TEAM_A' | 'TEAM_B';
+  // Name set on Match Setup, else the linked real team's name; null falls
+  // back to "Team A"/"Team B" on the client.
+  team_name: string | null;
 }
 
 // Toss capture needs a real match_team_id per side — always available
@@ -93,7 +96,11 @@ interface MatchTeamRow {
 // assignPlayerSides (backlog A-10).
 async function getMatchTeams(matchId: string): Promise<MatchTeamRow[]> {
   return sequelize.query<MatchTeamRow>(
-    'SELECT match_team_id, side_label FROM match_teams WHERE match_id = :matchId',
+    `SELECT mt.match_team_id, mt.side_label, COALESCE(mt.team_name, t.team_name) AS team_name
+     FROM match_teams mt
+     LEFT JOIN teams t ON t.team_id = mt.team_id
+     WHERE mt.match_id = :matchId
+     ORDER BY mt.side_label ASC`,
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
 }
@@ -327,4 +334,77 @@ export async function completeIntro(matchId: string, actorUserId: string) {
   if (!match) throw new MatchNotFoundError(matchId);
   await assertCanManage(match, actorUserId);
   broadcastStage(matchId, 'DONE', {});
+}
+
+// Match Setup (see .claude/MATCH_REVAMP_PLAN.md) — everything the organizer
+// decides before the first ball: what each side is called, overs, and the
+// rules. Only allowed until an innings exists; after that the rules are
+// baked into the balls already recorded.
+export interface MatchSetupInput {
+  team_names?: { match_team_id: string; team_name: string | null }[];
+  overs_per_innings?: number;
+  no_non_striker?: boolean;
+  extras_count_toward_score?: boolean;
+}
+
+export async function updateMatchSetup(
+  matchId: string,
+  actorUserId: string,
+  input: MatchSetupInput,
+) {
+  const match = await fetchMatch(matchId);
+  if (!match) throw new MatchNotFoundError(matchId);
+  await assertCanManage(match, actorUserId);
+
+  const [{ count }] = await sequelize.query<{ count: string | number }>(
+    'SELECT COUNT(*) AS count FROM innings WHERE match_id = :matchId',
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+  if (Number(count) > 0) {
+    throw new InvalidMatchStateError('Match setup can no longer be changed — scoring has started.');
+  }
+
+  if (input.team_names?.length) {
+    const validIds = new Set((await getMatchTeams(matchId)).map((t) => t.match_team_id));
+    for (const t of input.team_names) {
+      if (!validIds.has(t.match_team_id)) {
+        throw new InvalidMatchStateError(
+          'One of the selected sides does not belong to this match.',
+        );
+      }
+    }
+  }
+
+  const matchUpdates: Record<string, unknown> = {};
+  if (input.overs_per_innings !== undefined)
+    matchUpdates.overs_per_innings = input.overs_per_innings;
+  if (input.no_non_striker !== undefined) matchUpdates.no_non_striker = input.no_non_striker;
+  if (input.extras_count_toward_score !== undefined) {
+    matchUpdates.extras_count_toward_score = input.extras_count_toward_score;
+  }
+
+  await sequelize.transaction(async (transaction) => {
+    if (Object.keys(matchUpdates).length > 0) {
+      await sequelize
+        .getQueryInterface()
+        .bulkUpdate(
+          'matches',
+          { ...matchUpdates, updated_at: new Date() },
+          { match_id: matchId },
+          { transaction },
+        );
+    }
+    for (const t of input.team_names ?? []) {
+      await sequelize
+        .getQueryInterface()
+        .bulkUpdate(
+          'match_teams',
+          { team_name: t.team_name?.trim() || null },
+          { match_team_id: t.match_team_id, match_id: matchId },
+          { transaction },
+        );
+    }
+  });
+
+  return { matchTeams: await getMatchTeams(matchId) };
 }

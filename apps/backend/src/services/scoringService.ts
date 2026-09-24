@@ -19,6 +19,12 @@ import {
   type InningsTotals,
 } from '../domain/scoring';
 import {
+  computeMatchOutcome,
+  pickPlayerOfTheMatch,
+  wicketsToEndInnings,
+  type PotmCandidate,
+} from '../domain/matchOutcome';
+import {
   ForbiddenActionError,
   InningsNotFoundError,
   InvalidScoringStateError,
@@ -34,6 +40,7 @@ interface MatchRow {
   match_status: string;
   extras_count_toward_score: boolean;
   overs_per_innings: number;
+  no_non_striker: boolean;
 }
 
 interface InningsRow {
@@ -74,7 +81,7 @@ interface ScoreEventRow {
 async function fetchMatch(matchId: string): Promise<MatchRow | null> {
   const [row] = await sequelize.query<MatchRow>(
     `SELECT match_id, organizer_id, assigned_scorer_id, scoring_mode, match_status,
-            extras_count_toward_score, overs_per_innings
+            extras_count_toward_score, overs_per_innings, no_non_striker
      FROM matches WHERE match_id = :matchId`,
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
@@ -144,6 +151,7 @@ async function isAllOut(
   battingTeamId: string,
   totalWickets: number,
   transaction: unknown,
+  noNonStriker = false,
 ): Promise<boolean> {
   const [{ count }] = await sequelize.query<{ count: string | number }>(
     `SELECT COUNT(*) AS count FROM match_players
@@ -156,7 +164,12 @@ async function isAllOut(
     },
   );
   const assignedBattingCount = Number(count);
-  return assignedBattingCount >= 2 && totalWickets >= assignedBattingCount - 1;
+  // Single-batter (box cricket) mode: every batter gets to bat, so the
+  // innings only ends once they're ALL out, not size - 1.
+  return (
+    assignedBattingCount >= 2 &&
+    totalWickets >= wicketsToEndInnings(assignedBattingCount, noNonStriker)
+  );
 }
 
 // A-19: an innings also ends the moment the overs allotment is used up, or
@@ -176,6 +189,7 @@ async function isInningsComplete(
     innings.batting_match_team_id,
     totals.total_wickets,
     transaction,
+    match.no_non_striker,
   );
   const oversComplete = totals.legal_balls >= match.overs_per_innings * 6;
   const targetReached = innings.target_runs != null && totals.total_runs >= innings.target_runs;
@@ -569,6 +583,7 @@ export async function getScorecard(matchId: string) {
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
 
+  const teamNames = await getMatchTeamNames(matchId);
   const result = [];
   for (const innings of inningsList) {
     const events = await sequelize.query<
@@ -682,6 +697,8 @@ export async function getScorecard(matchId: string) {
     result.push({
       innings_id: innings.innings_id,
       innings_number: innings.innings_number,
+      batting_match_team_id: innings.batting_match_team_id,
+      batting_team_name: teamNames.get(innings.batting_match_team_id) ?? null,
       total_runs: innings.total_runs,
       total_wickets: innings.total_wickets,
       overs_completed: innings.overs_completed,
@@ -708,25 +725,132 @@ export async function getScorecard(matchId: string) {
   };
 }
 
+// All input fields are optional: with no result_type the result is worked out
+// from the scorecard (computeMatchOutcome + pickPlayerOfTheMatch). Explicit
+// fields are still accepted so an admin/API caller can override.
 export interface FinalizeMatchInput {
-  result_type: 'WIN' | 'TIE' | 'NO_RESULT';
+  result_type?: 'WIN' | 'TIE' | 'NO_RESULT';
   winning_match_team_id?: string | null;
   winning_margin?: string | null;
   player_of_the_match_id?: string | null;
+}
+
+interface ResolvedResult {
+  result_type: 'WIN' | 'TIE' | 'NO_RESULT';
+  winning_match_team_id: string | null;
+  winning_margin: string | null;
+  player_of_the_match_id: string | null;
+}
+
+interface MatchTeamName {
+  match_team_id: string;
+  side_label: 'TEAM_A' | 'TEAM_B';
+  team_name: string | null;
+}
+
+// Name shown for a side: the name set on Match Setup, else the linked real
+// team's name, else "Team A"/"Team B".
+async function getMatchTeamNames(matchId: string): Promise<Map<string, string>> {
+  const rows = await sequelize.query<MatchTeamName>(
+    `SELECT mt.match_team_id, mt.side_label, COALESCE(mt.team_name, t.team_name) AS team_name
+     FROM match_teams mt
+     LEFT JOIN teams t ON t.team_id = mt.team_id
+     WHERE mt.match_id = :matchId`,
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+  return new Map(
+    rows.map((r) => [
+      r.match_team_id,
+      r.team_name ?? (r.side_label === 'TEAM_A' ? 'Team A' : 'Team B'),
+    ]),
+  );
+}
+
+// Works the result out from what was scored: winner + margin from the two
+// innings, Player of the Match from per-player runs/wickets.
+async function computeAutoResult(match: MatchRow): Promise<ResolvedResult> {
+  const inningsList = await sequelize.query<InningsRow>(
+    'SELECT * FROM innings WHERE match_id = :matchId ORDER BY innings_number ASC',
+    { type: QueryTypes.SELECT, replacements: { matchId: match.match_id } },
+  );
+
+  const chasingTeamId = inningsList[1]?.batting_match_team_id ?? null;
+  let battingTeamSize: number | null = null;
+  if (chasingTeamId) {
+    const [{ count }] = await sequelize.query<{ count: string | number }>(
+      `SELECT COUNT(*) AS count FROM match_players
+       WHERE match_id = :matchId AND match_team_id = :teamId AND invitation_status != 'CANT_PLAY'`,
+      { type: QueryTypes.SELECT, replacements: { matchId: match.match_id, teamId: chasingTeamId } },
+    );
+    battingTeamSize = Number(count);
+  }
+
+  const outcome = computeMatchOutcome(inningsList, {
+    battingTeamSize,
+    noNonStriker: Boolean(match.no_non_striker),
+  });
+
+  const roster = await sequelize.query<{ player_id: string; match_team_id: string | null }>(
+    'SELECT player_id, match_team_id FROM match_players WHERE match_id = :matchId',
+    { type: QueryTypes.SELECT, replacements: { matchId: match.match_id } },
+  );
+  const sideOf = new Map(roster.map((r) => [r.player_id, r.match_team_id]));
+  const scorecard = await getScorecard(match.match_id);
+  const totals = new Map<string, PotmCandidate>();
+  const touch = (playerId: string) => {
+    let c = totals.get(playerId);
+    if (!c) {
+      c = { player_id: playerId, runs: 0, wickets: 0, match_team_id: sideOf.get(playerId) ?? null };
+      totals.set(playerId, c);
+    }
+    return c;
+  };
+  for (const inn of scorecard.innings) {
+    for (const b of inn.batting) if (sideOf.has(b.player_id)) touch(b.player_id).runs += b.runs;
+    for (const b of inn.bowling) {
+      if (sideOf.has(b.player_id)) touch(b.player_id).wickets += b.wickets;
+    }
+  }
+
+  return {
+    ...outcome,
+    player_of_the_match_id: pickPlayerOfTheMatch(
+      [...totals.values()],
+      outcome.winning_match_team_id,
+    ),
+  };
 }
 
 // Match Result (PRD §12.18 requirement 5). Materializes Match Statistics
 // & Basic Skill Rating (module 2.10, PRD §12.21/§12.29) immediately after —
 // the result row (winning side, Player of the Match) must exist first,
 // since the rating calculation depends on both.
+// Idempotent: a second call (the result screen and the scorer's Finish
+// Match button can race) returns the existing result instead of inserting
+// a duplicate.
 export async function finalizeMatch(
   matchId: string,
   actorUserId: string,
-  input: FinalizeMatchInput,
+  input: FinalizeMatchInput = {},
 ) {
   const match = await fetchMatch(matchId);
   if (!match) throw new MatchNotFoundError(matchId);
   await assertCanScore(match, actorUserId);
+
+  const [existing] = await sequelize.query<{ result_id: string }>(
+    'SELECT result_id FROM match_results WHERE match_id = :matchId',
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+  if (existing) return { result_id: existing.result_id, already_finalized: true };
+
+  const resolved: ResolvedResult = input.result_type
+    ? {
+        result_type: input.result_type,
+        winning_match_team_id: input.winning_match_team_id ?? null,
+        winning_margin: input.winning_margin ?? null,
+        player_of_the_match_id: input.player_of_the_match_id ?? null,
+      }
+    : await computeAutoResult(match);
 
   const resultId = randomUUID();
   const now = new Date();
@@ -734,10 +858,10 @@ export async function finalizeMatch(
     {
       result_id: resultId,
       match_id: matchId,
-      winning_match_team_id: input.winning_match_team_id ?? null,
-      result_type: input.result_type,
-      winning_margin: input.winning_margin ?? null,
-      player_of_the_match_id: input.player_of_the_match_id ?? null,
+      winning_match_team_id: resolved.winning_match_team_id,
+      result_type: resolved.result_type,
+      winning_margin: resolved.winning_margin,
+      player_of_the_match_id: resolved.player_of_the_match_id,
       finalized_at: now,
       finalized_by: actorUserId,
     },
@@ -757,18 +881,18 @@ export async function finalizeMatch(
     );
 
   await materializeMatchStatistics(matchId);
-  await notifyMatchResult(matchId, input).catch((error) => {
+  await notifyMatchResult(matchId, resolved).catch((error) => {
     console.error(`[scoringService] Failed to send MATCH_RESULT for ${matchId}:`, error);
   });
 
   broadcastScoreUpdate(matchId, { audio_trigger: 'MATCH_WON', result_id: resultId });
-  return { result_id: resultId };
+  return { result_id: resultId, already_finalized: false };
 }
 
 // MATCH_RESULT (module 2.11, PRD §12.45) — every confirmed roster player.
 // Failures are caught by the caller above — never allowed to fail
 // finalizeMatch itself, which has already committed the real result.
-async function notifyMatchResult(matchId: string, input: FinalizeMatchInput) {
+async function notifyMatchResult(matchId: string, input: ResolvedResult) {
   const [matchRow] = await sequelize.query<{ match_name: string | null }>(
     'SELECT match_name FROM matches WHERE match_id = :matchId',
     { type: QueryTypes.SELECT, replacements: { matchId } },
@@ -781,14 +905,9 @@ async function notifyMatchResult(matchId: string, input: FinalizeMatchInput) {
   } else if (input.result_type === 'NO_RESULT') {
     resultSummary = 'No result';
   } else {
-    const [winningTeam] = input.winning_match_team_id
-      ? await sequelize.query<{ side_label: string }>(
-          'SELECT side_label FROM match_teams WHERE match_team_id = :id',
-          { type: QueryTypes.SELECT, replacements: { id: input.winning_match_team_id } },
-        )
-      : [];
-    const sideLabel = winningTeam?.side_label === 'TEAM_A' ? 'Team A' : 'Team B';
-    resultSummary = `${sideLabel} won${input.winning_margin ? ` by ${input.winning_margin}` : ''}`;
+    const names = await getMatchTeamNames(matchId);
+    const winnerName = names.get(input.winning_match_team_id ?? '') ?? 'A team';
+    resultSummary = `${winnerName} won${input.winning_margin ? ` by ${input.winning_margin}` : ''}`;
   }
 
   const recipients = await sequelize.query<{ user_id: string }>(
@@ -806,13 +925,57 @@ async function notifyMatchResult(matchId: string, input: FinalizeMatchInput) {
   );
 }
 
+// The result plus everything the summary screen needs to render without more
+// round trips: the winning team's name and the Player of the Match by NAME
+// (BFAM ID only as a fallback for a player who never set one) with their
+// line from the materialized match statistics.
 export async function getMatchResult(matchId: string) {
-  const [result] = await sequelize.query(
-    `SELECT r.*, p.bfam_id AS player_of_the_match_bfam_id
+  const [result] = await sequelize.query<Record<string, unknown>>(
+    `SELECT r.*, p.bfam_id AS player_of_the_match_bfam_id,
+            p.full_name AS player_of_the_match_name
      FROM match_results r
      LEFT JOIN players p ON p.player_id = r.player_of_the_match_id
      WHERE r.match_id = :matchId`,
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
-  return result ?? null;
+  if (!result) return null;
+
+  const names = await getMatchTeamNames(matchId);
+  let potmStats: {
+    runs: number;
+    balls: number;
+    wickets: number;
+    runs_conceded: number;
+  } | null = null;
+  if (result.player_of_the_match_id) {
+    const [stats] = await sequelize.query<{
+      runs_scored: number;
+      balls_faced: number;
+      wickets_taken: number;
+      runs_conceded: number;
+    }>(
+      `SELECT runs_scored, balls_faced, wickets_taken, runs_conceded
+       FROM player_match_statistics WHERE match_id = :matchId AND player_id = :playerId`,
+      {
+        type: QueryTypes.SELECT,
+        replacements: { matchId, playerId: result.player_of_the_match_id },
+      },
+    );
+    if (stats) {
+      potmStats = {
+        runs: Number(stats.runs_scored),
+        balls: Number(stats.balls_faced),
+        wickets: Number(stats.wickets_taken),
+        runs_conceded: Number(stats.runs_conceded),
+      };
+    }
+  }
+
+  return {
+    ...result,
+    winning_team_name: result.winning_match_team_id
+      ? (names.get(result.winning_match_team_id as string) ?? null)
+      : null,
+    player_of_the_match_stats: potmStats,
+  };
 }

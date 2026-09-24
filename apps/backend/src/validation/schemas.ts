@@ -670,6 +670,20 @@ export const createMatchSchema = z.object({
   // Backlog G-20 — optional team-vs-team match; both or neither.
   home_team_id: uuid.nullable().optional(),
   away_team_id: uuid.nullable().optional(),
+  // Match setup: optional side names and single-batter (box cricket) mode.
+  team_a_name: z.string().trim().max(60).nullable().optional(),
+  team_b_name: z.string().trim().max(60).nullable().optional(),
+  no_non_striker: z.boolean().optional(),
+});
+
+export const updateMatchSetupSchema = z.object({
+  team_names: z
+    .array(z.object({ match_team_id: uuid, team_name: z.string().trim().max(60).nullable() }))
+    .max(2)
+    .optional(),
+  overs_per_innings: z.number().int().min(1).max(50).optional(),
+  no_non_striker: z.boolean().optional(),
+  extras_count_toward_score: z.boolean().optional(),
 });
 
 export const inviteToMatchSchema = z.object({
@@ -742,8 +756,10 @@ export const recordBallSchema = z.object({
   fielder_player_id: uuid.nullable().optional(),
 });
 
+// result_type is optional: with none, the result is computed from the
+// scorecard (see scoringService.computeAutoResult).
 export const finalizeMatchSchema = z.object({
-  result_type: z.enum(RESULT_TYPES),
+  result_type: z.enum(RESULT_TYPES).optional(),
   winning_match_team_id: uuid.nullable().optional(),
   winning_margin: z.string().max(50).nullable().optional(),
   player_of_the_match_id: uuid.nullable().optional(),

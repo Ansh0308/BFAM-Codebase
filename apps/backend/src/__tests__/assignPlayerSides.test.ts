@@ -48,7 +48,7 @@ jest.mock('../config/sequelize', () => {
           const m = matches.find((x) => x.match_id === r.matchId);
           return m ? [m] : [];
         }
-        if (sql.includes('SELECT match_team_id, side_label FROM match_teams')) {
+        if (sql.includes('FROM match_teams mt')) {
           return matchTeams.filter((t) => t.match_id === r.matchId);
         }
         if (

@@ -67,6 +67,8 @@ import {
   Membership,
   RecognitionAward,
   BalancedTeamsSuggestion,
+  IntroMatchTeam,
+  MatchSetupInput,
   RebookInfo,
   StatisticsScope,
   Notification,
@@ -924,17 +926,29 @@ export class BFAMApiClient {
     return this.request<Scorecard>(`/matches/${matchId}/scorecard`);
   }
 
+  // With no input the backend works out the result (winner, margin, Player
+  // of the Match) from the scorecard; explicit fields are an override.
   async finalizeMatch(
     matchId: string,
     input: {
-      result_type: 'WIN' | 'TIE' | 'NO_RESULT';
+      result_type?: 'WIN' | 'TIE' | 'NO_RESULT';
       winning_match_team_id?: string | null;
       winning_margin?: string | null;
       player_of_the_match_id?: string | null;
-    },
-  ): Promise<{ result_id: string }> {
+    } = {},
+  ): Promise<{ result_id: string; already_finalized?: boolean }> {
     return this.request(`/matches/${matchId}/result`, {
       method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async updateMatchSetup(
+    matchId: string,
+    input: MatchSetupInput,
+  ): Promise<{ matchTeams: IntroMatchTeam[] }> {
+    return this.request(`/matches/${matchId}/setup`, {
+      method: 'PATCH',
       body: JSON.stringify(input),
     });
   }

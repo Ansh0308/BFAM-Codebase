@@ -111,13 +111,13 @@ describe('Match Result screen — Match Summary (backlog A-22)', () => {
     const { findByTestId } = await render(<MatchResultScreen />);
 
     const summary = await findByTestId('match-summary-innings-1');
-    expect(within(summary).getByText('Run Rate: 9.86')).toBeTruthy();
+    expect(within(summary).getByText('Run rate 9.86')).toBeTruthy();
     // p1 (65 runs) beats p2 (40 runs) for top score, even though p1 is out.
     // p1 has a full_name set, so the name shows instead of the BFAM ID.
-    expect(within(summary).getByText(/Top Score: Asha Patel — 65/)).toBeTruthy();
+    expect(within(summary).getByText('Asha Patel')).toBeTruthy();
     // p3 (2 wickets) beats p4 (1 wicket) for best bowling. p3 has no
     // full_name set, so this falls back to the BFAM ID (backlog A-18).
-    expect(within(summary).getByText(/Best Bowling: BF1003 — 2\/20/)).toBeTruthy();
+    expect(within(summary).getByText('BF1003')).toBeTruthy();
   });
 
   it("links to the full scorecard instead of the viewer's own lifetime stats", async () => {
@@ -134,7 +134,7 @@ describe('Match Result screen — Match Summary (backlog A-22)', () => {
 
     const { findByTestId } = await render(<MatchResultScreen />);
 
-    expect((await findByTestId('peak-viewers')).props.children.join('')).toBe('Peak Viewers: 12');
+    expect((await findByTestId('peak-viewers')).props.children.join('')).toBe('Peak viewers: 12');
   });
 
   it('hides the peak-viewers line when nobody has watched yet', async () => {

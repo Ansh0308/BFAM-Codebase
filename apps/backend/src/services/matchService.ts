@@ -153,6 +153,10 @@ export interface CreateMatchInput {
   // match falls back to the ad-hoc Friends-match path unchanged.
   home_team_id?: string | null;
   away_team_id?: string | null;
+  team_a_name?: string | null;
+  team_b_name?: string | null;
+  // Box-cricket single-batter mode; defaults to on for new matches.
+  no_non_striker?: boolean;
 }
 
 async function assertTeamExists(teamId: string) {
@@ -223,6 +227,7 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
             overs_per_innings: input.overs_per_innings,
             scoring_mode: input.scoring_mode,
             assigned_scorer_id: input.assigned_scorer_id ?? null,
+            no_non_striker: input.no_non_striker ?? true,
             match_status: 'OPEN',
             visibility: isTeamMatch ? 'PUBLIC' : 'PRIVATE',
             scheduled_start_time: scheduledStartTime,
@@ -248,6 +253,7 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
             match_team_id: teamAMatchTeamId,
             match_id: matchId,
             team_id: input.home_team_id ?? null,
+            team_name: input.team_a_name?.trim() || null,
             side_label: 'TEAM_A',
             created_at: now,
           },
@@ -255,6 +261,7 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
             match_team_id: teamBMatchTeamId,
             match_id: matchId,
             team_id: input.away_team_id ?? null,
+            team_name: input.team_b_name?.trim() || null,
             side_label: 'TEAM_B',
             created_at: now,
           },
@@ -400,9 +407,23 @@ export async function getGameRoom(matchId: string, _actorUserId: string) {
     no_show: players.filter((p) => p.attendance_status === 'NO_SHOW').length,
   };
 
+  // Named sides for the Match Setup screen (which runs before the intro
+  // row exists, so it can't read them from there).
+  const matchTeams = await sequelize.query<{
+    match_team_id: string;
+    side_label: string;
+    team_name: string | null;
+  }>(
+    `SELECT mt.match_team_id, mt.side_label, COALESCE(mt.team_name, t.team_name) AS team_name
+     FROM match_teams mt LEFT JOIN teams t ON t.team_id = mt.team_id
+     WHERE mt.match_id = :matchId ORDER BY mt.side_label ASC`,
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+
   return {
     ...match,
     players,
+    match_teams: matchTeams,
     payment: {
       total_due: totalDue,
       total_paid: totalPaid,

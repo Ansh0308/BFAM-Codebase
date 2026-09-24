@@ -1,34 +1,28 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import type {
-  BattingRow,
-  BowlingRow,
-  GameRoom,
-  IntroMatchTeam,
-  MatchResult,
-  Scorecard,
+import {
+  matchTeamLabel,
+  type BattingRow,
+  type BowlingRow,
+  type GameRoom,
+  type InningsScorecard,
+  type IntroMatchTeam,
+  type MatchResult,
+  type Scorecard,
 } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
-import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
-import { TextField } from '../../../../src/components/TextField';
-import { ChipSelect } from '../../../../src/components/ChipSelect';
 import { useAuthStore } from '../../../../src/store/authStore';
 import { useRebookStore } from '../../../../src/store/rebookStore';
 
-const RESULT_TYPES: { value: 'WIN' | 'TIE' | 'NO_RESULT'; label: string }[] = [
-  { value: 'WIN', label: 'Win' },
-  { value: 'TIE', label: 'Tie' },
-  { value: 'NO_RESULT', label: 'No Result' },
-];
-
 // A-22: highest score / best bowling figures for a completed innings —
 // every number here is already computed server-side by getScorecard, this
-// just picks the standout row per innings for the Result screen's summary.
+// just picks the standout row per innings for the summary.
 function topBatter(rows: BattingRow[]): BattingRow | null {
   return rows.reduce<BattingRow | null>(
     (best, row) => (!best || row.runs > best.runs ? row : best),
@@ -44,48 +38,25 @@ function topBowler(rows: BowlingRow[]): BowlingRow | null {
   }, null);
 }
 
-// A-24: "automatically select Player of the Match based on overall
-// performance" — a simple points formula (per the founder's choice), run
-// purely over the scorecard data this screen already fetches: 1 point per
-// run, 20 per wicket (roughly makes a useful bowling spell comparable to
-// a useful batting innings, a common convention). Deliberately excludes
-// fielding (catches/run-outs/stumpings) — the backend accepts a
-// fielder_player_id on a wicket, but the scoring screen never actually
-// collects one, so there's no fielder identity anywhere to credit yet.
-// Summed across every innings so an all-rounder's bat-then-bowl (or
-// bowl-then-bat) contributions both count.
-const POTM_POINTS_PER_RUN = 1;
-const POTM_POINTS_PER_WICKET = 20;
-
-function suggestPlayerOfTheMatch(
-  scorecard: Scorecard,
-  eligiblePlayerIds: Set<string>,
-): string | null {
-  const points = new Map<string, number>();
-  for (const inn of scorecard.innings) {
-    for (const b of inn.batting) {
-      if (!eligiblePlayerIds.has(b.player_id)) continue;
-      points.set(b.player_id, (points.get(b.player_id) ?? 0) + b.runs * POTM_POINTS_PER_RUN);
-    }
-    for (const b of inn.bowling) {
-      if (!eligiblePlayerIds.has(b.player_id)) continue;
-      points.set(b.player_id, (points.get(b.player_id) ?? 0) + b.wickets * POTM_POINTS_PER_WICKET);
-    }
-  }
-  let winner: string | null = null;
-  let bestScore = -Infinity;
-  for (const [playerId, score] of points) {
-    if (score > bestScore) {
-      bestScore = score;
-      winner = playerId;
-    }
-  }
-  return winner;
+function nameOf(p: { full_name?: string | null; bfam_id?: string | null }): string {
+  return p.full_name || p.bfam_id || '';
 }
 
-// Match Result (PRD §12.18 requirement 5): winner, margin, Player of the
-// Match, plus a Match Summary (backlog A-22: run rate, top score, best
-// bowling per innings) and a link to the full Scorecard.
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+function plural(n: number, unit: string): string {
+  return `${n} ${unit}${n === 1 ? '' : 's'}`;
+}
+
+// Match Result (PRD §12.18 requirement 5). Nobody fills anything in here any
+// more: the first time the organizer/scorer lands on this screen the backend
+// works the result out from what was scored (winner, margin, Player of the
+// Match) and this screen just presents it — see
+// .claude/MATCH_REVAMP_PLAN.md.
 export default function MatchResultScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const router = useRouter();
@@ -99,12 +70,6 @@ export default function MatchResultScreen() {
   // Long tail — Peak-viewer analytics (G-25).
   const [peakViewers, setPeakViewers] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const [resultType, setResultType] = useState<'WIN' | 'TIE' | 'NO_RESULT'>('WIN');
-  const [winningSide, setWinningSide] = useState<string | null>(null);
-  const [margin, setMargin] = useState('');
-  const [potmId, setPotmId] = useState<string | null>(null);
 
   const [rebooking, setRebooking] = useState(false);
   const [rebookError, setRebookError] = useState<string | null>(null);
@@ -112,6 +77,7 @@ export default function MatchResultScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [gameRoom, intro, scorecardData] = await Promise.all([
         apiClient.getGameRoom(matchId),
@@ -119,10 +85,23 @@ export default function MatchResultScreen() {
         apiClient.getScorecard(matchId).catch(() => null),
       ]);
       setRoom(gameRoom);
-      setMatchTeams(intro?.matchTeams ?? []);
+      setMatchTeams(intro?.matchTeams ?? gameRoom.match_teams ?? []);
       setScorecard(scorecardData);
-      const existingResult = await apiClient.getMatchResult(matchId).catch(() => null);
-      setResult(existingResult);
+
+      let existing = await apiClient.getMatchResult(matchId).catch(() => null);
+      const isManager =
+        gameRoom.organizer_id === user?.user_id || gameRoom.assigned_scorer_id === user?.user_id;
+      if (!existing && isManager) {
+        // Finish Match lands here — finalize automatically (idempotent on
+        // the server, so a double-mount can't create two results).
+        try {
+          await apiClient.finalizeMatch(matchId);
+          existing = await apiClient.getMatchResult(matchId).catch(() => null);
+        } catch (err) {
+          setError(err instanceof BFAMApiError ? err.message : 'Could not finalize the match.');
+        }
+      }
+      setResult(existing);
       apiClient
         .getViewerCount(matchId)
         .then((res) => setPeakViewers(res.peak))
@@ -132,43 +111,11 @@ export default function MatchResultScreen() {
     } finally {
       setLoading(false);
     }
-  }, [matchId]);
+  }, [matchId, user?.user_id]);
 
   useEffect(() => {
     load();
   }, [load]);
-
-  // A-24: pre-fill (never override a choice the organizer already made,
-  // matching the same "computed-then-confirmed, not silently automatic"
-  // pattern used for the toss auto-fill above) once there's a scorecard to
-  // compute from — still a normal chip-select underneath, so the organizer
-  // sees it and can tap someone else.
-  useEffect(() => {
-    if (potmId !== null || !room || !scorecard) return;
-    const eligibleIds = new Set(
-      room.players.filter((p) => p.invitation_status === 'CONFIRMED').map((p) => p.player_id),
-    );
-    const suggested = suggestPlayerOfTheMatch(scorecard, eligibleIds);
-    if (suggested) setPotmId(suggested);
-  }, [room, scorecard, potmId]);
-
-  async function finalize() {
-    setBusy(true);
-    setError(null);
-    try {
-      await apiClient.finalizeMatch(matchId, {
-        result_type: resultType,
-        winning_match_team_id: resultType === 'WIN' ? winningSide : null,
-        winning_margin: margin || null,
-        player_of_the_match_id: potmId,
-      });
-      await load();
-    } catch (err) {
-      setError(err instanceof BFAMApiError ? err.message : 'Could not finalize the match.');
-    } finally {
-      setBusy(false);
-    }
-  }
 
   // Rebook Same Players (module 2.10, PRD §12.44): fetches the same turf/
   // format/roster and hands it to the availability screen (module 2.3) via
@@ -192,57 +139,133 @@ export default function MatchResultScreen() {
 
   if (loading) {
     return (
-      <ScreenContainer>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="result-loading" />
-        </View>
-      </ScreenContainer>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={colors.brandRed} testID="result-loading" />
+        <Text style={styles.centerText}>Working out the result…</Text>
+      </View>
     );
   }
 
   if (!room) {
     return (
-      <ScreenContainer>
-        <View className="flex-1 items-center justify-center" testID="result-error">
-          <Text className="font-ui text-body text-text-secondary text-center">
-            Could not load this match.
-          </Text>
-        </View>
-      </ScreenContainer>
+      <View style={styles.center} testID="result-error">
+        <Text style={styles.centerText}>Could not load this match.</Text>
+      </View>
     );
   }
 
-  const isManager =
-    room.organizer_id === user?.user_id || room.assigned_scorer_id === user?.user_id;
-  const confirmedPlayers = room.players.filter((p) => p.invitation_status === 'CONFIRMED');
-
-  if (result) {
-    const winningSideLabel = matchTeams.find(
-      (t) => t.match_team_id === result.winning_match_team_id,
-    )?.side_label;
+  if (!result) {
     return (
-      <ScreenContainer>
-        <View className="flex-1 items-center justify-center px-6" testID="result-display">
-          <Feather name="award" size={56} color="#D80000" />
-          <Text className="font-ui font-bold text-title-xl text-ink-black text-center mt-4">
-            {result.result_type === 'WIN'
-              ? `${winningSideLabel === 'TEAM_A' ? 'Team A' : 'Team B'} Won`
-              : result.result_type === 'TIE'
-                ? 'Match Tied'
-                : 'No Result'}
-          </Text>
-          {result.winning_margin && (
-            <Text className="font-ui text-body text-text-secondary text-center mt-2">
-              {result.winning_margin}
+      <View style={styles.center} testID="result-not-finalized">
+        <Text style={styles.centerText}>{error ?? "The result hasn't been finalized yet."}</Text>
+        {error && (
+          <View style={{ marginTop: 16, width: 200 }}>
+            <Button label="Try Again" onPress={load} testID="result-retry" />
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  const labelFor = (matchTeamId: string | null | undefined, fallback = 'A team') => {
+    const t = matchTeams.find((m) => m.match_team_id === matchTeamId);
+    return t ? matchTeamLabel(t) : fallback;
+  };
+  const winnerName = result.winning_team_name || labelFor(result.winning_match_team_id);
+  const headline =
+    result.result_type === 'WIN'
+      ? `${winnerName} won`
+      : result.result_type === 'TIE'
+        ? 'Match tied'
+        : 'No result';
+
+  const innings: InningsScorecard[] = scorecard?.innings ?? [];
+  const potmName = result.player_of_the_match_name || result.player_of_the_match_bfam_id || null;
+  const potmStats = result.player_of_the_match_stats;
+  const potmLine = potmStats
+    ? [
+        potmStats.runs > 0 || potmStats.balls > 0
+          ? `${potmStats.runs} runs (${potmStats.balls} balls)`
+          : null,
+        potmStats.wickets > 0 ? plural(potmStats.wickets, 'wicket') : null,
+      ]
+        .filter(Boolean)
+        .join('  ·  ')
+    : '';
+  const isOrganizer = room.organizer_id === user?.user_id;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.surface }} testID="result-display">
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Hero: same black stage + diagonal red geometry as the match intro. */}
+        <SafeAreaView edges={['top']} style={styles.hero}>
+          <View style={[styles.shape, styles.shapeTop]} pointerEvents="none" />
+          <View style={[styles.shape, styles.shapeBottom]} pointerEvents="none" />
+          <View style={styles.heroInner}>
+            <Text style={styles.eyebrow}>
+              {room.match_name ? room.match_name.toUpperCase() : 'MATCH RESULT'}
             </Text>
-          )}
-          {result.player_of_the_match_bfam_id && (
-            <View className="rounded-full border border-brand-red px-4 py-2 mt-6">
-              <Text className="font-ui font-bold text-body text-brand-red">
-                Player of the Match: {result.player_of_the_match_bfam_id}
+            <Feather name="award" size={30} color={colors.brandRed} style={{ marginTop: 14 }} />
+            <Text style={styles.headline} testID="result-headline">
+              {headline.toUpperCase()}
+            </Text>
+            {result.result_type === 'WIN' && result.winning_margin ? (
+              <Text style={styles.margin} testID="result-margin">
+                by {result.winning_margin}
               </Text>
+            ) : null}
+
+            {innings.length > 0 && (
+              <View style={styles.scoreBoard} testID="result-scoreboard">
+                {innings.map((inn) => {
+                  const won =
+                    result.result_type === 'WIN' &&
+                    inn.batting_match_team_id === result.winning_match_team_id;
+                  return (
+                    <View
+                      key={inn.innings_id}
+                      style={[styles.scoreRow, won && styles.scoreRowWinner]}
+                      testID={`scoreboard-innings-${inn.innings_number}`}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.scoreTeam} numberOfLines={1}>
+                          {inn.batting_team_name || labelFor(inn.batting_match_team_id, 'Team')}
+                        </Text>
+                        <Text style={styles.scoreOvers}>{inn.overs_completed} overs</Text>
+                      </View>
+                      <Text style={styles.scoreValue}>
+                        {inn.total_runs}
+                        <Text style={styles.scoreWickets}>/{inn.total_wickets}</Text>
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </SafeAreaView>
+
+        <View style={{ paddingHorizontal: 20, marginTop: -28 }}>
+          {potmName && (
+            <View style={styles.potmCard} testID="potm-card">
+              <View style={styles.potmAvatar}>
+                <Text style={styles.potmInitials}>{initials(potmName)}</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 16 }}>
+                <Text style={styles.potmLabel}>PLAYER OF THE MATCH</Text>
+                <Text style={styles.potmName} numberOfLines={1} testID="potm-name">
+                  {potmName}
+                </Text>
+                {potmLine ? (
+                  <Text style={styles.potmStats} testID="potm-stats">
+                    {potmLine}
+                  </Text>
+                ) : null}
+              </View>
+              <Feather name="star" size={22} color={colors.brandRed} />
             </View>
           )}
+
           {rebookError && (
             <Text
               className="text-brand-red text-body mt-4 text-center"
@@ -251,59 +274,59 @@ export default function MatchResultScreen() {
               {rebookError}
             </Text>
           )}
-          {/* A-22: run rate, top score, and best bowling per innings —
-              right where a viewer lands at the end of the match, instead
-              of only inside the full Scorecard (which nothing on this
-              screen used to link to at all). */}
-          {scorecard && scorecard.innings.length > 0 && (
-            <View className="mt-8 w-full" testID="match-summary">
-              <Text className="font-ui font-bold text-section-header text-ink-black mb-3">
-                Match Summary
-              </Text>
-              {scorecard.innings.map((inn) => {
+
+          {/* A-22: run rate, top score, and best bowling per innings. */}
+          {innings.length > 0 && (
+            <View style={{ marginTop: 28 }} testID="match-summary">
+              <Text style={styles.sectionTitle}>MATCH SUMMARY</Text>
+              {innings.map((inn) => {
                 const topBat = topBatter(inn.batting);
                 const topBowl = topBowler(inn.bowling);
                 return (
                   <View
                     key={inn.innings_id}
-                    className="bg-surface-alt rounded-lg p-4 mb-3"
+                    style={styles.inningsCard}
                     testID={`match-summary-innings-${inn.innings_number}`}
                   >
-                    <Text className="font-ui font-bold text-body text-ink-black">
-                      Innings {inn.innings_number}: {inn.total_runs}/{inn.total_wickets} (
-                      {inn.overs_completed} ov)
-                    </Text>
-                    <Text className="font-ui text-micro text-text-secondary mt-1">
-                      Run Rate: {inn.run_rate}
-                    </Text>
-                    {topBat && (
-                      <Text className="font-ui text-body text-text-primary mt-2">
-                        Top Score: {topBat.full_name || topBat.bfam_id} — {topBat.runs} (
-                        {topBat.balls}b, {topBat.fours}
-                        x4, {topBat.sixes}x6)
+                    <View style={styles.inningsHeader}>
+                      <Text style={styles.inningsTitle}>
+                        {inn.batting_team_name || `Innings ${inn.innings_number}`}
                       </Text>
+                      <Text style={styles.inningsScore}>
+                        {inn.total_runs}/{inn.total_wickets} ({inn.overs_completed} ov)
+                      </Text>
+                    </View>
+                    <Text style={styles.runRate}>Run rate {inn.run_rate}</Text>
+                    {topBat && (
+                      <View style={styles.perfRow}>
+                        <Feather name="disc" size={14} color={colors.brandRed} />
+                        <Text style={styles.perfText}>
+                          <Text style={styles.perfName}>{nameOf(topBat)}</Text> {topBat.runs} (
+                          {topBat.balls}b · {topBat.fours}×4 · {topBat.sixes}×6)
+                        </Text>
+                      </View>
                     )}
                     {topBowl && (
-                      <Text className="font-ui text-body text-text-primary mt-1">
-                        Best Bowling: {topBowl.full_name || topBowl.bfam_id} — {topBowl.wickets}/
-                        {topBowl.runs_conceded} ({topBowl.overs} ov, Econ {topBowl.economy})
-                      </Text>
+                      <View style={styles.perfRow}>
+                        <Feather name="circle" size={14} color={colors.brandRed} />
+                        <Text style={styles.perfText}>
+                          <Text style={styles.perfName}>{nameOf(topBowl)}</Text> {topBowl.wickets}/
+                          {topBowl.runs_conceded} ({topBowl.overs} ov · econ {topBowl.economy})
+                        </Text>
+                      </View>
                     )}
                   </View>
                 );
               })}
               {peakViewers !== null && peakViewers > 0 && (
-                <Text
-                  className="font-ui text-micro text-text-tertiary text-center mt-1"
-                  testID="peak-viewers"
-                >
-                  Peak Viewers: {peakViewers}
+                <Text style={styles.peak} testID="peak-viewers">
+                  Peak viewers: {peakViewers}
                 </Text>
               )}
             </View>
           )}
 
-          <View className="mt-3 w-full">
+          <View style={{ marginTop: 20 }}>
             <Button
               label="Full Scorecard"
               variant="secondary"
@@ -313,10 +336,8 @@ export default function MatchResultScreen() {
             />
           </View>
           {/* Backlog B-4: prompts the player to review the match/turf right
-              where they land after it's finalized — the natural moment,
-              per the feedback's own framing ("after a match, ask the
-              player to review"). */}
-          <View className="mt-3 w-full">
+              where they land after it's finalized. */}
+          <View style={{ marginTop: 12 }}>
             <Button
               label="Rate This Match"
               variant="secondary"
@@ -325,8 +346,8 @@ export default function MatchResultScreen() {
               testID="open-review"
             />
           </View>
-          {room.organizer_id === user?.user_id && (
-            <View className="mt-3 w-full">
+          {isOrganizer && (
+            <View style={{ marginTop: 12 }}>
               <Button
                 label="Rebook Same Players"
                 iconLeft={<Feather name="repeat" size={16} color="#FFFFFF" />}
@@ -336,80 +357,128 @@ export default function MatchResultScreen() {
               />
             </View>
           )}
+          <View style={{ height: 48 }} />
         </View>
-      </ScreenContainer>
-    );
-  }
-
-  if (!isManager) {
-    return (
-      <ScreenContainer>
-        <View className="flex-1 items-center justify-center" testID="result-not-finalized">
-          <Text className="font-ui text-body text-text-secondary text-center">
-            The result hasn&apos;t been finalized yet.
-          </Text>
-        </View>
-      </ScreenContainer>
-    );
-  }
-
-  return (
-    <ScreenContainer scroll>
-      <View className="pt-6" testID="finalize-result-screen">
-        <Text className="font-ui font-bold text-title-xl text-ink-black mb-4">Finalize Result</Text>
-
-        <ChipSelect
-          label="Result"
-          options={RESULT_TYPES}
-          value={resultType}
-          onChange={(v) => setResultType(v as typeof resultType)}
-          testID="result-type"
-        />
-
-        {resultType === 'WIN' && (
-          <ChipSelect
-            label="Winning Side"
-            options={matchTeams.map((t) => ({
-              value: t.match_team_id,
-              label: t.side_label === 'TEAM_A' ? 'Team A' : 'Team B',
-            }))}
-            value={winningSide}
-            onChange={setWinningSide}
-            testID="winning-side"
-          />
-        )}
-
-        <TextField
-          label="Margin (optional)"
-          value={margin}
-          onChangeText={setMargin}
-          placeholder="e.g. 24 runs"
-          testID="margin-input"
-        />
-
-        <ChipSelect
-          label="Player of the Match"
-          options={confirmedPlayers.map((p) => ({
-            value: p.player_id,
-            label: p.full_name || p.bfam_id || '',
-          }))}
-          value={potmId}
-          onChange={setPotmId}
-          testID="potm-select"
-        />
-        {scorecard && scorecard.innings.length > 0 && (
-          <Text
-            className="font-ui text-micro text-text-tertiary -mt-3 mb-4"
-            testID="potm-suggested-note"
-          >
-            Suggested from this match&apos;s runs and wickets — tap another player to override.
-          </Text>
-        )}
-
-        {error && <Text className="text-brand-red text-body mb-4">{error}</Text>}
-
-        <Button label="Finalize Match" onPress={finalize} loading={busy} testID="finalize-button" />
-      </View>
-    </ScreenContainer>
+      </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    backgroundColor: colors.surface,
+  },
+  centerText: {
+    fontFamily: 'Inter',
+    fontSize: 16,
+    color: '#767676',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  hero: { backgroundColor: '#000000', overflow: 'hidden', paddingBottom: 56 },
+  shape: { position: 'absolute', backgroundColor: colors.brandRed },
+  shapeTop: { top: -120, right: -150, width: 190, height: 300, transform: [{ rotate: '25deg' }] },
+  shapeBottom: {
+    bottom: -230,
+    left: -160,
+    width: 200,
+    height: 300,
+    transform: [{ rotate: '25deg' }],
+  },
+  heroInner: { paddingHorizontal: 24, paddingTop: 20, alignItems: 'center' },
+  eyebrow: {
+    fontFamily: 'Inter-Bold',
+    fontSize: 12,
+    letterSpacing: 2,
+    color: '#9A9A9A',
+    textAlign: 'center',
+  },
+  headline: {
+    fontFamily: 'Anton',
+    fontSize: 44,
+    lineHeight: 50,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: 1,
+    marginTop: 6,
+  },
+  margin: { fontFamily: 'Inter-Bold', fontSize: 18, color: '#FFFFFF', marginTop: 4 },
+  scoreBoard: { width: '100%', marginTop: 24 },
+  scoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: 'transparent',
+  },
+  scoreRowWinner: { backgroundColor: 'rgba(255,255,255,0.16)', borderLeftColor: colors.brandRed },
+  scoreTeam: { fontFamily: 'Inter-Bold', fontSize: 16, color: '#FFFFFF' },
+  scoreOvers: { fontFamily: 'Inter', fontSize: 12, color: '#B5B5B5', marginTop: 2 },
+  scoreValue: { fontFamily: 'Anton', fontSize: 30, color: '#FFFFFF' },
+  scoreWickets: { fontFamily: 'Anton', fontSize: 20, color: '#B5B5B5' },
+  potmCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#EEEDEE',
+    shadowColor: '#000000',
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  potmAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.brandRed,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#0D0D0D',
+  },
+  potmInitials: { fontFamily: 'Anton', fontSize: 22, color: '#FFFFFF', letterSpacing: 1 },
+  potmLabel: { fontFamily: 'Inter-Bold', fontSize: 11, letterSpacing: 1.5, color: colors.brandRed },
+  potmName: { fontFamily: 'Inter-Bold', fontSize: 20, color: '#0D0D0D', marginTop: 2 },
+  potmStats: { fontFamily: 'Inter', fontSize: 13, color: '#444444', marginTop: 2 },
+  sectionTitle: {
+    fontFamily: 'Inter-Bold',
+    fontSize: 12,
+    letterSpacing: 1.5,
+    color: '#767676',
+    marginBottom: 10,
+  },
+  inningsCard: {
+    backgroundColor: '#F8F8F8',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.brandRed,
+  },
+  inningsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  inningsTitle: {
+    fontFamily: 'Inter-Bold',
+    fontSize: 16,
+    color: '#0D0D0D',
+    flex: 1,
+    marginRight: 8,
+  },
+  inningsScore: { fontFamily: 'Inter-Bold', fontSize: 15, color: '#0D0D0D' },
+  runRate: { fontFamily: 'Inter', fontSize: 12, color: '#767676', marginTop: 2, marginBottom: 8 },
+  perfRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  perfText: { fontFamily: 'Inter', fontSize: 14, color: '#111111', marginLeft: 8, flex: 1 },
+  perfName: { fontFamily: 'Inter-Bold' },
+  peak: { fontFamily: 'Inter', fontSize: 12, color: '#767676', textAlign: 'center', marginTop: 4 },
+});

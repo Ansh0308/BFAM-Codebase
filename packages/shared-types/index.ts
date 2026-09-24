@@ -504,6 +504,9 @@ export interface Match {
   actual_start_time: string | null;
   actual_end_time: string | null;
   check_in_code: string | null;
+  // Box-cricket single-batter mode (see .claude/MATCH_REVAMP_PLAN.md).
+  no_non_striker?: boolean;
+  extras_count_toward_score?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -536,6 +539,8 @@ export interface GameRoomAttendanceSummary {
 
 export interface GameRoom extends Match {
   players: MatchPlayer[];
+  // Both sides with their names; null team_name falls back to "Team A/B".
+  match_teams?: IntroMatchTeam[];
   payment: {
     total_due: number;
     total_paid: number;
@@ -555,6 +560,9 @@ export interface CreateMatchInput {
   // Backlog G-20 — optional team-vs-team match; both or neither.
   home_team_id?: string | null;
   away_team_id?: string | null;
+  team_a_name?: string | null;
+  team_b_name?: string | null;
+  no_non_striker?: boolean;
 }
 
 // Backlog G-20: a "Live Now" discovery row — a PUBLIC, IN_PROGRESS match
@@ -684,6 +692,8 @@ export interface FallOfWicket {
 export interface InningsScorecard {
   innings_id: string;
   innings_number: number;
+  batting_match_team_id?: string;
+  batting_team_name?: string | null;
   total_runs: number;
   total_wickets: number;
   overs_completed: number;
@@ -708,6 +718,15 @@ export interface MatchResult {
   winning_margin: string | null;
   player_of_the_match_id: string | null;
   player_of_the_match_bfam_id?: string | null;
+  // Shown instead of the BFAM ID; null only if the player never set a name.
+  player_of_the_match_name?: string | null;
+  winning_team_name?: string | null;
+  player_of_the_match_stats?: {
+    runs: number;
+    balls: number;
+    wickets: number;
+    runs_conceded: number;
+  } | null;
   finalized_at: string;
 }
 
@@ -784,6 +803,20 @@ export interface PlayingXiPlayer {
 export interface IntroMatchTeam {
   match_team_id: string;
   side_label: 'TEAM_A' | 'TEAM_B';
+  // Set on Match Setup (or the linked real team's name); null -> "Team A/B".
+  team_name?: string | null;
+}
+
+// Display name for a side.
+export function matchTeamLabel(team: Pick<IntroMatchTeam, 'side_label' | 'team_name'>): string {
+  return team.team_name || (team.side_label === 'TEAM_A' ? 'Team A' : 'Team B');
+}
+
+export interface MatchSetupInput {
+  team_names?: { match_team_id: string; team_name: string | null }[];
+  overs_per_innings?: number;
+  no_non_striker?: boolean;
+  extras_count_toward_score?: boolean;
 }
 
 export interface IntroContext {

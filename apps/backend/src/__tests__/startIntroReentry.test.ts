@@ -51,7 +51,7 @@ jest.mock('../config/sequelize', () => {
         if (sql.includes('mp.player_id, p.bfam_id, p.full_name, mp.participant_role')) {
           return [];
         }
-        if (sql.includes('SELECT match_team_id, side_label FROM match_teams')) return [];
+        if (sql.includes('FROM match_teams mt')) return [];
         if (sql.includes('SELECT t.stadium_sound_enabled'))
           return [{ stadium_sound_enabled: true }];
         if (sql.includes('SELECT p.user_id FROM match_players mp')) return [];
