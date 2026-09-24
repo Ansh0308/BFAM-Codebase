@@ -108,6 +108,7 @@ import staffRouter from './routes/staff';
 import supportRouter from './routes/support';
 import consentsRouter from './routes/consents';
 import rewardsRouter from './routes/rewards';
+import membershipsRouter from './routes/memberships';
 
 interface UserRow {
   user_id: string;
@@ -1381,6 +1382,8 @@ app.use('/support', supportRouter);
 app.use('/consents', consentsRouter);
 // Long tail — Rewards catalog (PRD §12.36).
 app.use('/rewards', rewardsRouter);
+// Long tail — Memberships (PRD §12.51).
+app.use('/memberships', membershipsRouter);
 
 // Sentry Error Handler setup for v8
 if (process.env.SENTRY_DSN) {

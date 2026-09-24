@@ -463,6 +463,14 @@ export class ChallengeNotFoundError extends Error {
   }
 }
 
+// Long tail — Memberships (PRD §12.51).
+export class MembershipPlanNotFoundError extends Error {
+  constructor(planId: string) {
+    super(`Membership plan ${planId} not found`);
+    this.name = 'MembershipPlanNotFoundError';
+  }
+}
+
 // Long tail — Rewards catalog (PRD §12.36).
 export class RewardNotFoundError extends Error {
   constructor(rewardId: string) {

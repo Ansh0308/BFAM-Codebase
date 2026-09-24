@@ -1057,6 +1057,23 @@ export interface RewardRedemption {
   created_at: string;
 }
 
+// Long tail — Memberships (PRD §12.51).
+export interface MembershipPlan {
+  plan_id: string;
+  name: string;
+  duration_days: number;
+  coin_cost: number;
+  discount_percent: number;
+}
+
+export interface Membership {
+  membership_id: string;
+  plan_name: string;
+  discount_percent: number;
+  started_at: string;
+  expires_at: string;
+}
+
 // Long tail — Referral System (PRD §12.53).
 export interface Referral {
   referral_id: string;

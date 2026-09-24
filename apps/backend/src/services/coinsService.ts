@@ -22,7 +22,8 @@ export type CoinReason =
   | 'BOOKING_REDEMPTION'
   | 'ADMIN_ADJUSTMENT'
   | 'REFERRAL_REWARD'
-  | 'REWARD_REDEMPTION';
+  | 'REWARD_REDEMPTION'
+  | 'MEMBERSHIP_PURCHASE';
 
 async function recordCoinTransaction(
   playerId: string,

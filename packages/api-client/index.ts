@@ -63,6 +63,8 @@ import {
   Referral,
   Reward,
   RewardRedemption,
+  MembershipPlan,
+  Membership,
   RebookInfo,
   StatisticsScope,
   Notification,
@@ -1012,6 +1014,26 @@ export class BFAMApiClient {
 
   async getMyRedemptions(): Promise<{ results: RewardRedemption[] }> {
     return this.request('/rewards/redemptions/mine');
+  }
+
+  // Long tail — Memberships (PRD §12.51).
+  async getMembershipPlans(): Promise<{ results: MembershipPlan[] }> {
+    return this.request('/memberships/plans');
+  }
+
+  async getMyMembership(): Promise<{ membership: Membership | null }> {
+    return this.request('/memberships/mine');
+  }
+
+  async subscribeToMembership(
+    planId: string,
+  ): Promise<{
+    membership_id: string;
+    plan_name: string;
+    expires_at: string;
+    coin_balance: number;
+  }> {
+    return this.request(`/memberships/plans/${planId}/subscribe`, { method: 'POST' });
   }
 
   // Long tail — Referral System (PRD §12.53).
