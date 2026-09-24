@@ -16,6 +16,7 @@ interface SessionRow {
 }
 
 let sessions: SessionRow[] = [];
+let matches: Record<string, { peak_viewer_count: number }> = {};
 
 // A minimal in-memory stand-in for the handful of ioredis sorted-set
 // commands presenceService actually uses.
@@ -76,6 +77,11 @@ jest.mock('../config/sequelize', () => {
           const matchId = options.replacements?.matchId;
           return [{ count: sessions.filter((s) => s.match_id === matchId).length }];
         }
+        if (sql.includes('SELECT peak_viewer_count FROM matches')) {
+          const matchId = options.replacements?.matchId as string;
+          const match = matches[matchId];
+          return match ? [{ peak_viewer_count: match.peak_viewer_count }] : [];
+        }
         throw new Error(`Unexpected query in test fake: ${sql}`);
       },
       getQueryInterface: () => ({
@@ -91,6 +97,10 @@ jest.mock('../config/sequelize', () => {
             const row = sessions.find((s) => s.viewer_session_id === where.viewer_session_id);
             if (row) Object.assign(row, values);
           }
+          if (table === 'matches') {
+            const matchId = where.match_id as string;
+            matches[matchId] = { ...matches[matchId], ...values } as { peak_viewer_count: number };
+          }
         },
       }),
     },
@@ -100,6 +110,7 @@ jest.mock('../config/sequelize', () => {
 import {
   getActiveViewerCount,
   getTotalViews,
+  getPeakViewerCount,
   recordHeartbeat,
   recordLeave,
   registerPresenceHandlers,
@@ -132,6 +143,7 @@ function makeFakeIo() {
 describe('Live Match Viewer Count presence (module 2.9)', () => {
   beforeEach(() => {
     sessions = [];
+    matches = {};
     fakeRedisInstance.clear();
   });
 
@@ -254,6 +266,56 @@ describe('Live Match Viewer Count presence (module 2.9)', () => {
       // Each connect cycle is its own session for lifetime total-views
       // purposes, even though the active count stayed at 0 or 1 throughout.
       expect(await getTotalViews(MATCH_ID)).toBe(5);
+    });
+  });
+
+  // Long tail — Peak-viewer analytics (G-25).
+  describe('peak viewer count (long tail — G-25)', () => {
+    it('records the peak concurrent viewers as more viewers join', async () => {
+      const io = makeFakeIo();
+
+      const first = makeFakeSocket('sock-1');
+      registerPresenceHandlers(io as never, first.socket as never);
+      await (first.handlers.get('join_match_viewer') as (p: unknown) => Promise<void>)({
+        matchId: MATCH_ID,
+        userId: 'user-a',
+      });
+      expect(await getPeakViewerCount(MATCH_ID)).toBe(1);
+
+      const second = makeFakeSocket('sock-2');
+      registerPresenceHandlers(io as never, second.socket as never);
+      await (second.handlers.get('join_match_viewer') as (p: unknown) => Promise<void>)({
+        matchId: MATCH_ID,
+        userId: 'user-b',
+      });
+      expect(await getPeakViewerCount(MATCH_ID)).toBe(2);
+    });
+
+    it('never decreases the peak when viewers subsequently leave', async () => {
+      const io = makeFakeIo();
+      const first = makeFakeSocket('sock-1');
+      const second = makeFakeSocket('sock-2');
+      registerPresenceHandlers(io as never, first.socket as never);
+      registerPresenceHandlers(io as never, second.socket as never);
+
+      await (first.handlers.get('join_match_viewer') as (p: unknown) => Promise<void>)({
+        matchId: MATCH_ID,
+        userId: 'user-a',
+      });
+      await (second.handlers.get('join_match_viewer') as (p: unknown) => Promise<void>)({
+        matchId: MATCH_ID,
+        userId: 'user-b',
+      });
+      expect(await getPeakViewerCount(MATCH_ID)).toBe(2);
+
+      await (first.handlers.get('disconnect') as () => Promise<void>)();
+      expect(await getActiveViewerCount(MATCH_ID)).toBe(1);
+      // Active count dropped to 1, but the recorded peak stays at 2.
+      expect(await getPeakViewerCount(MATCH_ID)).toBe(2);
+    });
+
+    it('defaults to 0 for a match with no viewer history', async () => {
+      expect(await getPeakViewerCount('never-viewed-match')).toBe(0);
     });
   });
 });

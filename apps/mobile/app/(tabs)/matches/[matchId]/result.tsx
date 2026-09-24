@@ -96,6 +96,8 @@ export default function MatchResultScreen() {
   const [matchTeams, setMatchTeams] = useState<IntroMatchTeam[]>([]);
   const [result, setResult] = useState<MatchResult | null>(null);
   const [scorecard, setScorecard] = useState<Scorecard | null>(null);
+  // Long tail — Peak-viewer analytics (G-25).
+  const [peakViewers, setPeakViewers] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -121,6 +123,10 @@ export default function MatchResultScreen() {
       setScorecard(scorecardData);
       const existingResult = await apiClient.getMatchResult(matchId).catch(() => null);
       setResult(existingResult);
+      apiClient
+        .getViewerCount(matchId)
+        .then((res) => setPeakViewers(res.peak))
+        .catch(() => {});
     } catch {
       setError('Could not load match result data.');
     } finally {
@@ -286,6 +292,14 @@ export default function MatchResultScreen() {
                   </View>
                 );
               })}
+              {peakViewers !== null && peakViewers > 0 && (
+                <Text
+                  className="font-ui text-micro text-text-tertiary text-center mt-1"
+                  testID="peak-viewers"
+                >
+                  Peak Viewers: {peakViewers}
+                </Text>
+              )}
             </View>
           )}
 

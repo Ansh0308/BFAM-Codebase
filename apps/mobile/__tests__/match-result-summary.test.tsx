@@ -8,6 +8,7 @@ jest.mock('../src/lib/apiClient', () => ({
     getMatchIntro: jest.fn(),
     getMatchResult: jest.fn(),
     getScorecard: jest.fn(),
+    getViewerCount: jest.fn().mockResolvedValue({ active: 0, total: 0, peak: 0 }),
   },
 }));
 
@@ -21,6 +22,7 @@ const mockGetGameRoom = apiClient.getGameRoom as jest.Mock;
 const mockGetMatchIntro = apiClient.getMatchIntro as jest.Mock;
 const mockGetMatchResult = apiClient.getMatchResult as jest.Mock;
 const mockGetScorecard = apiClient.getScorecard as jest.Mock;
+const mockGetViewerCount = apiClient.getViewerCount as jest.Mock;
 
 import MatchResultScreen from '../app/(tabs)/matches/[matchId]/result';
 
@@ -124,6 +126,24 @@ describe('Match Result screen — Match Summary (backlog A-22)', () => {
     await fireEvent.press(await findByTestId('open-scorecard'));
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/(tabs)/matches/match-1/scorecard'));
+  });
+
+  // Long tail — Peak-viewer analytics (G-25).
+  it('shows the peak viewer count within the Match Summary', async () => {
+    mockGetViewerCount.mockResolvedValueOnce({ active: 2, total: 50, peak: 12 });
+
+    const { findByTestId } = await render(<MatchResultScreen />);
+
+    expect((await findByTestId('peak-viewers')).props.children.join('')).toBe('Peak Viewers: 12');
+  });
+
+  it('hides the peak-viewers line when nobody has watched yet', async () => {
+    mockGetViewerCount.mockResolvedValueOnce({ active: 0, total: 0, peak: 0 });
+
+    const { findByTestId, queryByTestId } = await render(<MatchResultScreen />);
+    await findByTestId('match-summary');
+
+    expect(queryByTestId('peak-viewers')).toBeNull();
   });
 
   it('does not render a summary block when there is no scoring data', async () => {

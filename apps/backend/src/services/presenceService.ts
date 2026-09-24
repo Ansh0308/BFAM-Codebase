@@ -92,6 +92,29 @@ export async function getTotalViews(matchId: string): Promise<number> {
   return Number(row?.count ?? 0);
 }
 
+// Long tail — Peak-viewer analytics (G-25). matches.peak_viewer_count is a
+// cached running value (same pattern as players.skill_rating elsewhere) —
+// only ever increases for a given match, updated whenever the live active
+// count is recomputed. A plain SELECT-then-UPDATE-if-higher rather than a
+// single `GREATEST()` UPDATE, since this only runs on join/leave (a few
+// times per viewer per match, not a hot path) and reads more plainly.
+export async function getPeakViewerCount(matchId: string): Promise<number> {
+  const [row] = await sequelize.query<{ peak_viewer_count: number }>(
+    'SELECT peak_viewer_count FROM matches WHERE match_id = :matchId',
+    { type: QueryTypes.SELECT, replacements: { matchId } },
+  );
+  return Number(row?.peak_viewer_count ?? 0);
+}
+
+async function updatePeakViewerCountIfHigher(matchId: string, active: number): Promise<number> {
+  const currentPeak = await getPeakViewerCount(matchId);
+  if (active <= currentPeak) return currentPeak;
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate('matches', { peak_viewer_count: active }, { match_id: matchId });
+  return active;
+}
+
 async function logSession(matchId: string, userId: string | null, socketId: string) {
   const sessionId = randomUUID();
   await sequelize.getQueryInterface().bulkInsert('live_match_sessions', [
@@ -122,7 +145,8 @@ async function broadcastViewerCount(io: Server, matchId: string) {
     getActiveViewerCount(matchId),
     getTotalViews(matchId),
   ]);
-  io.to(matchRoom(matchId)).emit('match:viewer_count', { matchId, active, total });
+  const peak = await updatePeakViewerCountIfHigher(matchId, active);
+  io.to(matchRoom(matchId)).emit('match:viewer_count', { matchId, active, total, peak });
 }
 
 // Registered per-socket from realtime/matchSocket.ts. `viewerKey` for

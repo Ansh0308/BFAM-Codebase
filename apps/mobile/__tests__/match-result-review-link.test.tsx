@@ -8,6 +8,7 @@ jest.mock('../src/lib/apiClient', () => ({
     getMatchIntro: jest.fn(),
     getMatchResult: jest.fn(),
     getScorecard: jest.fn(),
+    getViewerCount: jest.fn().mockResolvedValue({ active: 0, total: 0, peak: 0 }),
   },
 }));
 

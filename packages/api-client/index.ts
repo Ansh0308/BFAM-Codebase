@@ -959,8 +959,10 @@ export class BFAMApiClient {
 
   // ---- Module 2.9: Live Match Viewer Count ----
 
-  async getViewerCount(matchId: string): Promise<{ active: number; total: number }> {
-    return this.request<{ active: number; total: number }>(`/matches/${matchId}/viewers`);
+  async getViewerCount(matchId: string): Promise<{ active: number; total: number; peak: number }> {
+    return this.request<{ active: number; total: number; peak: number }>(
+      `/matches/${matchId}/viewers`,
+    );
   }
 
   // ---- Module 2.10: Match Statistics & Basic Skill Rating ----

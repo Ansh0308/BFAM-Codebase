@@ -23,7 +23,11 @@ import {
   recordToss,
   startIntro,
 } from '../services/matchIntroService';
-import { getActiveViewerCount, getTotalViews } from '../services/presenceService';
+import {
+  getActiveViewerCount,
+  getTotalViews,
+  getPeakViewerCount,
+} from '../services/presenceService';
 import {
   acceptReplacement,
   checkInWithCode,
@@ -154,11 +158,12 @@ router.get(
   '/:matchId/viewers',
   authenticateJwt,
   asyncHandler(async (req: Request, res: Response) => {
-    const [active, total] = await Promise.all([
+    const [active, total, peak] = await Promise.all([
       getActiveViewerCount(req.params.matchId),
       getTotalViews(req.params.matchId),
+      getPeakViewerCount(req.params.matchId),
     ]);
-    return res.status(200).json({ active, total });
+    return res.status(200).json({ active, total, peak });
   }),
 );
 
