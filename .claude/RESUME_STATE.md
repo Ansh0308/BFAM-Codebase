@@ -45,9 +45,9 @@ next available item).
 
 ## Where things stand right now (2026-09-24, continued session)
 
-`main` branch, latest commit at time of writing: `24f81f0` — "Add
-Rankings & Leaderboards (long tail, PRD §12.33)". Working tree is
-clean, everything up to and including it is committed and pushed.
+`main` branch, latest commit at time of writing: `476f4a9` — "Add XP &
+Player Levels (long tail, PRD §12.35)". Working tree is clean,
+everything up to and including it is committed and pushed.
 
 **The entire well-scoped backlog from `BFAM_Remaining_Backlog_2026-09-23.md`
 Section D is now DONE**: A-13, A-14, G-22, G-23, G-24, G-21, E-3, E-5,
@@ -238,18 +238,34 @@ pending items only, plus 5 newly-surfaced gaps numbered G-21 through G-25).
     formula defined anywhere), all-rounder ranking (no combined formula
     specified), Tournament leaderboard (no tournament entity exists —
     separate long-tail item).
+22. **XP & Player Levels (long tail, PRD §12.35)**
+    New migration (`players.xp_total` + `xp_transactions`, same shape
+    as `coin_transactions`/`players.coin_balance`), `services/xpService.ts`
+    (`computeLevelProgress` — pure, independently tested — against
+    documented MVP level thresholds: Newbie 0 / Rookie 100 / Player 300
+    / Pro 700 / Elite 1500 / Legend 3000 XP), routes
+    `GET /players/:playerId/xp` and `.../xp/history`, and a new mobile
+    screen (`app/xp-level.tsx` — level badge, progress bar, XP history)
+    reached from a new "Level & XP" Profile entry point. `reviewService.ts`'s
+    `submitReview` now also grants `XP_REWARD_PER_REVIEW` (10 XP, MVP
+    default) in the same transaction as the existing coin reward — the
+    one real "player did something positive" event that exists today.
+    No other XP-earning triggers wired yet — booking completion, match
+    wins, POTM, etc. from PRD §12.34's coin list would need the same
+    treatment, but none of those actually call `earnCoins` either
+    today, so there's nothing broader to extend yet (a pre-existing
+    gap in B-1, not something this item introduced).
 
 ### What's next
 
 Everything else in the "long tail" section of
-`BFAM_Remaining_Backlog_2026-09-23.md` (XP & Levels, Achievements &
-Badges, Match Streaks, Special Recognition, Tournaments & Leagues,
-Match Recording & Highlights, Peak-viewer analytics (G-25),
-Memberships, a real Offers taxonomy beyond generic promo codes,
-Referral System, Café, a real Maintenance task tracker, in-match Fair
-Play rotation/alerts/new-player-protection, skill-aware team
-balancing, a broader rewards catalog, and map/navigation) — lowest
-priority, pick based on what
+`BFAM_Remaining_Backlog_2026-09-23.md` (Achievements & Badges, Match
+Streaks, Special Recognition, Tournaments & Leagues, Match Recording &
+Highlights, Peak-viewer analytics (G-25), Memberships, a real Offers
+taxonomy beyond generic promo codes, Referral System, Café, a real
+Maintenance task tracker, in-match Fair Play rotation/alerts/new-
+player-protection, skill-aware team balancing, a broader rewards
+catalog, and map/navigation) — lowest priority, pick based on what
 seems highest-value; none of it blocks anything else, and each is a
 substantial, mostly-independent feature build rather than a small
 well-scoped fix like everything completed above. **If working
