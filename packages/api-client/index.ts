@@ -199,6 +199,30 @@ export interface CompleteSocialSignupPayload {
   waiver_accepted: true;
 }
 
+// Adds a picked file to a multipart body. React Native's networking layer accepts
+// a {uri, name, type} object as a file field, but a browser does not: it would
+// send the text "[object Object]" instead of the image (uploads silently failed
+// on the mobile-web build). On the web the picked file's blob:/data: URI is
+// fetched into a real Blob first.
+async function appendPickedFile(
+  formData: FormData,
+  field: string,
+  file: { uri: string; name: string; type: string },
+): Promise<void> {
+  const isReactNative = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+  if (isReactNative) {
+    formData.append(field, {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as unknown as Blob);
+    return;
+  }
+  const blob = await (await fetch(file.uri)).blob();
+  const typed = blob.type ? blob : new Blob([blob], { type: file.type });
+  formData.append(field, typed, file.name);
+}
+
 export class BFAMApiClient {
   private baseUrl: string;
   private token: string | null = null;
@@ -447,14 +471,11 @@ export class BFAMApiClient {
 
     const extension = mimeType.split('/')[1] ?? 'jpg';
     const formData = new FormData();
-    // React Native's fetch/FormData accepts this {uri, name, type} shape for
-    // a file field — it is not a real Blob/File, but RN's networking layer
-    // knows how to stream it from the given uri.
-    formData.append('photo', {
+    await appendPickedFile(formData, 'photo', {
       uri: fileUri,
       name: `photo.${extension}`,
       type: mimeType,
-    } as unknown as Blob);
+    });
 
     const response = await fetch(`${this.baseUrl}/profile/photo`, {
       method: 'POST',
@@ -1438,12 +1459,11 @@ export class BFAMApiClient {
     if (typeof File !== 'undefined' && file instanceof File) {
       formData.append('document', file);
     } else {
-      const rnFile = file as { uri: string; name: string; type: string };
-      formData.append('document', {
-        uri: rnFile.uri,
-        name: rnFile.name,
-        type: rnFile.type,
-      } as unknown as Blob);
+      await appendPickedFile(
+        formData,
+        'document',
+        file as { uri: string; name: string; type: string },
+      );
     }
 
     const headers = new Headers();
