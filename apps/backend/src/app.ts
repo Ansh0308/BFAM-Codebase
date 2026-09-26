@@ -11,7 +11,7 @@ import { initSentry } from './config/sentry';
 import { USER_ROLES } from './domain/constants';
 import { authenticateJwt, requireRoles } from './middleware/auth';
 import { issueJwt, UserRole } from './services/authService';
-import { isLocalDevOrTest } from './config/env';
+import { getTrustProxySetting, isLocalDevOrTest } from './config/env';
 import { createUserAccount } from './services/accountService';
 import { sequelize } from './config/sequelize';
 import {
@@ -163,6 +163,13 @@ if (!isLocalDevOrTest() && !process.env.JWT_SECRET) {
 }
 
 const app = express();
+
+// Behind a reverse proxy (TRUST_PROXY=1) the client's real IP comes from
+// X-Forwarded-For; the rate limiters below depend on it. See config/env.ts.
+const trustProxy = getTrustProxySetting();
+if (trustProxy !== false) {
+  app.set('trust proxy', trustProxy);
+}
 
 // Standard middlewares
 app.use(
