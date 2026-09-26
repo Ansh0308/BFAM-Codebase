@@ -19,6 +19,7 @@
 // the end if you want to wipe and reseed.
 
 import bcrypt from 'bcrypt';
+import { refuseDemoSeedInProduction } from './guard';
 import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
@@ -142,6 +143,7 @@ const N_PLAYERS = 56;
 const N_TEAMS = 12;
 
 async function main() {
+  refuseDemoSeedInProduction('demoSeed');
   await sequelize.authenticate();
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
 

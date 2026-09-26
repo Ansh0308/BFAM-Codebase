@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { refuseDemoSeedInProduction } from './guard';
 import { randomUUID } from 'crypto';
 import { sequelize } from '../config/sequelize';
 import { USER_ROLES } from '../domain/constants';
@@ -12,6 +13,7 @@ async function insert(table: string, rows: Record<string, unknown>[]) {
 }
 
 async function main() {
+  refuseDemoSeedInProduction('phase1Seed');
   await sequelize.authenticate();
 
   const passwordHash = await bcrypt.hash(password, 10);
