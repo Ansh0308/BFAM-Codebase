@@ -54,10 +54,12 @@ export function StatusBadge({ label, variant, testID }: StatusBadgeProps) {
       className={`flex-row items-center self-start rounded-md px-2.5 py-1 ${bg}`}
       testID={testID}
     >
+      {/* className is not processed on Animated components; the pulse wraps a plain View. */}
       <Animated.View
-        className={`rounded-full mr-1.5 ${dot}`}
-        style={{ width: 6, height: 6, opacity: variant === 'live' ? pulse : 1 }}
-      />
+        style={{ width: 6, height: 6, marginRight: 6, opacity: variant === 'live' ? pulse : 1 }}
+      >
+        <View className={`rounded-full ${dot}`} style={{ width: 6, height: 6 }} />
+      </Animated.View>
       <Text className={`font-ui text-micro font-bold uppercase tracking-wide ${text}`}>
         {label}
       </Text>

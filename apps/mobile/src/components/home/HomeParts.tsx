@@ -60,12 +60,16 @@ export function QuickAction({
             <Feather name={icon} size={28} color={colors.brandRed} />
           </MotiView>
         )}
-        <Text
-          className="font-ui font-bold text-ink-black text-center"
-          style={{ fontSize: 13, lineHeight: 16, marginTop: 10 }}
-        >
-          {label}
-        </Text>
+        {/* Room for two lines so a wrapping label ("Create Team" on a narrow phone) does
+            not push its caption out of line with the other tiles. */}
+        <View style={{ minHeight: 32, justifyContent: 'center', marginTop: 8 }}>
+          <Text
+            className="font-ui font-bold text-ink-black text-center"
+            style={{ fontSize: 13, lineHeight: 16 }}
+          >
+            {label}
+          </Text>
+        </View>
         <Text
           className="font-ui text-text-tertiary text-center"
           style={{ fontSize: 9, letterSpacing: 1.1, marginTop: 4 }}

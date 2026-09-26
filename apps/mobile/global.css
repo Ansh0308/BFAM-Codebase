@@ -12,3 +12,11 @@ input:focus,
 textarea:focus {
   outline: none;
 }
+
+/* The display face (Anton) ships in one weight only, but many headings also
+   carry a bold weight from the type-scale presets. On the web the browser then
+   fakes an even heavier bold, which smears the letterforms; use the face as
+   designed. (iOS and Android already ignore the missing weight.) */
+.font-display {
+  font-synthesis: none;
+}

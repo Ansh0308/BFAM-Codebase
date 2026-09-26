@@ -2,6 +2,7 @@ const eslint = require('@eslint/js');
 const tseslint = require('typescript-eslint');
 
 const globals = {
+  __dirname: 'readonly',
   console: 'readonly',
   Headers: 'readonly',
   module: 'readonly',

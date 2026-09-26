@@ -199,8 +199,12 @@ export default function Home() {
       </Animated.View>
 
       <SafeAreaView className="flex-1" edges={['top', 'bottom']}>
+        {/* React Native's own Animated.ScrollView is not wrapped by NativeWind, so a
+            className here is silently ignored (the page rendered edge to edge). Layout
+            goes through style / contentContainerStyle instead. */}
         <Animated.ScrollView
-          className="flex-1 px-5"
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20 }}
           testID="home-screen"
           scrollEventThrottle={16}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {

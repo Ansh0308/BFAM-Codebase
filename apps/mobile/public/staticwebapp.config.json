@@ -4,8 +4,11 @@
     "exclude": [
       "/_expo/*",
       "/assets/*",
-      "*.{png,jpg,jpeg,gif,ico,svg,webp,css,js,json,ttf,otf,woff,woff2}"
+      "*.{png,jpg,jpeg,gif,ico,svg,webp,css,js,json,webmanifest,ttf,otf,woff,woff2}"
     ]
+  },
+  "mimeTypes": {
+    ".webmanifest": "application/manifest+json"
   },
   "routes": [
     {

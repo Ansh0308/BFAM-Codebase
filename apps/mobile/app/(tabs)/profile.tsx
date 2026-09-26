@@ -95,7 +95,7 @@ export default function Profile() {
           <Avatar uri={profile?.profile_photo_url} size={96} />
           {profile?.full_name ? (
             <Text
-              className="font-display text-title-xl text-ink-black mt-3"
+              className="font-ui text-title-xl text-ink-black mt-3 text-center"
               testID="profile-full-name"
             >
               {profile.full_name}

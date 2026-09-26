@@ -45,10 +45,11 @@ function PagingDot({
     extrapolate: 'clamp',
   });
   return (
-    <Animated.View
-      className="h-2 rounded-full bg-brand-red mx-1"
-      style={{ width: dotWidth, opacity }}
-    />
+    // The animated wrapper carries only width/opacity; the look sits on a plain View,
+    // because NativeWind does not process className on React Native's Animated components.
+    <Animated.View style={{ width: dotWidth, opacity, marginHorizontal: 4 }}>
+      <View className="h-2 rounded-full bg-brand-red" />
+    </Animated.View>
   );
 }
 
