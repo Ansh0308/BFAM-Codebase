@@ -1,6 +1,7 @@
 import path from 'path';
 import { QueryInterface, Sequelize } from 'sequelize';
-import { Umzug, SequelizeStorage } from 'umzug';
+import { Umzug } from 'umzug';
+import { ExtensionAgnosticStorage, normalizeMigrationName } from './migrationStorage';
 import { sequelize } from './sequelize';
 
 type LegacyMigration = {
@@ -38,7 +39,8 @@ export const umzug = new Umzug({
     // by hand and adapt the call signature instead of rewriting every
     // migration file.
     resolve: ({ name, path: migrationPath, context }) => ({
-      name,
+      // Identified by name without .ts/.js — see migrationStorage.ts.
+      name: normalizeMigrationName(name),
       up: async () => {
         const migration = (await import(migrationPath!)) as LegacyMigration;
         return migration.up(context as QueryInterface, Sequelize);
@@ -50,7 +52,10 @@ export const umzug = new Umzug({
     }),
   },
   context: sequelize.getQueryInterface(),
-  storage: new SequelizeStorage({ sequelize, tableName: 'SequelizeMeta' }),
+  storage: new ExtensionAgnosticStorage(
+    { sequelize, tableName: 'SequelizeMeta' },
+    path.extname(__filename),
+  ),
   logger: console,
 });
 
