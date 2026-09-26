@@ -1,5 +1,6 @@
 import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
+import { getDbSslOptions } from './dbSsl';
 
 dotenv.config();
 
@@ -66,6 +67,8 @@ export const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
   },
   dialectOptions: {
     typeCast: boolTinyIntTypeCast,
+    // TLS for managed MySQL (Azure etc.); off unless DB_SSL is set. See dbSsl.ts.
+    ...(getDbSslOptions() ? { ssl: getDbSslOptions() } : {}),
   },
 });
 

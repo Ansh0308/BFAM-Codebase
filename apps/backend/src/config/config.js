@@ -19,6 +19,12 @@ module.exports = {
     logging: false,
   },
   production: {
+    // Same TLS switch as src/config/dbSsl.ts, for sequelize-cli runs.
+    dialectOptions: ['1', 'true', 'yes', 'on', 'require', 'required'].includes(
+      (process.env.DB_SSL || '').trim().toLowerCase(),
+    )
+      ? { ssl: { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } }
+      : {},
     username: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
