@@ -43,6 +43,59 @@ next available item).
 3. If a scheduled continuation isn't already set up for after the next
    reset, create one (see "Scheduling yourself" below).
 
+## Deployment readiness (2026-09-26) — read this first
+
+The user asked to deploy everything for a beta so testers can give feedback, and
+chose: **Azure free account** ($200 credit for 30 days, then the 12-month free VM +
+MySQL B1ms), no custom domain yet, Android **and** iPhone, **static OTP** for now
+(with a documented path to a real SMS provider), every account under
+sportsbfam@gmail.com, and "fix the blockers first".
+
+**Done and committed (all tested; `BFAM_Deployment_Plan.md` §4 has the
+commit-by-commit table):** dev-token hole closed + fail-closed `isLocalDevOrTest()`,
+`TRUST_PROXY`, admin web on Next 15 / React 19 (`next build` works; `NEXT_DIST_DIR`),
+mobile-web API URL baked in via `EXPO_PUBLIC_API_URL` (`npm run export:web`,
+SPA-fallback host config in `apps/mobile/public`), IST-explicit booking times and
+"today", extension-agnostic migration names, `DB_SSL`, S3-compatible storage (R2)
+with private staff-ID documents + signed links, `OTP_MODE=static`, `db:seed:beta`
+(demo seeds refuse to run in production), one `CORS_ORIGIN` allowlist for REST +
+Socket.IO, backend `Dockerfile` + `.dockerignore` + `deploy/` (compose + Caddy +
+env template) + `.github/workflows/deploy-backend.yml`. Suites at that point:
+backend 716, mobile 333, web 50; `tsc --noEmit` clean.
+
+**Not verifiable from this machine (say so, don't claim it works):** Docker (not
+installed — the image steps were emulated on a clean checkout and the compiled
+production layout was booted against an empty MySQL), Azure, GitHub Actions,
+Cloudflare R2, Static Web Apps / Netlify. The user must create the cloud accounts
+and enter credentials (the assistant must not); the runbook is
+`BFAM_Deployment_Plan.md` §6.
+
+**Gotchas learned:** `npm prune --omit=dev` in this monorepo re-installs the
+mobile/web trees (use a separate `npm ci --omit=dev -w apps/backend`, which is what
+the Dockerfile does); `expo export` needs `--clear` or a cached bundle keeps an old
+`EXPO_PUBLIC_*` value; new Azure public IPs are Standard/static and not free (~$3–4
+per month, estimate); any iOS build needs the $99 Apple Developer Program (iPhone
+testers start on mobile-web via Safari).
+
+**Still open for deployment:** `eas.json` for the Android APK (not written — do it
+when the user is ready to run `eas login`); optional iPhone web polish
+(apple-touch-icon, `viewport-fit=cover`); after the user deploys, fix whatever the
+first real run of the Dockerfile / workflow / Azure surfaces. The user should restart
+their own web dev server once (Next/React upgrade) and use `db:seed:beta` — not the
+demo seeds — for any shared database.
+
+**Local environment incident (2026-09-26, repaired the same day):** a mistaken shell
+command run from this session deleted part of the repo's root `node_modules`
+(unescaped backticks in a double-quoted bash string ran pieces of note text as
+commands, including npm commands; no tracked file changed). The old dev servers
+(backend ts-node-dev, `expo start`, two nativewind children) held native `.node`
+files open, so the user stopped them; `npm ci` at the repo root then restored
+everything from the committed lockfile (1,735 packages), and bcrypt, the `@bfam`
+workspace links, `.bin` and `npm run type-check` were re-checked. **The dev servers
+were stopped and are not running** — restart them (backend `:5000`, mobile web
+`:8081`, web `:3000`) when needed. Lesson: write markdown/notes with the Write or
+Edit tool, never through `bash -c "…"` strings containing backticks.
+
 ## Where things stand right now (2026-09-24, continued session)
 
 `main` branch, latest commit at time of writing: see `git log` (most recent item: Referral System). Working tree is clean,
