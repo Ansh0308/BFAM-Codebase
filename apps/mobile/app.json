@@ -60,6 +60,13 @@
       "expo-status-bar",
       "@react-native-community/datetimepicker",
       "expo-image"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1f416550-6c02-468a-9a32-339c6658418b"
+      }
+    },
+    "owner": "sportsbfam"
   }
 }

@@ -81,6 +81,25 @@ Android APK (Expo), native iPhone (Apple $99 — iPhone testers use Safari + Add
 Local testing needs the throwaway MySQL 8.4 in the session scratchpad (`mysqld --datadir=...\mysqldata
 --console`), then `preview_start` backend + mobile-web; demo login +919916300600 / Demo@1234.
 
+**Later the same day (2026-09-26):** new brand logo + icons (traced from the user's brand
+sheet into `apps/mobile/src/assets/brand/{mark,wordmark}.svg`; `npm`-free generator
+`apps/mobile/scripts/build-brand-assets.js` renders all PNGs; `BrandLogo` component; `app.json`
+icon/adaptiveIcon). Web-build fixes: file uploads sent "[object Object]" on web (fixed in
+`packages/api-client` `appendPickedFile`), and contacts invites now use the Contact Picker API
+(Android Chrome) or a phone-number lookup (`useContactsMatch`). R2: S3 keys work against
+`bfam-public` (tested with real upload from the browser UI); they live in
+`%USERPROFILE%\bfam-secrets\r2.env` (NOT the repo). Still needed to enable photos in production:
+the bucket's public `r2.dev` address in `R2_PUBLIC_URL`, then `deploy/configure-storage.ps1`
+(needs the user's SSH; the assistant is not allowed to SSH). There is no `bfam-private` bucket yet
+(staff ID documents would fall back to the public bucket). Expo project `@sportsbfam/bfam-mobile`
+exists (`eas.json` preview = APK; `EXPO_PUBLIC_API_URL` is an EAS environment variable, not in the repo);
+first Android build was started from the CLI. Netlify site `bfam-admin-<suffix>` was created but the
+admin web is NOT deployed: Netlify's Next.js plugin failed at "Failed publishing static content"
+when deploying from this monorepo (the `next build` itself passes); options: host the admin web as a
+container on the VM, or make its three dynamic routes static and use Azure Static Web Apps.
+The user pasted Cloudflare API tokens (cfat_/cfut_) into chat: they should be revoked; only the S3
+key pair is used.
+
 **NativeWind gotcha:** `className` is silently ignored on React Native's own `Animated.*`
 components (unlike plain `View`/`ScrollView`) — use `style`/`contentContainerStyle`, or wrap a
 plain `View` (this caused the edge-to-edge Home on the deployed site; regression test:
