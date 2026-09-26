@@ -6,6 +6,7 @@ jest.mock('expo-constants', () => ({
   default: { expoConfig: null },
 }));
 
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { devServerHost, getApiBaseUrl } from '../src/lib/apiBaseUrl';
 
@@ -56,5 +57,47 @@ describe('getApiBaseUrl (native, development)', () => {
   it('falls back to localhost with neither', () => {
     delete process.env.EXPO_PUBLIC_API_URL;
     expect(getApiBaseUrl()).toBe('http://localhost:5000');
+  });
+});
+
+// The mobile app also ships as a website (`expo export -p web`). There the
+// page is served from a static host, so "the page's own host on :5000" is
+// wrong — the deployed API address must come from the build.
+describe('getApiBaseUrl (web)', () => {
+  const g = globalThis as unknown as { window?: unknown; __DEV__?: boolean };
+  const originalWindow = g.window;
+  const originalDev = g.__DEV__;
+  const originalEnv = process.env.EXPO_PUBLIC_API_URL;
+  const originalOS = Platform.OS;
+
+  beforeEach(() => {
+    Object.defineProperty(Platform, 'OS', { value: 'web', configurable: true });
+    g.window = { location: { protocol: 'https:', hostname: 'bfam-app.pages.dev' } };
+  });
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+    g.window = originalWindow;
+    g.__DEV__ = originalDev;
+    if (originalEnv === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+    else process.env.EXPO_PUBLIC_API_URL = originalEnv;
+  });
+
+  it('uses the API address baked in at build time for a production export', () => {
+    g.__DEV__ = false;
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.example.com';
+    expect(getApiBaseUrl()).toBe('https://api.example.com');
+  });
+
+  it('derives the host from the page in local development, ignoring a stale LAN IP in the env', () => {
+    g.__DEV__ = true;
+    process.env.EXPO_PUBLIC_API_URL = 'http://192.168.1.5:5000';
+    g.window = { location: { protocol: 'http:', hostname: 'localhost' } };
+    expect(getApiBaseUrl()).toBe('http://localhost:5000');
+  });
+
+  it('falls back to the page host on :5000 when a production export has no API address set', () => {
+    g.__DEV__ = false;
+    delete process.env.EXPO_PUBLIC_API_URL;
+    expect(getApiBaseUrl()).toBe('https://bfam-app.pages.dev:5000');
   });
 });

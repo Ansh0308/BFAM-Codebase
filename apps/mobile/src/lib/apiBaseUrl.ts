@@ -35,6 +35,12 @@ export function devServerHost(hostUri: string | null | undefined): string | null
 
 export function getApiBaseUrl(): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+    // A production export (`expo export -p web`, __DEV__ false) is served from a
+    // static host such as Cloudflare Pages or Azure Static Web Apps, where the
+    // page's own host is NOT the API — use the address baked in at build time.
+    // Only the local dev server, which really is the same machine as the
+    // backend, derives it from the page.
+    if (!__DEV__ && process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
     return `${window.location.protocol}//${window.location.hostname}:${BACKEND_PORT}`;
   }
   if (__DEV__) {
