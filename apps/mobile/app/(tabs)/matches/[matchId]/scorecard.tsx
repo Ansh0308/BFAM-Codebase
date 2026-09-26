@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../../../../src/components/BallLoader';
 import { useLocalSearchParams } from 'expo-router';
 import type { Scorecard } from '@bfam/shared-types';
 import { apiClient } from '../../../../src/lib/apiClient';
-import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 
 // Scorecard (PRD §12.18 requirement 4): batting/bowling tables, extras
@@ -25,7 +25,7 @@ export default function ScorecardScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="scorecard-loading" />
+          <BallLoader testID="scorecard-loading" />
         </View>
       </ScreenContainer>
     );

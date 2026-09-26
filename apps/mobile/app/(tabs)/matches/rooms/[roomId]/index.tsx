@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { RoomDetails, RoomPlayerSide, TurfListItem } from '@bfam/shared-types';
@@ -87,7 +88,7 @@ export default function RoomLobbyScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="room-lobby-loading" />
+          <BallLoader testID="room-lobby-loading" />
         </View>
       </ScreenContainer>
     );

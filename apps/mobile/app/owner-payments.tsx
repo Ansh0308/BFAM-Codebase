@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { OwnerPayment } from '@bfam/shared-types';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 
 // Payments incl. Cash Reconciliation (module 2.12, PRD §8.3/§9.2) — every
 // payment against a booking at any turf this owner runs, across UPI,
@@ -26,12 +26,7 @@ export default function OwnerPaymentsScreen() {
       <View className="px-5 flex-1" testID="owner-payments-screen">
         <ScreenHeader title="Payments" />
         {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            style={{ marginTop: 24 }}
-            testID="owner-payments-loading"
-          />
+          <BallLoader testID="owner-payments-loading" style={{ marginTop: 24 }} />
         ) : (
           <FlatList
             data={payments}

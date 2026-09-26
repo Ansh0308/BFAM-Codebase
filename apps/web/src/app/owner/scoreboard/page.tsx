@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { OwnerLiveMatch } from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { PageHeader } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Digital Scoreboard picker (PRD §12.20). An owner may run several pitches
 // at once, each with its own PC/LED — this groups every currently-live
@@ -37,7 +38,7 @@ export default function OwnerScoreboardPage() {
         Pick a live match to display on a pitch&apos;s LED or TV screen.
       </p>
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : matches.length === 0 ? (
         <p className="font-ui text-body text-text-secondary" data-testid="scoreboard-empty">
           No matches are live right now.

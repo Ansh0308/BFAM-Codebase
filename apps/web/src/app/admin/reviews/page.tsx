@@ -9,6 +9,7 @@ import {
   SecondaryButton,
   TextInput,
 } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Backlog E-5 — Reviews Management in Admin Web (PRD §9.1): a full
 // cross-turf/cross-player review directory, plus removal for moderation
@@ -68,7 +69,7 @@ export default function AdminReviewsPage() {
       </div>
 
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : loadError ? (
         <p className="font-ui text-body text-brand-red">
           Could not load reviews. Your session may have expired — try logging in again.

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { PublicVenueDetails } from '@bfam/shared-types';
 import { apiClient } from '../../../../src/lib/apiClient';
-import { colors } from '../../../../src/theme/tokens';
 
 // Venue pitch picker (feedback backlog A-2/follow-up) — reached from a
 // grouped Discover card. Each pitch is its own fully independent turf with
@@ -39,7 +39,7 @@ export default function VenuePitchPickerScreen() {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center" edges={['bottom']}>
-        <ActivityIndicator size="large" color={colors.brandRed} testID="venue-picker-loading" />
+        <BallLoader testID="venue-picker-loading" />
       </SafeAreaView>
     );
   }

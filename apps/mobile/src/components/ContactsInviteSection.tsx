@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, Share, Text, TextInput, View } from 'react-native';
+import { Pressable, Share, Text, TextInput, View } from 'react-native';
+import { BallLoader } from './BallLoader';
 import { Feather } from '@expo/vector-icons';
 import type { ContactMatch } from '@bfam/shared-types';
-import { colors } from '../theme/tokens';
 import { Button } from './Button';
 import { Avatar } from './Avatar';
 import { useContactsMatch } from '../hooks/useContactsMatch';
@@ -65,8 +65,8 @@ export function ContactsInviteSection({
       )}
 
       {status === 'loading' && (
-        <ActivityIndicator
-          color={colors.brandRed}
+        <BallLoader
+          size="inline"
           testID={`${testIDPrefix}-contacts-loading`}
           style={{ marginBottom: 24 }}
         />

@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { GameRoom, LiveScore } from '@bfam/shared-types';
 import { apiClient } from '../../../../src/lib/apiClient';
-import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
 import { ViewerCountBadge } from '../../../../src/components/ViewerCountBadge';
@@ -53,7 +53,7 @@ export default function LiveScoreScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="live-score-loading" />
+          <BallLoader testID="live-score-loading" />
         </View>
       </ScreenContainer>
     );

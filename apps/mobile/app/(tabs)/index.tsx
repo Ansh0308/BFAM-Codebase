@@ -1,17 +1,29 @@
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  Animated,
+  Platform,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { BallLoader } from '../../src/components/BallLoader';
+import { Image } from 'expo-image';
+import { MotiView } from 'moti';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Match, MyProfile, PlayerStatistics } from '@bfam/shared-types';
-import { Button } from '../../src/components/Button';
 import { useAuthStore } from '../../src/store/authStore';
 import { OwnerDashboard } from '../../src/screens/OwnerDashboard';
 import { StaffDashboard } from '../../src/screens/StaffDashboard';
 import { apiClient } from '../../src/lib/apiClient';
-import { colors } from '../../src/theme/tokens';
 import { DISCOVERY_ENABLED } from '../../src/config/featureFlags';
 import { HomeBannerCarousel } from '../../src/components/HomeBannerCarousel';
+import { HomeHero } from '../../src/components/home/HomeHero';
+import { PerformanceCard, QuickAction } from '../../src/components/home/HomeParts';
+import { PlayerHeader } from '../../src/components/home/PlayerHeader';
+import homeBg from '../../src/assets/images/home-hero.jpg';
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -36,47 +48,6 @@ interface LiveSummary {
   oversCompleted: number;
 }
 
-function QuickAction({
-  icon,
-  label,
-  onPress,
-  loading,
-  testID,
-}: {
-  icon: React.ComponentProps<typeof Feather>['name'];
-  label: string;
-  onPress: () => void;
-  loading?: boolean;
-  testID: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={loading}
-      className="flex-1 items-center bg-surface rounded-lg border border-border-subtle py-4 mx-1"
-      testID={testID}
-    >
-      {loading ? (
-        <ActivityIndicator color={colors.brandRed} size="small" />
-      ) : (
-        <Feather name={icon} size={22} color={colors.brandRed} />
-      )}
-      <Text className="font-ui font-semibold text-micro text-ink-black mt-2 text-center">
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-function StatTile({ value, label }: { value: string | number; label: string }) {
-  return (
-    <View className="items-center" style={{ minWidth: 70 }}>
-      <Text className="font-display text-title-lg text-brand-red">{value}</Text>
-      <Text className="font-ui text-micro text-text-tertiary text-center mt-0.5">{label}</Text>
-    </View>
-  );
-}
-
 // Home tab — role router (module 2.12, PRD §8.3/§8.4). TURF_OWNER/
 // TURF_STAFF land on their real Owner/Staff Dashboard; the PLAYER
 // experience below is Backlog B-7's Home redesign (top-of-app hub: quick
@@ -98,6 +69,8 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [bookTurfBusy, setBookTurfBusy] = useState(false);
   const [bookTurfError, setBookTurfError] = useState<string | null>(null);
+  const { width } = useWindowDimensions();
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -183,203 +156,184 @@ export default function Home() {
     router.push('/(tabs)/discover');
   }
 
+  const bgShift = scrollY.interpolate({
+    inputRange: [0, 400],
+    outputRange: [0, -70],
+    extrapolate: 'clamp',
+  });
+
   const displayName = profile?.full_name?.split(' ')[0] ?? profile?.bfam_id ?? 'Player';
 
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
-      <ScrollView
-        className="flex-1 px-5"
-        testID="home-screen"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      {/* Full-bleed campaign artwork behind the whole screen (same treatment
+          as Matches): the batter sits mid-screen behind the hero, red brush
+          marks at the top right. It drifts in horizontally (no opacity
+          animation, so it can't get stuck half-visible) and moves slower
+          than the content on scroll. */}
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          transform: [{ translateY: bgShift }],
+        }}
       >
-        <View className="flex-row items-center justify-between pt-4">
-          <View>
-            <Text className="font-ui text-body text-text-secondary">{greeting()},</Text>
-            <Text className="font-ui font-bold text-title-lg text-ink-black">{displayName}</Text>
+        <MotiView
+          from={{ translateX: 14 }}
+          animate={{ translateX: 0 }}
+          transition={{ type: 'timing', duration: 900 }}
+          style={{ width, height: '100%' }}
+        >
+          <Image
+            source={homeBg}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+            contentPosition="right top"
+            accessibilityElementsHidden
+          />
+        </MotiView>
+      </Animated.View>
+
+      <SafeAreaView className="flex-1" edges={['top', 'bottom']}>
+        <Animated.ScrollView
+          className="flex-1 px-5"
+          testID="home-screen"
+          scrollEventThrottle={16}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: Platform.OS !== 'web',
+          })}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+        >
+          <PlayerHeader points={profile?.coin_balance} unreadCount={unreadCount} />
+
+          <View style={{ marginTop: 18 }}>
+            <Text className="font-ui text-text-secondary" style={{ fontSize: 16 }}>
+              {greeting()},
+            </Text>
+            <Text
+              className="font-ui font-bold text-ink-black"
+              style={{ fontSize: 26, lineHeight: 32 }}
+            >
+              {displayName}
+            </Text>
             {profile?.bfam_id && (
-              <Text className="font-ui text-micro text-text-tertiary mt-0.5">
+              <Text className="font-ui text-text-tertiary" style={{ fontSize: 12, marginTop: 1 }}>
                 {profile.bfam_id}
               </Text>
             )}
           </View>
-          <View className="flex-row items-center">
-            {profile?.coin_balance !== null && profile?.coin_balance !== undefined && (
-              <View
-                className="flex-row items-center bg-surface-alt rounded-full px-3 py-1.5 mr-3"
-                testID="home-coin-balance"
-              >
-                <MaterialCommunityIcons name="hand-coin" size={16} color={colors.brandRed} />
-                <Text className="font-ui font-bold text-body text-ink-black ml-1.5">
-                  {profile.coin_balance}
-                </Text>
-              </View>
-            )}
-            <Pressable
-              onPress={() => router.push('/player-search')}
-              hitSlop={8}
-              accessibilityLabel="Find a player"
-              testID="home-search-button"
-              className="mr-4"
-            >
-              <Feather name="search" size={22} color={colors.inkBlack} />
-            </Pressable>
-            <Pressable
-              onPress={() => router.push('/notifications')}
-              hitSlop={8}
-              accessibilityLabel="Notifications"
-              testID="home-notifications-button"
-              className="mr-4"
-            >
-              <View>
-                <Feather name="bell" size={22} color={colors.inkBlack} />
-                {unreadCount > 0 && (
-                  <View
-                    className="absolute bg-brand-red rounded-full"
-                    style={{ width: 8, height: 8, top: -1, right: -1 }}
-                  />
-                )}
-              </View>
-            </Pressable>
-            <Pressable
-              onPress={() => router.push('/(tabs)/profile')}
-              accessibilityLabel="Your profile"
-              testID="home-profile-avatar"
-            >
-              <View
-                className="rounded-full bg-brand-red items-center justify-center"
-                style={{ width: 36, height: 36 }}
-              >
-                <Feather name="user" size={18} color="#FFFFFF" />
-              </View>
-            </Pressable>
+
+          <HomeHero onFindMatch={() => router.push('/(tabs)/matches')} />
+
+          <View className="flex-row mt-5" style={{ marginHorizontal: -4 }}>
+            <QuickAction
+              icon="calendar"
+              label="Book Turf"
+              caption="PLAY NOW"
+              onPress={bookTurf}
+              loading={bookTurfBusy}
+              testID="home-book-turf-quick-action"
+            />
+            <QuickAction
+              icon="users"
+              label="Create Team"
+              caption="BUILD SQUAD"
+              onPress={() => router.push('/(tabs)/teams/create')}
+              testID="home-create-team-quick-action"
+            />
+            <QuickAction
+              icon="user-plus"
+              label="Find Teams"
+              caption="JOIN PLAYERS"
+              onPress={() => router.push('/(tabs)/teams/open')}
+              testID="home-find-teams-quick-action"
+            />
+            <QuickAction
+              icon="list"
+              label="My Matches"
+              caption="YOUR GAMES"
+              onPress={() => router.push('/(tabs)/matches')}
+              testID="home-my-matches-quick-action"
+            />
           </View>
-        </View>
+          {bookTurfError && (
+            <Text className="font-ui text-body text-brand-red-dark mt-3">{bookTurfError}</Text>
+          )}
 
-        {/* Design §5's signature diagonal-red hero motif, consistent with
-            the auth screens' background treatment. */}
-        <View className="bg-ink-black rounded-lg mt-5 p-6 overflow-hidden">
-          <Text className="font-display text-title-xl text-white">READY TO PLAY?</Text>
-          <Text className="font-ui text-body text-white/70 mt-2 mb-5" style={{ maxWidth: 240 }}>
-            Find your turf. Build your team. Own the moment.
-          </Text>
-          <Button
-            label="Find a Match"
-            variant="secondary"
-            iconRight={<Feather name="arrow-right" size={16} color="#0D0D0D" />}
-            onPress={() => router.push('/(tabs)/matches')}
-            testID="home-find-match-button"
-          />
-        </View>
-
-        <View className="flex-row mt-6" style={{ marginHorizontal: -4 }}>
-          <QuickAction
-            icon="calendar"
-            label="Book Turf"
-            onPress={bookTurf}
-            loading={bookTurfBusy}
-            testID="home-book-turf-quick-action"
-          />
-          <QuickAction
-            icon="users"
-            label="Create Team"
-            onPress={() => router.push('/(tabs)/teams/create')}
-            testID="home-create-team-quick-action"
-          />
-          <QuickAction
-            icon="user-plus"
-            label="Find Teams"
-            onPress={() => router.push('/(tabs)/teams/open')}
-            testID="home-find-teams-quick-action"
-          />
-          <QuickAction
-            icon="list"
-            label="My Matches"
-            onPress={() => router.push('/(tabs)/matches')}
-            testID="home-my-matches-quick-action"
-          />
-        </View>
-        {bookTurfError && (
-          <Text className="font-ui text-body text-brand-red-dark mt-3">{bookTurfError}</Text>
-        )}
-
-        {loading ? (
-          <ActivityIndicator
-            color={colors.brandRed}
-            style={{ marginTop: 32 }}
-            testID="home-loading"
-          />
-        ) : (
-          <>
-            {live && (
-              <Pressable
-                onPress={() => router.push(`/(tabs)/matches/${live.match.match_id}/live`)}
-                className="bg-ink-black rounded-lg mt-6 p-5"
-                testID="home-live-match-card"
-              >
-                <View className="flex-row items-center mb-2">
-                  <View className="bg-brand-red rounded-sm px-2 py-0.5 mr-2">
-                    <Text className="font-ui font-bold text-micro text-white">LIVE</Text>
-                  </View>
-                  <Text className="font-ui text-body text-white flex-1" numberOfLines={1}>
-                    {live.match.match_name ?? 'Live Match'}
-                  </Text>
-                </View>
-                <View className="flex-row items-end justify-between">
-                  <Text className="font-display text-title-xl text-white">
-                    {live.totalRuns}/{live.totalWickets}
-                  </Text>
-                  <Text className="font-ui text-body text-white/70">
-                    {live.oversCompleted.toFixed(1)} overs
-                  </Text>
-                </View>
-                <Text className="font-ui font-bold text-micro text-brand-red-light mt-2">
-                  WATCH LIVE →
-                </Text>
-              </Pressable>
-            )}
-
-            {nextMatch && (
-              <Pressable
-                onPress={() => router.push(`/(tabs)/matches/${nextMatch.match_id}`)}
-                className="bg-surface rounded-lg border border-border-subtle mt-6 p-5"
-                testID="home-next-match-card"
-              >
-                <Text className="font-ui text-micro font-bold text-text-tertiary">NEXT MATCH</Text>
-                <Text
-                  className="font-ui font-bold text-card-title text-ink-black mt-1"
-                  numberOfLines={1}
+          {loading ? (
+            <BallLoader size="inline" testID="home-loading" style={{ marginTop: 32 }} />
+          ) : (
+            <>
+              {live && (
+                <Pressable
+                  onPress={() => router.push(`/(tabs)/matches/${live.match.match_id}/live`)}
+                  className="bg-ink-black rounded-lg mt-6 p-5"
+                  testID="home-live-match-card"
                 >
-                  {nextMatch.match_name ?? 'Upcoming Match'}
-                </Text>
-                <Text className="font-ui text-body text-text-secondary mt-1">
-                  {formatMatchWhen(nextMatch.scheduled_start_time)}
-                </Text>
-              </Pressable>
-            )}
+                  <View className="flex-row items-center mb-2">
+                    <View className="bg-brand-red rounded-sm px-2 py-0.5 mr-2">
+                      <Text className="font-ui font-bold text-micro text-white">LIVE</Text>
+                    </View>
+                    <Text className="font-ui text-body text-white flex-1" numberOfLines={1}>
+                      {live.match.match_name ?? 'Live Match'}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-end justify-between">
+                    <Text className="font-display text-title-xl text-white">
+                      {live.totalRuns}/{live.totalWickets}
+                    </Text>
+                    <Text className="font-ui text-body text-white/70">
+                      {live.oversCompleted.toFixed(1)} overs
+                    </Text>
+                  </View>
+                  <Text className="font-ui font-bold text-micro text-brand-red-light mt-2">
+                    WATCH LIVE →
+                  </Text>
+                </Pressable>
+              )}
 
-            {stats && (
-              <View
-                className="bg-surface rounded-lg border border-border-subtle mt-6 p-5"
-                testID="home-performance-card"
-              >
-                <Text className="font-ui text-micro font-bold text-text-tertiary mb-3">
-                  YOUR PERFORMANCE
-                </Text>
-                <View className="flex-row justify-between">
-                  <StatTile value={stats.matches_played} label="Matches" />
-                  <StatTile value={stats.runs} label="Runs" />
-                  <StatTile value={stats.wickets} label="Wickets" />
-                  <StatTile value={stats.current_streak ?? 0} label="Streak" />
-                </View>
-              </View>
-            )}
-          </>
-        )}
+              {nextMatch && (
+                <Pressable
+                  onPress={() => router.push(`/(tabs)/matches/${nextMatch.match_id}`)}
+                  className="bg-surface rounded-lg border border-border-subtle mt-6 p-5"
+                  testID="home-next-match-card"
+                >
+                  <Text className="font-ui text-micro font-bold text-text-tertiary">
+                    NEXT MATCH
+                  </Text>
+                  <Text
+                    className="font-ui font-bold text-card-title text-ink-black mt-1"
+                    numberOfLines={1}
+                  >
+                    {nextMatch.match_name ?? 'Upcoming Match'}
+                  </Text>
+                  <Text className="font-ui text-body text-text-secondary mt-1">
+                    {formatMatchWhen(nextMatch.scheduled_start_time)}
+                  </Text>
+                </Pressable>
+              )}
 
-        <View className="mt-6 mb-8">
-          <HomeBannerCarousel />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+              {stats && (
+                <PerformanceCard
+                  matches={stats.matches_played}
+                  runs={stats.runs}
+                  wickets={stats.wickets}
+                  streak={stats.current_streak ?? 0}
+                  onViewDetails={() => router.push('/player-statistics')}
+                />
+              )}
+            </>
+          )}
+
+          <View className="mt-6 mb-8">
+            <HomeBannerCarousel />
+          </View>
+        </Animated.ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }

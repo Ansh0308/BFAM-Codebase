@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import type { LevelProgress, XpTransaction } from '@bfam/shared-types';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 
 const XP_REASON_LABELS: Record<string, string> = {
   REVIEW_REWARD: 'Submitted a review',
@@ -56,7 +56,7 @@ export default function XpLevelScreen() {
       <ScrollView className="flex-1 px-5" testID="xp-level-screen">
         {loading && (
           <View className="py-10 items-center">
-            <ActivityIndicator size="large" color={colors.brandRed} testID="xp-level-loading" />
+            <BallLoader testID="xp-level-loading" />
           </View>
         )}
 

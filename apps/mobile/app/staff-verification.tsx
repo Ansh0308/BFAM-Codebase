@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import * as ImagePicker from 'expo-image-picker';
 import type { StaffAssignment } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
@@ -7,7 +8,6 @@ import { ScreenContainer } from '../src/components/ScreenContainer';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { Button } from '../src/components/Button';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 import { StatusBadge, type StatusVariant } from '../src/components/StatusBadge';
 
 const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
@@ -72,11 +72,7 @@ export default function StaffVerificationScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            testID="staff-verification-loading"
-          />
+          <BallLoader testID="staff-verification-loading" />
         </View>
       </ScreenContainer>
     );

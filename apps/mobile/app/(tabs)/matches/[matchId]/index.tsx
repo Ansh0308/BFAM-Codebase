@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { BalancedTeamsSuggestion, GameRoom, MatchPlayer } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
-import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { StatusBadge } from '../../../../src/components/StatusBadge';
 import { Button } from '../../../../src/components/Button';
@@ -110,7 +110,7 @@ export default function GameRoomScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="game-room-loading" />
+          <BallLoader testID="game-room-loading" />
         </View>
       </ScreenContainer>
     );

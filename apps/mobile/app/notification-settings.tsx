@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NotificationPreferenceCategory, NotificationPreferences } from '@bfam/shared-types';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { ToggleRow } from '../src/components/ToggleRow';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 
 const TOGGLES: { key: NotificationPreferenceCategory; label: string; description: string }[] = [
   {
@@ -71,12 +71,7 @@ export default function NotificationSettings() {
         <ScreenHeader title="Notifications" />
 
         {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            style={{ marginTop: 24 }}
-            testID="notification-settings-loading"
-          />
+          <BallLoader testID="notification-settings-loading" style={{ marginTop: 24 }} />
         ) : !preferences ? (
           <Text className="font-ui text-body text-text-secondary mt-6">
             Could not load your notification preferences.

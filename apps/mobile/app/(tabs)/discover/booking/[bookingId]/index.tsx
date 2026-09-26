@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Booking } from '@bfam/shared-types';
 import { apiClient } from '../../../../../src/lib/apiClient';
-import { colors } from '../../../../../src/theme/tokens';
 import { Button } from '../../../../../src/components/Button';
 
 export default function BookingDetailsScreen() {
@@ -30,7 +30,7 @@ export default function BookingDetailsScreen() {
   if (loading || !booking) {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center" edges={['bottom']}>
-        <ActivityIndicator size="large" color={colors.brandRed} testID="booking-details-loading" />
+        <BallLoader testID="booking-details-loading" />
       </SafeAreaView>
     );
   }

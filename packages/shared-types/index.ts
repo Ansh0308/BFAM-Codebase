@@ -511,6 +511,14 @@ export interface Match {
   updated_at: string;
 }
 
+// GET /matches/mine — a Match plus where it's being played (the booked
+// turf), for the venue line on My Matches. Both are null if the booking's
+// turf can't be resolved, so a row never drops out of the list over it.
+export interface MyMatch extends Match {
+  turf_name: string | null;
+  city: string | null;
+}
+
 export interface MatchPlayer {
   match_player_id: string;
   match_id: string;

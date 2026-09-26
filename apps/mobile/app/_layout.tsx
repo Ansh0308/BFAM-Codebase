@@ -1,6 +1,7 @@
 import '../global.css';
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -48,7 +49,7 @@ function RootLayout() {
           justifyContent: 'center',
         }}
       >
-        <ActivityIndicator size="large" color="#D80000" />
+        <BallLoader />
       </View>
     );
   }

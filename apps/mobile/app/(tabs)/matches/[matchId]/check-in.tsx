@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
+import { BallLoader } from '../../../../src/components/BallLoader';
 import { useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
-import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
 import { TextField } from '../../../../src/components/TextField';
@@ -79,7 +79,7 @@ export default function CheckInScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="check-in-loading" />
+          <BallLoader testID="check-in-loading" />
         </View>
       </ScreenContainer>
     );
@@ -113,7 +113,7 @@ export default function CheckInScreen() {
           ) : error ? (
             <Text className="text-brand-red text-body text-center">{error}</Text>
           ) : (
-            <ActivityIndicator color={colors.brandRed} />
+            <BallLoader size="inline" />
           )}
         </View>
       </ScreenContainer>

@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRequireRole } from '../../lib/auth';
 import { DashboardShell } from '../../components/DashboardShell';
+import { BallLoader } from '../../components/BallLoader';
 
 const NAV_ITEMS = [
   { href: '/admin/reports', label: 'Reports' },
@@ -35,7 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (loading || !user) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       </div>
     );
   }

@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { GameRoom } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
-import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 
 // Player Check-in (module 2.12, PRD §8.3/§8.4 "Check-In"): the
@@ -54,11 +54,7 @@ export default function RosterCheckInScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            testID="roster-check-in-loading"
-          />
+          <BallLoader testID="roster-check-in-loading" />
         </View>
       </ScreenContainer>
     );
@@ -125,7 +121,7 @@ export default function RosterCheckInScreen() {
                     testID={`check-in-button-${item.player_id}`}
                   >
                     {busyPlayerId === item.player_id ? (
-                      <ActivityIndicator size="small" color={colors.brandRed} />
+                      <BallLoader size="small" />
                     ) : (
                       <Text className="font-ui font-bold text-micro uppercase text-brand-red">
                         Check In

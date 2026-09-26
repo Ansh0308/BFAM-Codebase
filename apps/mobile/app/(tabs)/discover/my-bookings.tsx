@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../../../src/components/BallLoader';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Booking } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
-import { colors } from '../../../src/theme/tokens';
 import { StatusBadge, type StatusVariant } from '../../../src/components/StatusBadge';
 import { SegmentedTabs } from '../../../src/components/SegmentedTabs';
 
@@ -40,7 +40,7 @@ export default function MyBookingsScreen() {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center" edges={['bottom']}>
-        <ActivityIndicator size="large" color={colors.brandRed} testID="my-bookings-loading" />
+        <BallLoader testID="my-bookings-loading" />
       </SafeAreaView>
     );
   }

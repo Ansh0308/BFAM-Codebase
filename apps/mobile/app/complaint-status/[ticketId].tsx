@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { BallLoader } from '../../src/components/BallLoader';
 import { useLocalSearchParams } from 'expo-router';
 import type { SupportTicket } from '@bfam/shared-types';
 import { ScreenContainer } from '../../src/components/ScreenContainer';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { apiClient } from '../../src/lib/apiClient';
-import { colors } from '../../src/theme/tokens';
 
 // Complaint Status detail (module 2.13, PRD §12.57).
 export default function ComplaintDetailScreen() {
@@ -25,7 +25,7 @@ export default function ComplaintDetailScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="ticket-detail-loading" />
+          <BallLoader testID="ticket-detail-loading" />
         </View>
       </ScreenContainer>
     );

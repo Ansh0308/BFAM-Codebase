@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../src/components/ScreenHeader';
@@ -52,7 +53,7 @@ export default function Language() {
               >
                 <Text className="font-ui text-body text-text-primary">{lang.label}</Text>
                 {saving === lang.code ? (
-                  <ActivityIndicator color="#D80000" size="small" />
+                  <BallLoader size="small" />
                 ) : isSelected ? (
                   <Feather
                     name="check"

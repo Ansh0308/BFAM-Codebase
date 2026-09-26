@@ -7,3 +7,18 @@ import { configure } from '@testing-library/react-native';
 // call site.
 configure({ asyncUtilTimeout: 8000 });
 jest.setTimeout(15000);
+
+// lottie-react-native needs its native module, which doesn't exist under
+// Jest. BallLoader (and LoadingOverlay) only need it to render *something*,
+// so stand in a plain View.
+jest.mock('lottie-react-native', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { View } = require('react-native');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: (props: Record<string, unknown>) =>
+      React.createElement(View, { testID: 'lottie-loader', ...props }),
+  };
+});

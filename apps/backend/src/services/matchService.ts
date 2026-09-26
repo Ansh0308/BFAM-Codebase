@@ -331,8 +331,10 @@ export async function listMyMatches(userId: string, scope: 'upcoming' | 'past' |
   if (scope === 'past') conditions.push("m.match_status IN ('COMPLETED', 'CANCELLED')");
 
   return sequelize.query<MatchRow>(
-    `SELECT DISTINCT m.* FROM matches m
+    `SELECT DISTINCT m.*, t.turf_name, t.city FROM matches m
      LEFT JOIN match_players mp ON mp.match_id = m.match_id AND mp.player_id = :playerId
+     LEFT JOIN bookings b ON b.booking_id = m.booking_id
+     LEFT JOIN turfs t ON t.turf_id = b.turf_id
      WHERE ${conditions.join(' AND ')}
      ORDER BY m.scheduled_start_time DESC`,
     { type: QueryTypes.SELECT, replacements: { userId, playerId } },

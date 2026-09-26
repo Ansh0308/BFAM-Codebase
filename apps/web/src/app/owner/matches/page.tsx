@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import type { OwnerMatch } from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { PageHeader, DataTable } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Match Management (module 2.12, PRD §8.3/§9.2).
 export default function OwnerMatchesPage() {
@@ -22,7 +23,7 @@ export default function OwnerMatchesPage() {
     <div data-testid="owner-matches-page">
       <PageHeader title="Match Management" />
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : (
         <DataTable
           rows={matches}

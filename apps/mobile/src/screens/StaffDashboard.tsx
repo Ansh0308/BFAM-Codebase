@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../components/BallLoader';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { OwnerBooking } from '@bfam/shared-types';
 import { apiClient } from '../lib/apiClient';
-import { colors } from '../theme/tokens';
 
 // Staff Dashboard (module 2.12, PRD §8.4 "Today's Bookings" +
 // "Match Operations"). Surfaces the PRD §32.14 verification status up
@@ -70,12 +70,7 @@ export function StaffDashboard() {
         </Text>
 
         {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            style={{ marginTop: 24 }}
-            testID="staff-bookings-loading"
-          />
+          <BallLoader testID="staff-bookings-loading" style={{ marginTop: 24 }} />
         ) : bookings.length === 0 ? (
           <Text className="font-ui text-body text-text-tertiary mt-4" testID="staff-bookings-empty">
             No bookings today at your assigned turf(s).

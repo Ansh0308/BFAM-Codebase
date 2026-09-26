@@ -9,6 +9,7 @@ import {
   SecondaryButton,
   TextInput,
 } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Backlog E-4 — Team Management in Admin Web (PRD §9.1): a cross-captain
 // directory of every team, plus moderation (archive/reactivate). Same
@@ -68,7 +69,7 @@ export default function AdminTeamsPage() {
       </div>
 
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : loadError ? (
         <p className="font-ui text-body text-brand-red">
           Could not load teams. Your session may have expired — try logging in again.

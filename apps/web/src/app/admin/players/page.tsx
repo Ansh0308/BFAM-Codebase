@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import type { AdminPlayer } from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { PageHeader, DataTable, TextInput } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Admin Web — User management, player directory (PRD §9.1). Every
 // registered PLAYER account.
@@ -48,7 +49,7 @@ export default function AdminPlayersPage() {
       </div>
 
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : loadError ? (
         <p className="font-ui text-body text-brand-red">
           Could not load players. Your session may have expired — try logging in again.

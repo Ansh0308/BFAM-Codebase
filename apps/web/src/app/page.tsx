@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../lib/auth';
+import { BallLoader } from '../components/BallLoader';
 
 // Root route — sends the visitor straight to the right place: their
 // dashboard if already signed in (Owner Web/Staff Web/Admin Web),
@@ -28,7 +29,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-surface flex items-center justify-center">
-      <p className="font-ui text-body text-text-secondary">Loading…</p>
+      <BallLoader />
     </main>
   );
 }

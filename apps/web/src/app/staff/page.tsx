@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import type { OwnerBooking } from '@bfam/shared-types';
 import { apiClient } from '../../lib/apiClient';
 import { PageHeader, DataTable } from '../../components/DashboardShell';
+import { BallLoader } from '../../components/BallLoader';
 
 // Today's Bookings (module 2.12, PRD §8.4/§9.3) — bookings at any turf
 // this staff member is assigned to.
@@ -23,7 +24,7 @@ export default function StaffBookingsPage() {
     <div data-testid="staff-bookings-page">
       <PageHeader title="Today's Bookings" />
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : (
         <DataTable
           rows={bookings}

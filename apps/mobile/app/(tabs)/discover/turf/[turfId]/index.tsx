@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { TurfDetails } from '@bfam/shared-types';
 import { apiClient } from '../../../../../src/lib/apiClient';
-import { colors } from '../../../../../src/theme/tokens';
 
 // Turf Details: full-bleed hero + facilities icon row + availability slot
 // grid preview, following Design §3.3's pattern exactly.
@@ -37,7 +37,7 @@ export default function TurfDetailsScreen() {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center" edges={['bottom']}>
-        <ActivityIndicator size="large" color={colors.brandRed} testID="turf-details-loading" />
+        <BallLoader testID="turf-details-loading" />
       </SafeAreaView>
     );
   }

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../../../../../src/components/BallLoader';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -178,7 +179,7 @@ export default function TurfAvailabilityScreen() {
       <View className="flex-1 px-6">
         {loading && (
           <View className="py-10 items-center">
-            <ActivityIndicator size="large" color={colors.brandRed} testID="availability-loading" />
+            <BallLoader testID="availability-loading" />
           </View>
         )}
 
@@ -297,7 +298,7 @@ export default function TurfAvailabilityScreen() {
                   testID="confirm-booking-button"
                 >
                   {booking ? (
-                    <ActivityIndicator color={colors.surface} />
+                    <BallLoader size="button" tone="light" />
                   ) : (
                     <Text className="font-ui font-bold text-surface text-button uppercase">
                       Confirm Booking

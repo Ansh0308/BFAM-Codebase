@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../../../src/components/BallLoader';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { MyTeam } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
-import { colors } from '../../../src/theme/tokens';
 import { ScreenContainer } from '../../../src/components/ScreenContainer';
 import { StatusBadge } from '../../../src/components/StatusBadge';
 import { Button } from '../../../src/components/Button';
@@ -56,7 +56,7 @@ export default function MyTeamsScreen() {
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color={colors.brandRed} testID="my-teams-loading" />
+          <BallLoader testID="my-teams-loading" />
         ) : teams.length === 0 ? (
           <View className="items-center mt-8">
             <View

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import type { BusinessReport } from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { Card, PageHeader } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Backlog E-6 — Reports / Business Analytics in Admin Web (PRD §12.49): a
 // deliberately small first cut of the KPIs an admin would check day to
@@ -38,7 +39,7 @@ export default function AdminReportsPage() {
       <PageHeader title="Reports" />
 
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : loadError || !report ? (
         <p className="font-ui text-body text-brand-red">
           Could not load the report. Your session may have expired — try logging in again.

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { SupportTicket } from '@bfam/shared-types';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 import { StatusBadge, type StatusVariant } from '../src/components/StatusBadge';
 
 const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
@@ -36,12 +36,7 @@ export default function ComplaintStatusScreen() {
       <View className="px-5 flex-1" testID="complaint-status-screen">
         <ScreenHeader title="Complaint Status" />
         {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            style={{ marginTop: 24 }}
-            testID="complaint-status-loading"
-          />
+          <BallLoader testID="complaint-status-loading" style={{ marginTop: 24 }} />
         ) : (
           <FlatList
             data={tickets}

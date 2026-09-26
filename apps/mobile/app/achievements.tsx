@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -59,7 +60,7 @@ export default function AchievementsScreen() {
       <ScrollView className="flex-1 px-5" testID="achievements-screen">
         {loading && (
           <View className="py-10 items-center">
-            <ActivityIndicator size="large" color={colors.brandRed} testID="achievements-loading" />
+            <BallLoader testID="achievements-loading" />
           </View>
         )}
 

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { OwnerMatch } from '@bfam/shared-types';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 
 // Match Management (module 2.12, PRD §8.3/§9.2) — every match at any turf
 // this owner runs, incl. starting the countdown intro from the Game Room
@@ -29,12 +29,7 @@ export default function OwnerMatchesScreen() {
       <View className="px-5 flex-1" testID="owner-matches-screen">
         <ScreenHeader title="Match Management" />
         {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            style={{ marginTop: 24 }}
-            testID="owner-matches-loading"
-          />
+          <BallLoader testID="owner-matches-loading" style={{ marginTop: 24 }} />
         ) : (
           <FlatList
             data={matches}

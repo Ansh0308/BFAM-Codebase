@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
+import { BallLoader } from '../../../src/components/BallLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Payment } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
-import { colors } from '../../../src/theme/tokens';
 import { StatusBadge, type StatusVariant } from '../../../src/components/StatusBadge';
 
 const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
@@ -29,7 +29,7 @@ export default function PaymentHistoryScreen() {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center" edges={['bottom']}>
-        <ActivityIndicator size="large" color={colors.brandRed} testID="payment-history-loading" />
+        <BallLoader testID="payment-history-loading" />
       </SafeAreaView>
     );
   }

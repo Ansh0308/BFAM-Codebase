@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { OwnerBooking } from '@bfam/shared-types';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 
 // Today's Bookings (module 2.12, PRD §8.3/§9.2) — every booking, across
 // every turf this owner runs, for today.
@@ -25,12 +25,7 @@ export default function OwnerBookingsScreen() {
       <View className="px-5 flex-1" testID="owner-bookings-screen">
         <ScreenHeader title="Today's Bookings" />
         {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            style={{ marginTop: 24 }}
-            testID="owner-bookings-loading"
-          />
+          <BallLoader testID="owner-bookings-loading" style={{ marginTop: 24 }} />
         ) : (
           <FlatList
             data={bookings}

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Booking } from '@bfam/shared-types';
 import { apiClient } from '../../../../../src/lib/apiClient';
-import { colors } from '../../../../../src/theme/tokens';
 import { Button } from '../../../../../src/components/Button';
 
 // Booking Confirmation hands off to a payment step stub only — the real
@@ -33,11 +33,7 @@ export default function BookingConfirmationScreen() {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-surface items-center justify-center" edges={['bottom']}>
-        <ActivityIndicator
-          size="large"
-          color={colors.brandRed}
-          testID="booking-confirmation-loading"
-        />
+        <BallLoader testID="booking-confirmation-loading" />
       </SafeAreaView>
     );
   }

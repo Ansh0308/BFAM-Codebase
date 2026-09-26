@@ -3,7 +3,7 @@ import { Pressable, Text, View, PressableProps } from 'react-native';
 import { MotiView } from 'moti';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../theme/tokens';
-import { CricketBallSpinner } from './CricketBallSpinner';
+import { BallLoader } from './BallLoader';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 
@@ -87,7 +87,7 @@ export function Button({
           ) : null}
         </MotiView>
       ) : loading ? (
-        <CricketBallSpinner size={20} color={isPrimary ? '#FFFFFF' : colors.inkBlack} />
+        <BallLoader size="button" tone={isPrimary ? 'light' : 'default'} />
       ) : (
         <>
           {iconLeft ? <View className="mr-2">{iconLeft}</View> : null}

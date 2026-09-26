@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, Platform } from 'react-native';
+import { View, Platform } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '../src/store/authStore';
@@ -58,7 +59,7 @@ export default function Splash() {
   return (
     <View className="flex-1 bg-surface items-center justify-center">
       <BfamWordmark />
-      {!checkedOnboarding ? <ActivityIndicator color="#D80000" style={{ marginTop: 24 }} /> : null}
+      {!checkedOnboarding ? <BallLoader size="inline" style={{ marginTop: 24 }} /> : null}
     </View>
   );
 }

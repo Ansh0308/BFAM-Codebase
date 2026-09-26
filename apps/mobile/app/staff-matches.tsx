@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { OwnerMatch } from '@bfam/shared-types';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 
 // Match Operations (module 2.12, PRD §8.4/§9.3) — matches at any turf this
 // staff member is assigned to. Tapping through reuses the exact Game Room/
@@ -28,12 +28,7 @@ export default function StaffMatchesScreen() {
       <View className="px-5 flex-1" testID="staff-matches-screen">
         <ScreenHeader title="Match Operations" />
         {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            style={{ marginTop: 24 }}
-            testID="staff-matches-loading"
-          />
+          <BallLoader testID="staff-matches-loading" style={{ marginTop: 24 }} />
         ) : (
           <FlatList
             data={matches}

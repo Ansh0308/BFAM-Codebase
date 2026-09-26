@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { PublicPlayerProfile } from '@bfam/shared-types';
@@ -7,7 +8,6 @@ import { ScreenContainer } from '../src/components/ScreenContainer';
 import { ScreenHeader } from '../src/components/ScreenHeader';
 import { Avatar } from '../src/components/Avatar';
 import { Button } from '../src/components/Button';
-import { colors } from '../src/theme/tokens';
 import { apiClient } from '../src/lib/apiClient';
 import { useAuthStore } from '../src/store/authStore';
 import { DISCOVERY_ENABLED } from '../src/config/featureFlags';
@@ -108,7 +108,7 @@ export default function PlayerProfileScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="player-profile-loading" />
+          <BallLoader testID="player-profile-loading" />
         </View>
       </ScreenContainer>
     );

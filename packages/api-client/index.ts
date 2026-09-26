@@ -16,6 +16,7 @@ import {
   JoinRequest,
   LiveScore,
   Match,
+  MyMatch,
   MatchAttendanceStatus,
   MatchResult,
   MyTeam,
@@ -730,8 +731,8 @@ export class BFAMApiClient {
     return this.request<Match>('/matches', { method: 'POST', body: JSON.stringify(input) });
   }
 
-  async getMyMatches(scope: 'upcoming' | 'past' | 'all' = 'all'): Promise<{ results: Match[] }> {
-    return this.request<{ results: Match[] }>(`/matches/mine${toQueryString({ scope })}`);
+  async getMyMatches(scope: 'upcoming' | 'past' | 'all' = 'all'): Promise<{ results: MyMatch[] }> {
+    return this.request<{ results: MyMatch[] }>(`/matches/mine${toQueryString({ scope })}`);
   }
 
   // Backlog G-20: "Live Now" discovery (Discover tab) — every PUBLIC match

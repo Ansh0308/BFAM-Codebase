@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BallLoader } from '../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import {
@@ -140,7 +141,7 @@ export default function MatchResultScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.brandRed} testID="result-loading" />
+        <BallLoader testID="result-loading" />
         <Text style={styles.centerText}>Working out the result…</Text>
       </View>
     );

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import type { OwnerMatch } from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { PageHeader, DataTable } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Match Operations (module 2.12, PRD §8.4/§9.3) — start/manage matches,
 // incl. the countdown intro sequence and turf-managed live scoring;
@@ -28,7 +29,7 @@ export default function StaffMatchesPage() {
     <div data-testid="staff-matches-page">
       <PageHeader title="Match Operations" />
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : (
         <DataTable
           rows={matches}

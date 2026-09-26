@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { BallLoader } from '../../src/components/BallLoader';
 import { useLocalSearchParams } from 'expo-router';
 import type {
   SetOperatingHoursRow,
@@ -17,7 +18,6 @@ import { TextField } from '../../src/components/TextField';
 import { ChipSelect } from '../../src/components/ChipSelect';
 import { ToggleRow } from '../../src/components/ToggleRow';
 import { Button } from '../../src/components/Button';
-import { colors } from '../../src/theme/tokens';
 import { apiClient } from '../../src/lib/apiClient';
 
 const DAY_TYPES: { value: 'WEEKDAY' | 'WEEKEND' | 'HOLIDAY'; label: string }[] = [
@@ -300,7 +300,7 @@ export default function ManageTurfScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="manage-turf-loading" />
+          <BallLoader testID="manage-turf-loading" />
         </View>
       </ScreenContainer>
     );

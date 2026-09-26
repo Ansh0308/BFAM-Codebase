@@ -7,6 +7,7 @@ import type { VenueDetails } from '@bfam/shared-types';
 import { apiClient } from '../../../../lib/apiClient';
 import { BFAMApiError } from '../../../../lib/auth';
 import { PageHeader, TextInput, PrimaryButton, Card } from '../../../../components/DashboardShell';
+import { BallLoader } from '../../../../components/BallLoader';
 
 // Venue detail (feedback backlog A-2) — lists every pitch grouped under
 // this venue ("Redline Sports Complex — Pitch 1 / Pitch 2") and lets the
@@ -53,7 +54,7 @@ export default function ManageVenuePage() {
     }
   }
 
-  if (loading) return <p className="font-ui text-body text-text-secondary">Loading…</p>;
+  if (loading) return <BallLoader />;
   if (!venue)
     return <p className="font-ui text-body text-text-secondary">Could not load this venue.</p>;
 

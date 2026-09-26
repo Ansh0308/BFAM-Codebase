@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { Turf } from '@bfam/shared-types';
 import { apiClient } from '../../lib/apiClient';
 import { PageHeader, Card, PrimaryButton } from '../../components/DashboardShell';
+import { BallLoader } from '../../components/BallLoader';
 
 // Owner Dashboard (module 2.12, PRD §8.3/§9.2) — business overview: every
 // turf this owner runs.
@@ -44,7 +45,7 @@ export default function OwnerDashboardPage() {
       />
 
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : turfs.length === 0 ? (
         <p className="font-ui text-body text-text-tertiary" data-testid="owner-turfs-empty">
           No turfs yet — add your first one to get started.

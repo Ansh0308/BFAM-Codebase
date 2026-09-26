@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import type { Notification, NotificationPreferenceCategory } from '@bfam/shared-types';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 
 const FILTERS: { value: NotificationPreferenceCategory | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -127,7 +127,7 @@ export default function NotificationsScreen() {
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="notifications-loading" />
+          <BallLoader testID="notifications-loading" />
         </View>
       ) : notifications.length === 0 ? (
         <View className="flex-1 items-center justify-center px-6">

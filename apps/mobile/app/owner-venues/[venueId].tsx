@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { VenueDetails } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
@@ -8,7 +9,6 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
 import { apiClient } from '../../src/lib/apiClient';
-import { colors } from '../../src/theme/tokens';
 
 // Venue detail (feedback backlog A-2) — lists every pitch grouped under
 // this venue ("Redline Sports Complex — Pitch 1 / Pitch 2") and lets the
@@ -64,7 +64,7 @@ export default function ManageVenueScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="manage-venue-loading" />
+          <BallLoader testID="manage-venue-loading" />
         </View>
       </ScreenContainer>
     );

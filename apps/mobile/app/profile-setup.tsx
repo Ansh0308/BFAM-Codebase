@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, Pressable, Alert, ScrollView } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
@@ -194,7 +195,7 @@ export default function ProfileSetup() {
               style={{ borderRadius: 48 }}
               testID="profile-photo-uploading"
             >
-              <ActivityIndicator color="#FFFFFF" />
+              <BallLoader size="button" tone="light" />
             </View>
           ) : null}
           <View

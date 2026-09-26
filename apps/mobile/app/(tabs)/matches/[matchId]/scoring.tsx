@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BallLoader } from '../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -461,7 +462,7 @@ export default function ScoringInterfaceScreen() {
   if (loading && !room) {
     return (
       <View style={[styles.root, styles.center]}>
-        <ActivityIndicator size="large" color={colors.brandRed} testID="scoring-loading" />
+        <BallLoader testID="scoring-loading" />
       </View>
     );
   }
@@ -561,7 +562,7 @@ export default function ScoringInterfaceScreen() {
             testID="start-innings-button"
           >
             {busy ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <BallLoader size="button" tone="light" />
             ) : (
               <Text style={styles.bigButtonText}>Start Innings</Text>
             )}

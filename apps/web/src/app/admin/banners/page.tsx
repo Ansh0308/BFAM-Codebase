@@ -12,6 +12,7 @@ import {
   SecondaryButton,
   TextInput,
 } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Admin CMS for the Home page carousel (backlog B-6) — create banners and
 // toggle/delete them. Scheduling (starts_at/ends_at) is supported by the
@@ -110,7 +111,7 @@ export default function AdminBannersPage() {
       </Card>
 
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : (
         <DataTable
           rows={banners}

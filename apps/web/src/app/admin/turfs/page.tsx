@@ -9,6 +9,7 @@ import {
   SecondaryButton,
   TextInput,
 } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Backlog E-3 — Turf Management in Admin Web (PRD §9.1): a cross-owner
 // directory of every turf, plus moderation (suspend/reactivate). Owner
@@ -70,7 +71,7 @@ export default function AdminTurfsPage() {
       </div>
 
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : loadError ? (
         <p className="font-ui text-body text-brand-red">
           Could not load turfs. Your session may have expired — try logging in again.

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StaffAssignment, Turf } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
@@ -8,7 +9,6 @@ import { ChipSelect } from '../src/components/ChipSelect';
 import { TextField } from '../src/components/TextField';
 import { Button } from '../src/components/Button';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 import { StatusBadge, type StatusVariant } from '../src/components/StatusBadge';
 
 const STATUS_META: Record<string, { label: string; variant: StatusVariant }> = {
@@ -121,12 +121,7 @@ export default function OwnerStaffScreen() {
         </Text>
 
         {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            style={{ marginTop: 12 }}
-            testID="owner-staff-loading"
-          />
+          <BallLoader testID="owner-staff-loading" style={{ marginTop: 12 }} />
         ) : staff.length === 0 ? (
           <Text className="font-ui text-body text-text-tertiary" testID="owner-staff-empty">
             No staff assigned to this turf yet.

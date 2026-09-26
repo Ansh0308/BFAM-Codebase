@@ -5,6 +5,7 @@ import type { StaffAssignment } from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { BFAMApiError } from '../../../lib/auth';
 import { PageHeader, Card, PrimaryButton } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'Pending review',
@@ -73,7 +74,7 @@ export default function StaffVerificationPage() {
       />
 
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : assignments.length === 0 ? (
         <p className="font-ui text-body text-text-tertiary" data-testid="staff-verification-empty">
           You are not yet assigned to a turf.

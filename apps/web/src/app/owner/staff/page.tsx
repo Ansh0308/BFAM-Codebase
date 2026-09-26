@@ -11,6 +11,7 @@ import {
   PrimaryButton,
   SecondaryButton,
 } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 const STATUS_COLOR: Record<string, string> = {
   APPROVED: 'text-brand-red',
@@ -115,7 +116,7 @@ export default function OwnerStaffPage() {
       </Card>
 
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : staff.length === 0 ? (
         <p className="font-ui text-body text-text-tertiary" data-testid="owner-staff-empty">
           No staff assigned to this turf yet.

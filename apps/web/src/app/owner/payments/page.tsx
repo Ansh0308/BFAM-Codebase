@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import type { OwnerPayment } from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { PageHeader, DataTable } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Payments incl. Cash Reconciliation (module 2.12, PRD §8.3/§9.2).
 export default function OwnerPaymentsPage() {
@@ -22,7 +23,7 @@ export default function OwnerPaymentsPage() {
     <div data-testid="owner-payments-page">
       <PageHeader title="Payments" />
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : (
         <DataTable
           rows={payments}

@@ -9,6 +9,7 @@ import {
   SecondaryButton,
   TextInput,
 } from '../../../components/DashboardShell';
+import { BallLoader } from '../../../components/BallLoader';
 
 // Backlog E-2 — Match Management in Admin Web (PRD §9.1): a cross-
 // organizer match directory, plus a force-cancel moderation action for a
@@ -76,7 +77,7 @@ export default function AdminMatchesPage() {
       </div>
 
       {loading ? (
-        <p className="font-ui text-body text-text-secondary">Loading…</p>
+        <BallLoader />
       ) : loadError ? (
         <p className="font-ui text-body text-brand-red">
           Could not load matches. Your session may have expired — try logging in again.

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import type { GameRoom, LiveScore } from '@bfam/shared-types';
 import { apiClient } from '../../../../lib/apiClient';
 import { getSocket, joinMatchRoom, leaveMatchRoom } from '../../../../lib/socket';
+import { BallLoader } from '../../../../components/BallLoader';
 
 function displayName(p: { full_name?: string | null; bfam_id?: string } | undefined): string {
   if (!p) return '—';
@@ -71,7 +72,7 @@ export default function ScoreboardDisplayPage() {
         className="min-h-screen bg-black flex items-center justify-center"
         data-testid="scoreboard-display-loading"
       >
-        <p className="font-ui text-white text-2xl">Loading…</p>
+        <BallLoader tone="light" />
       </div>
     );
   }

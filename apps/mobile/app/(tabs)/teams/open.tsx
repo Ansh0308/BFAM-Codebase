@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../../../src/components/BallLoader';
 import { useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { MyTeam, OpenTeam } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../src/lib/apiClient';
-import { colors } from '../../../src/theme/tokens';
 import { ScreenContainer } from '../../../src/components/ScreenContainer';
 import { TextField } from '../../../src/components/TextField';
 
@@ -124,7 +124,7 @@ export default function OpenTeamsScreen() {
         {error && <Text className="text-brand-red text-body mb-3">{error}</Text>}
 
         {loading ? (
-          <ActivityIndicator size="large" color={colors.brandRed} testID="open-teams-loading" />
+          <BallLoader testID="open-teams-loading" />
         ) : teams.length === 0 ? (
           <Text className="font-ui text-body text-text-secondary text-center mt-4">
             {mode === 'challenge' ? 'No teams open for a challenge yet.' : 'No open teams found.'}

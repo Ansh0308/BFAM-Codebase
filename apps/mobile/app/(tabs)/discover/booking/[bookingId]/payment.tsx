@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Text, TextInput, View } from 'react-native';
+import { Platform, Text, TextInput, View } from 'react-native';
+import { BallLoader } from '../../../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { PaymentObligation } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
@@ -268,7 +269,7 @@ export default function PaymentScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="payment-loading" />
+          <BallLoader testID="payment-loading" />
         </View>
       </ScreenContainer>
     );
@@ -370,7 +371,7 @@ export default function PaymentScreen() {
     return (
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="payment-processing" />
+          <BallLoader testID="payment-processing" />
           <Text className="font-ui text-body text-text-secondary text-center mt-4">
             {stage === 'processing' ? 'Processing your payment…' : 'Confirming with the bank…'}
           </Text>

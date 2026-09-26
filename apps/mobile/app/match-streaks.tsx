@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../src/components/BallLoader';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import type { MatchStreaks } from '@bfam/shared-types';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
 
 // Match Streaks (long tail, PRD §12.38) — "tracks consecutive
 // participation to encourage regular play." Weekly-participation based,
@@ -49,11 +49,7 @@ export default function MatchStreaksScreen() {
       <ScrollView className="flex-1 px-5" testID="match-streaks-screen">
         {loading && (
           <View className="py-10 items-center">
-            <ActivityIndicator
-              size="large"
-              color={colors.brandRed}
-              testID="match-streaks-loading"
-            />
+            <BallLoader testID="match-streaks-loading" />
           </View>
         )}
 

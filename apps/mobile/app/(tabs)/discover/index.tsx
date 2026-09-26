@@ -1,13 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { BallLoader } from '../../../src/components/BallLoader';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -245,7 +238,7 @@ export default function TurfListing() {
 
       {loading && (
         <View className="py-10 items-center">
-          <ActivityIndicator size="large" color={colors.brandRed} testID="turf-listing-loading" />
+          <BallLoader testID="turf-listing-loading" />
         </View>
       )}
 

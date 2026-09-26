@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { BallLoader } from '../components/BallLoader';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Turf } from '@bfam/shared-types';
 import { apiClient } from '../lib/apiClient';
-import { colors } from '../theme/tokens';
 
 // Owner Dashboard (module 2.12, PRD §8.3 "Owner Dashboard": business
 // overview). Hub for every other Owner Mobile screen this module builds —
@@ -94,12 +94,7 @@ export function OwnerDashboard() {
         </View>
 
         {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={colors.brandRed}
-            style={{ marginTop: 24 }}
-            testID="owner-turfs-loading"
-          />
+          <BallLoader testID="owner-turfs-loading" style={{ marginTop: 24 }} />
         ) : turfs.length === 0 ? (
           <Text className="font-ui text-body text-text-tertiary mt-4" testID="owner-turfs-empty">
             No turfs yet — add your first one to get started.

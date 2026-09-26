@@ -20,6 +20,7 @@ import {
   SecondaryButton,
   Card,
 } from '../../../../components/DashboardShell';
+import { BallLoader } from '../../../../components/BallLoader';
 
 const DAY_TYPES = ['WEEKDAY', 'WEEKEND', 'HOLIDAY'] as const;
 const BLOCK_REASONS = ['MAINTENANCE', 'HOLIDAY', 'OWNER_BLOCK', 'SYSTEM_BLOCK'] as const;
@@ -270,7 +271,7 @@ export default function ManageTurfPage() {
     setBlocks((prev) => prev.filter((b) => b.block_id !== blockId));
   }
 
-  if (loading) return <p className="font-ui text-body text-text-secondary">Loading…</p>;
+  if (loading) return <BallLoader />;
   if (!turf)
     return <p className="font-ui text-body text-text-secondary">Could not load this turf.</p>;
 

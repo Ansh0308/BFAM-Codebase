@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, Share, Text, View } from 'react-native';
+import { Linking, Pressable, Share, Text, View } from 'react-native';
+import { BallLoader } from '../../../../src/components/BallLoader';
 import { useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { MyTeam, TeamMember } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
-import { colors } from '../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
 import { TextField } from '../../../../src/components/TextField';
@@ -117,7 +117,7 @@ export default function InvitePlayersScreen() {
           From Your Team
         </Text>
         {loadingTeams ? (
-          <ActivityIndicator color={colors.brandRed} testID="invite-teams-loading" />
+          <BallLoader size="inline" testID="invite-teams-loading" />
         ) : teams.length === 0 ? (
           <Text className="font-ui text-body text-text-secondary mb-8">
             You&apos;re not on a team yet.

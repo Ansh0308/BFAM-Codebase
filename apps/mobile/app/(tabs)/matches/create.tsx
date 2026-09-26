@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { BallLoader } from '../../../src/components/BallLoader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type {
@@ -12,7 +13,6 @@ import type {
 } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../src/lib/apiClient';
-import { colors } from '../../../src/theme/tokens';
 import { ScreenContainer } from '../../../src/components/ScreenContainer';
 import { Button } from '../../../src/components/Button';
 import { TextField } from '../../../src/components/TextField';
@@ -220,7 +220,7 @@ export default function CreateMatchScreen() {
               Booking
             </Text>
             {loadingBookings ? (
-              <ActivityIndicator color={colors.brandRed} testID="create-match-bookings-loading" />
+              <BallLoader size="inline" testID="create-match-bookings-loading" />
             ) : bookings.length === 0 ? (
               <Text className="font-ui text-body text-text-secondary mb-4">
                 No confirmed bookings without a match yet. Book a turf first.
@@ -285,7 +285,7 @@ export default function CreateMatchScreen() {
               Your Team
             </Text>
             {loadingMyTeams ? (
-              <ActivityIndicator color={colors.brandRed} testID="my-teams-loading" />
+              <BallLoader size="inline" testID="my-teams-loading" />
             ) : myTeams.length === 0 ? (
               <Text className="font-ui text-body text-text-secondary mb-2">
                 You&apos;re not an active member of any team yet.
@@ -350,11 +350,7 @@ export default function CreateMatchScreen() {
                 </Pressable>
               </View>
             ) : searchingOpponents ? (
-              <ActivityIndicator
-                color={colors.brandRed}
-                style={{ marginTop: 8 }}
-                testID="opponent-teams-loading"
-              />
+              <BallLoader size="inline" testID="opponent-teams-loading" style={{ marginTop: 8 }} />
             ) : (
               opponentResults.map((team) => (
                 <Pressable
