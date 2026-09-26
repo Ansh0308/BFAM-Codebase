@@ -100,6 +100,18 @@ container on the VM, or make its three dynamic routes static and use Azure Stati
 The user pasted Cloudflare API tokens (cfat_/cfut_) into chat: they should be revoked; only the S3
 key pair is used.
 
+**Outage lesson (2026-09-26 20:09-20:18):** editing the live `backend.env` by appending to it broke
+the backend (file had no trailing newline, so the new line was glued onto `STATIC_OTP_CODE`, which
+must be exactly 6 digits, and the server refuses to boot). Use `deploy/set-backend-settings.ps1
+-SettingsFile <file in bfam-secrets>` for any server setting change: it keeps a backup and restores
+it if the backend does not come up. The assistant CAN read logs / repair over SSH (reads and the
+repair were allowed), but creating Azure resources was refused. Payments: the server has no
+Razorpay keys; UPI/card can only be tested in the native app (APK) with Razorpay TEST keys
+(`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, webhook URL
+`/payments/razorpay/webhook`); the web build says so up front. First Android APK build finished
+(Expo build ad965943-74ee-4b3d-b743-1d84a60d2723) but predates the last UI fixes - rebuild for
+testers when convenient (`eas build -p android --profile preview` from apps/mobile).
+
 **NativeWind gotcha:** `className` is silently ignored on React Native's own `Animated.*`
 components (unlike plain `View`/`ScrollView`) — use `style`/`contentContainerStyle`, or wrap a
 plain `View` (this caused the edge-to-edge Home on the deployed site; regression test:
