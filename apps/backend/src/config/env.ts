@@ -25,3 +25,18 @@ export function getTrustProxySetting(): number | string | false {
   if (raw.toLowerCase() === 'true') return 1;
   return /^\d+$/.test(raw) ? Number(raw) : raw;
 }
+
+// Browsers may call this API only from the origins listed in CORS_ORIGIN, a
+// comma-separated allowlist ("https://app.example.com,https://admin.example.com").
+// Both the REST API (cors) and Socket.IO use it. Entries are trimmed and a
+// trailing slash is dropped, because a browser's Origin header never has one.
+// Unset means "any origin" (`true`), which is fine on a developer's machine;
+// a deployment should always set it. The mobile apps are not browsers and are
+// not subject to CORS, so this does not affect them.
+export function getAllowedOrigins(env: NodeJS.ProcessEnv = process.env): string[] | true {
+  const origins = (env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+  return origins.length > 0 ? origins : true;
+}

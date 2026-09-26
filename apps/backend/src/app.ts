@@ -11,7 +11,7 @@ import { initSentry } from './config/sentry';
 import { USER_ROLES } from './domain/constants';
 import { authenticateJwt, requireRoles } from './middleware/auth';
 import { issueJwt, UserRole } from './services/authService';
-import { getTrustProxySetting, isLocalDevOrTest } from './config/env';
+import { getAllowedOrigins, getTrustProxySetting, isLocalDevOrTest } from './config/env';
 import { shouldExposeOtpInResponse } from './config/otpMode';
 import { createUserAccount } from './services/accountService';
 import { sequelize } from './config/sequelize';
@@ -187,11 +187,8 @@ app.use(
 );
 app.use(
   cors({
-    // CORS_ORIGIN is a comma-separated allowlist (e.g.
-    // "https://app.bfam.com,https://staging.bfam.com"). Unset = allow all,
-    // which is fine for local dev but must be set before going to
-    // production.
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true,
+    // CORS_ORIGIN allowlist — unset means allow all, fine for local dev only.
+    origin: getAllowedOrigins(),
   }),
 );
 // `verify` stashes the raw request bytes on req.rawBody alongside the

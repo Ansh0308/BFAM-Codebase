@@ -7,15 +7,17 @@ import { startReminderTicker } from './services/reminderService';
 import { setIo } from './realtime/io';
 import { registerMatchSocketHandlers } from './realtime/matchSocket';
 import { getOtpMode, getStaticOtpCode } from './config/otpMode';
+import { getAllowedOrigins, isLocalDevOrTest } from './config/env';
 
 const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
 
-// Initialize Socket.IO with CORS settings
+// Initialize Socket.IO. Browsers connect only from the CORS_ORIGIN allowlist
+// (the same one the REST API uses); native apps send no Origin header.
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: getAllowedOrigins(),
     methods: ['GET', 'POST'],
   },
 });
@@ -54,6 +56,13 @@ async function startServer() {
       '[SECURITY] OTP_MODE=static: every OTP is the fixed beta code and no SMS/email is sent. ' +
         'Anyone who knows it can verify any phone number or reset any password. ' +
         'Invite-only beta only — switch to a real provider before opening up.',
+    );
+  }
+
+  if (!isLocalDevOrTest() && getAllowedOrigins() === true) {
+    console.warn(
+      '[SECURITY] CORS_ORIGIN is not set: any website can call this API from a browser. ' +
+        'Set it to the web/admin origins (comma-separated).',
     );
   }
 
