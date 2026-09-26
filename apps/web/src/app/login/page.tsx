@@ -37,8 +37,8 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-surface flex items-center justify-center px-6">
       <form onSubmit={submit} className="w-full max-w-sm">
-        <h1 className="font-display text-title-xl text-brand-red uppercase text-center mb-1">
-          BFAM
+        <h1 className="flex justify-center mb-1">
+          <img src="/logo-horizontal.png" alt="BFAM" className="h-14 w-auto" />
         </h1>
         <p className="font-ui text-body text-text-secondary text-center mb-8">
           Owner &amp; Staff Portal

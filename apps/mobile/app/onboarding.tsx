@@ -10,6 +10,7 @@ import { BookHero } from '../src/components/onboarding/BookHero';
 import { PlayHero } from '../src/components/onboarding/PlayHero';
 import { CompeteHero } from '../src/components/onboarding/CompeteHero';
 import { IdentityHero } from '../src/components/onboarding/IdentityHero';
+import { BrandLogo } from '../src/components/BrandLogo';
 import { HAS_ONBOARDED_KEY } from './index';
 
 // Four chapters of one premium BFAM campaign — each screen carries a
@@ -93,7 +94,7 @@ export default function Onboarding() {
       <Reveal delay={0}>
         <View className="flex-row items-start justify-between pt-4 mb-1">
           <View>
-            <Text className="font-display text-card-title text-brand-red">BFAM</Text>
+            <BrandLogo variant="horizontal" height={40} />
             <Text className="font-ui text-micro uppercase tracking-widest text-text-tertiary mt-0.5">
               Play. Compete. Repeat.
             </Text>

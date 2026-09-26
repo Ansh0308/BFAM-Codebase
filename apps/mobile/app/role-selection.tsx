@@ -10,6 +10,7 @@ import { TextField } from '../src/components/TextField';
 import { useSignupStore } from '../src/store/signupStore';
 import { useAuthStore } from '../src/store/authStore';
 import { completeAccountCreation } from '../src/services/completeAccountCreation';
+import { BrandLogo } from '../src/components/BrandLogo';
 
 const SELF_SERVICE_ROLES: SelfServiceUserRole[] = ['PLAYER', 'TURF_OWNER', 'TURF_STAFF'];
 
@@ -92,7 +93,7 @@ export default function RoleSelection() {
   return (
     <AuthScreenBackground scroll>
       <View className="items-center mt-12 mb-6">
-        <Text className="font-display text-hero text-brand-red">BFAM</Text>
+        <BrandLogo variant="horizontal" height={56} />
         <Text className="font-ui text-micro uppercase tracking-widest text-text-secondary mt-1">
           Play. Compete. Repeat.
         </Text>

@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
     "scheme": "bfam",
     "ios": {
       "supportsTablet": true,
@@ -17,6 +18,10 @@
     },
     "android": {
       "package": "com.bfam.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#D80000"
+      },
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "READ_CONTACTS"]
     },
     "plugins": [

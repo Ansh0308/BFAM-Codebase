@@ -9,6 +9,7 @@ import { Button } from '../src/components/Button';
 import { apiClient } from '../src/lib/apiClient';
 import { useAuthStore } from '../src/store/authStore';
 import { useSignupStore } from '../src/store/signupStore';
+import { BrandLogo } from '../src/components/BrandLogo';
 import { AuthSuccessResponse } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 
@@ -127,7 +128,7 @@ export default function OtpVerification() {
   return (
     <AuthScreenBackground scroll>
       <View className="items-center mt-12 mb-6">
-        <Text className="font-display text-title-xl text-brand-red">BFAM</Text>
+        <BrandLogo variant="horizontal" height={44} />
       </View>
 
       <View className="flex-row items-center justify-center mb-6">

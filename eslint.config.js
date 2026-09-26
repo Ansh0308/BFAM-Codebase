@@ -3,6 +3,7 @@ const tseslint = require('typescript-eslint');
 
 const globals = {
   __dirname: 'readonly',
+  Buffer: 'readonly',
   console: 'readonly',
   Headers: 'readonly',
   module: 'readonly',

@@ -10,6 +10,7 @@ import { apiClient } from '../src/lib/apiClient';
 import { useSignupStore } from '../src/store/signupStore';
 import { useAuthStore } from '../src/store/authStore';
 import { completeAccountCreation } from '../src/services/completeAccountCreation';
+import { BrandLogo } from '../src/components/BrandLogo';
 
 const DEBOUNCE_MS = 350;
 
@@ -85,7 +86,7 @@ export default function FavoriteCricketer() {
   return (
     <AuthScreenBackground>
       <View className="mt-10 mb-2">
-        <Text className="font-display text-hero text-brand-red">BFAM</Text>
+        <BrandLogo variant="horizontal" height={48} />
       </View>
 
       <View className="mb-2">

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/tokens';
+import { BrandLogo } from '../BrandLogo';
 import { CountUp } from './CountUp';
 import { NotificationDot } from './HomeParts';
 
@@ -19,20 +20,8 @@ export function PlayerHeader({
   const router = useRouter();
   return (
     <View className="flex-row items-center justify-between pt-3" testID="player-header">
-      <View>
-        <Text
-          className="font-display text-brand-red"
-          style={{ fontSize: 30, lineHeight: 32, transform: [{ skewX: '-8deg' }] }}
-        >
-          BFAM
-        </Text>
-        <Text
-          className="font-ui font-bold text-ink-black"
-          style={{ fontSize: 6, letterSpacing: 1.1, marginTop: 1 }}
-        >
-          BROTHER FROM ANOTHER MOTHER
-        </Text>
-      </View>
+      <BrandLogo variant="horizontal" height={34} />
+
       <View className="flex-row items-center">
         {points !== null && points !== undefined && (
           <View
