@@ -4,6 +4,7 @@ import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { sendOtpSms } from './smsService';
 import { sendEmailVerificationOtp } from './emailService';
+import { getOtpMode, getStaticOtpCode } from '../config/otpMode';
 
 // OTP state lives in MySQL (otp_codes table, migration
 // 20260829090000-otp-codes-table.ts) rather than an in-memory Map — a Map
@@ -51,7 +52,10 @@ export async function generateAndSendOtp(
   purpose: OtpPurpose,
 ): Promise<{ code: string; deliveryError: string | null }> {
   const normalized = normalizeIdentifier(identifier);
-  const code = generateSixDigitCode();
+  // Static beta mode (OTP_MODE=static): the fixed code, and nothing is sent.
+  // Real provider delivery is the default — see config/otpMode.ts.
+  const staticMode = getOtpMode() === 'static';
+  const code = staticMode ? getStaticOtpCode() : generateSixDigitCode();
   const codeHash = await bcrypt.hash(code, OTP_HASH_ROUNDS);
   const now = new Date();
 
@@ -77,7 +81,9 @@ export async function generateAndSendOtp(
   );
 
   let deliveryError: string | null = null;
-  if (purpose === 'EMAIL_VERIFY') {
+  if (staticMode) {
+    // Nothing to deliver: the code is the fixed beta code.
+  } else if (purpose === 'EMAIL_VERIFY') {
     ({ deliveryError } = await sendEmailVerificationOtp(identifier, code));
   } else {
     await sendOtpSms(identifier, code, purpose);

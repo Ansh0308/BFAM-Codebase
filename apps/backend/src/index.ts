@@ -6,6 +6,7 @@ import { runMigrations } from './config/migrate';
 import { startReminderTicker } from './services/reminderService';
 import { setIo } from './realtime/io';
 import { registerMatchSocketHandlers } from './realtime/matchSocket';
+import { getOtpMode, getStaticOtpCode } from './config/otpMode';
 
 const PORT = process.env.PORT || 5000;
 
@@ -46,6 +47,16 @@ registerMatchSocketHandlers(io);
 
 // Listen on server
 async function startServer() {
+  // Fail fast on a malformed STATIC_OTP_CODE, and make the beta shortcut loud.
+  if (getOtpMode() === 'static') {
+    getStaticOtpCode();
+    console.warn(
+      '[SECURITY] OTP_MODE=static: every OTP is the fixed beta code and no SMS/email is sent. ' +
+        'Anyone who knows it can verify any phone number or reset any password. ' +
+        'Invite-only beta only — switch to a real provider before opening up.',
+    );
+  }
+
   // Connect database
   await connectDatabase();
 

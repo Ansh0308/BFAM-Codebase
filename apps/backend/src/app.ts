@@ -12,6 +12,7 @@ import { USER_ROLES } from './domain/constants';
 import { authenticateJwt, requireRoles } from './middleware/auth';
 import { issueJwt, UserRole } from './services/authService';
 import { getTrustProxySetting, isLocalDevOrTest } from './config/env';
+import { shouldExposeOtpInResponse } from './config/otpMode';
 import { createUserAccount } from './services/accountService';
 import { sequelize } from './config/sequelize';
 import {
@@ -382,7 +383,7 @@ app.post('/auth/otp/send', async (req: Request, res: Response) => {
       const { code } = await generateAndSendOtp(identifier, purpose);
       return res.status(200).json({
         message: 'OTP sent',
-        ...(process.env.NODE_ENV !== 'production' ? { dev_otp: code } : {}),
+        ...(shouldExposeOtpInResponse() ? { dev_otp: code } : {}),
       });
     }
 
@@ -394,7 +395,7 @@ app.post('/auth/otp/send', async (req: Request, res: Response) => {
     }
     return res.status(200).json({
       message: 'If an account exists for this identifier, an OTP has been sent',
-      ...(process.env.NODE_ENV !== 'production' && devOtp ? { dev_otp: devOtp } : {}),
+      ...(shouldExposeOtpInResponse() && devOtp ? { dev_otp: devOtp } : {}),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to send OTP';
@@ -521,7 +522,7 @@ app.post('/auth/forgot-password', async (req: Request, res: Response) => {
     }
     return res.status(200).json({
       message: 'If an account exists for this identifier, a password reset OTP has been sent',
-      ...(process.env.NODE_ENV !== 'production' && devOtp ? { dev_otp: devOtp } : {}),
+      ...(shouldExposeOtpInResponse() && devOtp ? { dev_otp: devOtp } : {}),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to process request';
@@ -837,13 +838,11 @@ app.post('/profile/email/send-otp', authenticateJwt, async (req: Request, res: R
     const { code, deliveryError } = await generateAndSendOtp(parsed.data.email, 'EMAIL_VERIFY');
     return res.status(200).json({
       message: 'OTP sent',
-      ...(process.env.NODE_ENV !== 'production' ? { dev_otp: code } : {}),
+      ...(shouldExposeOtpInResponse() ? { dev_otp: code } : {}),
       // Outside production only — tells the caller *why* a real email
       // didn't actually go out (e.g. Brevo's IP allowlist), instead of the
       // code just silently never arriving with no explanation.
-      ...(process.env.NODE_ENV !== 'production' && deliveryError
-        ? { dev_email_error: deliveryError }
-        : {}),
+      ...(shouldExposeOtpInResponse() && deliveryError ? { dev_email_error: deliveryError } : {}),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to send OTP';
