@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { istToday } from '../domain/time';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import {
@@ -420,7 +421,7 @@ export async function setPricing(turfId: string, ownerUserId: string, rows: Pric
       // effective_from has no DB default (NOT NULL) and the owner portal's
       // pricing form doesn't collect it — a new/replaced rate is effective
       // immediately, so default it to today rather than rejecting the row.
-      const today = new Date().toISOString().slice(0, 10);
+      const today = istToday();
       await sequelize.getQueryInterface().bulkInsert(
         'turf_pricing',
         rows.map((r) => ({
@@ -606,7 +607,7 @@ export async function removeAvailabilityBlock(blockId: string, ownerUserId: stri
 // Today's Bookings (module 2.12, PRD §8.3/§9.2) — every booking, across
 // every turf this owner runs, for today.
 export async function getTodaysBookings(ownerUserId: string) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istToday();
   return sequelize.query(
     `SELECT b.*, t.turf_name FROM bookings b
      JOIN turfs t ON t.turf_id = b.turf_id

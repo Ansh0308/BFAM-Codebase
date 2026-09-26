@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { istToday } from '../domain/time';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { sendNotificationToMany, sendNotification } from './notificationService';
@@ -159,7 +160,7 @@ export async function sendPaymentReminders(now: Date = new Date()): Promise<numb
          SELECT 1 FROM notifications n
          WHERE n.notification_type = 'PAYMENT_REMINDER' AND n.related_entity_id = o.obligation_id
        )`,
-    { type: QueryTypes.SELECT, replacements: { today: now.toISOString().slice(0, 10) } },
+    { type: QueryTypes.SELECT, replacements: { today: istToday(now) } },
   );
 
   let sentCount = 0;

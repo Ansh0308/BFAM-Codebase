@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { istToday } from '../domain/time';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import {
@@ -188,7 +189,7 @@ export async function reviewVerification(
 // Staff Mobile/Web — Today's Bookings (PRD §8.4/§9.3): bookings at any turf
 // this staff member is actively assigned to, for today.
 export async function getTodaysBookingsForStaff(staffUserId: string) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istToday();
   return sequelize.query(
     `SELECT b.*, t.turf_name FROM bookings b
      JOIN turfs t ON t.turf_id = b.turf_id

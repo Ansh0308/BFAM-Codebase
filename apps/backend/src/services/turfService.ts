@@ -1,5 +1,5 @@
 import { QueryTypes } from 'sequelize';
-import { IST_TODAY_SQL } from '../domain/time';
+import { IST_TODAY_SQL, istToday } from '../domain/time';
 import { sequelize } from '../config/sequelize';
 import { TurfNotFoundError, VenueNotFoundError } from '../domain/errors';
 
@@ -219,7 +219,7 @@ export async function getTurfDetails(turfId: string) {
     ),
   ]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = istToday();
   const availabilityPreview = await getTurfAvailability(turfId, todayStr);
 
   return {
