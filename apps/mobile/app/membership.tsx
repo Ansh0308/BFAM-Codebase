@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import type { Membership, MembershipPlan } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../src/lib/apiClient';
 import { confirmAction } from '../src/lib/confirm';
-import { colors } from '../src/theme/tokens';
+import { BallLoader } from '../src/components/BallLoader';
 
 // Memberships (long tail, PRD §12.51): plans bought with coins; buying while
 // active extends from the current expiry.
@@ -100,9 +100,7 @@ export default function MembershipScreen() {
         )}
         {message && <Text className="font-ui text-body text-ink-black mb-3">{message}</Text>}
         {error && <Text className="font-ui text-body text-brand-red mb-3">{error}</Text>}
-        {loading && (
-          <ActivityIndicator size="large" color={colors.brandRed} testID="membership-loading" />
-        )}
+        {loading && <BallLoader testID="membership-loading" />}
 
         {!loading &&
           plans.map((p) => {

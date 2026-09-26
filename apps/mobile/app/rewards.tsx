@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import type { Reward, RewardRedemption } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../src/lib/apiClient';
 import { confirmAction } from '../src/lib/confirm';
-import { colors } from '../src/theme/tokens';
+import { BallLoader } from '../src/components/BallLoader';
 
 // Rewards (long tail, PRD §12.36): a coin-priced catalog. Redeeming spends
 // coins and creates a PENDING redemption a turf/admin fulfils manually.
@@ -84,9 +84,7 @@ export default function RewardsScreen() {
         )}
         {message && <Text className="font-ui text-body text-ink-black mb-3">{message}</Text>}
         {error && <Text className="font-ui text-body text-brand-red mb-3">{error}</Text>}
-        {loading && (
-          <ActivityIndicator size="large" color={colors.brandRed} testID="rewards-loading" />
-        )}
+        {loading && <BallLoader testID="rewards-loading" />}
 
         {!loading &&
           rewards.map((r) => {

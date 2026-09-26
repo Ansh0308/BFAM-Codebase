@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import type { RecognitionAward, RecognitionAwardType } from '@bfam/shared-types';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
+import { BallLoader } from '../src/components/BallLoader';
 
 const AWARD_LABELS: Record<
   RecognitionAwardType,
@@ -84,9 +84,7 @@ export default function RecognitionScreen() {
 
       <ScrollView className="flex-1 px-5" testID="recognition-screen">
         {error && <Text className="font-ui text-body text-brand-red mb-3">{error}</Text>}
-        {loading && (
-          <ActivityIndicator size="large" color={colors.brandRed} testID="recognition-loading" />
-        )}
+        {loading && <BallLoader testID="recognition-loading" />}
         {!loading && !error && awards.length === 0 && (
           <Text className="font-ui text-body text-text-tertiary">
             No awards for this month yet. Play a completed match to be in the running.

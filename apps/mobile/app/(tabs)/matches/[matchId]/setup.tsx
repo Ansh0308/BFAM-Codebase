@@ -1,14 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -16,6 +7,7 @@ import { matchTeamLabel, type GameRoom, type IntroMatchTeam } from '@bfam/shared
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
+import { BallLoader } from '../../../../src/components/BallLoader';
 
 const OVER_PRESETS = [3, 5, 6, 8, 10, 15, 20];
 const SIDE_COLOR: Record<'TEAM_A' | 'TEAM_B', string> = {
@@ -142,7 +134,7 @@ export default function MatchSetupScreen() {
   if (loading) {
     return (
       <View style={[styles.root, styles.center]}>
-        <ActivityIndicator size="large" color={colors.brandRed} testID="setup-loading" />
+        <BallLoader testID="setup-loading" />
       </View>
     );
   }
@@ -341,7 +333,7 @@ export default function MatchSetupScreen() {
           testID="setup-start-button"
         >
           {busy ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <BallLoader size="button" tone="light" />
           ) : (
             <Text style={styles.startText}>Start Match</Text>
           )}

@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import type { Referral } from '@bfam/shared-types';
 import { apiClient } from '../src/lib/apiClient';
 import { useAuthStore } from '../src/store/authStore';
-import { colors } from '../src/theme/tokens';
+import { BallLoader } from '../src/components/BallLoader';
 
 // Refer a Friend (long tail, PRD §12.53): the referral code is the
 // player's own BFAM ID (see the referrals migration for why). A friend
@@ -77,9 +77,7 @@ export default function ReferralsScreen() {
           )}
         </View>
 
-        {loading && (
-          <ActivityIndicator size="large" color={colors.brandRed} testID="referrals-loading" />
-        )}
+        {loading && <BallLoader testID="referrals-loading" />}
         {!loading && error && (
           <Text className="font-ui text-body text-text-secondary text-center">{error}</Text>
         )}
