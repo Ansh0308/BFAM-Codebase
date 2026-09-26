@@ -70,6 +70,24 @@ Cloudflare R2, Static Web Apps / Netlify. The user must create the cloud account
 and enter credentials (the assistant must not); the runbook is
 `BFAM_Deployment_Plan.md` §6.
 
+**Live beta (2026-09-26):** deployed to Azure South India with `deploy/deploy-azure.ps1`
+(VM + Docker + Caddy, MySQL Flexible Server, Static Web App for the player site);
+secrets and the resource names live OUTSIDE the repo in `%USERPROFILE%\bfam-secrets\`
+(the repo is public, so URLs and the static OTP code must not be committed). App UI
+changes go live with `deploy/publish-web.ps1`. The classifier blocked the assistant from
+creating Azure resources / SSH-ing itself, so the user runs those scripts; publishing the
+static site was allowed. Not live: photo uploads (needs an R2 account), admin web (Netlify),
+Android APK (Expo), native iPhone (Apple $99 — iPhone testers use Safari + Add to Home Screen).
+Local testing needs the throwaway MySQL 8.4 in the session scratchpad (`mysqld --datadir=...\mysqldata
+--console`), then `preview_start` backend + mobile-web; demo login +919916300600 / Demo@1234.
+
+**NativeWind gotcha:** `className` is silently ignored on React Native's own `Animated.*`
+components (unlike plain `View`/`ScrollView`) — use `style`/`contentContainerStyle`, or wrap a
+plain `View` (this caused the edge-to-edge Home on the deployed site; regression test:
+`__tests__/home-layout.test.tsx`). The display font Anton has one weight, so `.font-display`
+sets `font-synthesis: none` on the web. `expo export` ignores `+html.tsx` (single output):
+home-screen tags are patched in by `scripts/patch-web-html.js` via `npm run export:web`.
+
 **Gotchas learned:** `npm prune --omit=dev` in this monorepo re-installs the
 mobile/web trees (use a separate `npm ci --omit=dev -w apps/backend`, which is what
 the Dockerfile does); `expo export` needs `--clear` or a cached bundle keeps an old
