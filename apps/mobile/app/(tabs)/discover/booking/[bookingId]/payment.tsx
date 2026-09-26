@@ -195,20 +195,22 @@ export default function PaymentScreen() {
   }
 
   async function payViaGateway(unpaid: PaymentObligation[], paymentMethod: 'UPI' | 'RAZORPAY') {
+    // Razorpay Checkout exists only in the native app. Say so straight away instead of
+    // creating a gateway order on the server that can never be paid from a browser.
+    if (Platform.OS === 'web') {
+      setError(
+        'UPI and card payments work in the BFAM Android app. On the website, choose cash to record your payment.',
+      );
+      setStage('select-method');
+      return;
+    }
+
     setStage('processing');
     try {
       const order = await apiClient.initiateGatewayPayment(
         unpaid.map((o) => o.obligation_id),
         paymentMethod,
       );
-
-      if (Platform.OS === 'web') {
-        setError(
-          'Gateway payment requires the native app (Razorpay Checkout has no web SDK in this preview).',
-        );
-        setStage('select-method');
-        return;
-      }
 
       // Loaded lazily so the web preview bundle never touches this
       // native-only module.

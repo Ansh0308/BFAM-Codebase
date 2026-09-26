@@ -45,7 +45,7 @@ describe('ProfileSettings screen', () => {
     const { getByTestId } = await render(<ProfileSettings />);
 
     await fireEvent.press(getByTestId('settings-row-edit-profile'));
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/profile-setup'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/profile-setup?from=profile'));
 
     await fireEvent.press(getByTestId('settings-row-notifications'));
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/notification-settings'));

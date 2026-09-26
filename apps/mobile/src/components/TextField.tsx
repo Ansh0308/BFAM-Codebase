@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TextInputProps, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TextInputProps,
+  TextStyle,
+  Platform,
+  StyleSheet,
+} from 'react-native';
 import { colors } from '../theme/tokens';
 
 interface TextFieldProps extends TextInputProps {
@@ -36,6 +44,22 @@ export function TextField({
 }: TextFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
 
+  // A multi-line field has no fixed 48px height: the height a screen asks for
+  // (height / minHeight on `style`) belongs to the bordered box, and the text sits
+  // at its top. Before, a 120px-high input was centred inside a 48px box and its
+  // text spilled over the label above it.
+  const multiline = Boolean(inputProps.multiline);
+  const flatStyle = (StyleSheet.flatten(style) ?? {}) as TextStyle;
+  const boxHeight = multiline
+    ? { minHeight: Number(flatStyle.height ?? flatStyle.minHeight ?? 96) }
+    : { height: 48 };
+  const inputStyle = multiline
+    ? [
+        { paddingTop: 12, paddingBottom: 12, textAlignVertical: 'top' as const },
+        { ...flatStyle, height: undefined, minHeight: undefined },
+      ]
+    : style;
+
   const iconColor = error ? colors.brandRedDark : isFocused ? colors.brandRed : colors.textTertiary;
   const styledIconLeft =
     iconLeft && React.isValidElement(iconLeft)
@@ -54,11 +78,13 @@ export function TextField({
       </Text>
       <View
         className={[
-          'flex-row items-center bg-surface rounded-md border px-4',
+          multiline
+            ? 'flex-row items-stretch bg-surface rounded-md border px-4'
+            : 'flex-row items-center bg-surface rounded-md border px-4',
           error ? 'border-brand-red-dark' : isFocused ? 'border-brand-red' : 'border-border-strong',
         ].join(' ')}
         style={[
-          { height: 48, borderWidth: isFocused || error ? 1.5 : 1 },
+          { ...boxHeight, borderWidth: isFocused || error ? 1.5 : 1 },
           isFocused && Platform.OS === 'ios'
             ? {
                 shadowColor: colors.brandRed,
@@ -72,7 +98,7 @@ export function TextField({
         {styledIconLeft ? <View className="mr-3">{styledIconLeft}</View> : null}
         <TextInput
           className="flex-1 font-ui text-body"
-          style={[{ color: '#111111', outlineStyle: 'none' } as object, style]}
+          style={[{ color: '#111111', outlineStyle: 'none' } as object, inputStyle]}
           placeholderTextColor="#767676"
           onFocus={(e) => {
             setIsFocused(true);

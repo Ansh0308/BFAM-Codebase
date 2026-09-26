@@ -56,7 +56,7 @@ $lines = @(
 if ($r2['R2_PRIVATE_BUCKET']) { $lines += ('AWS_S3_PRIVATE_BUCKET=' + $r2['R2_PRIVATE_BUCKET']) }
 else { Write-Host 'Note: no R2_PRIVATE_BUCKET set - staff ID documents would go to the public bucket. Create a private bucket first if you use staff verification.' -ForegroundColor Yellow }
 
-$script = "set -e`ncd /opt/bfam`nsed -i '/^AWS_REGION=/d;/^AWS_ACCESS_KEY_ID=/d;/^AWS_SECRET_ACCESS_KEY=/d;/^AWS_S3_BUCKET=/d;/^AWS_S3_PRIVATE_BUCKET=/d;/^S3_ENDPOINT=/d;/^S3_PUBLIC_BASE_URL=/d' backend.env`ncat >> backend.env <<'ENVEOF'`n" + ($lines -join "`n") + "`nENVEOF`nchmod 600 backend.env`ndocker compose -f docker-compose.azure.yml up -d --force-recreate backend`n"
+$script = "set -e`ncd /opt/bfam`nsed -i '/^AWS_REGION=/d;/^AWS_ACCESS_KEY_ID=/d;/^AWS_SECRET_ACCESS_KEY=/d;/^AWS_S3_BUCKET=/d;/^AWS_S3_PRIVATE_BUCKET=/d;/^S3_ENDPOINT=/d;/^S3_PUBLIC_BASE_URL=/d' backend.env`n# the file may not end with a newline; without one the first new line would be glued onto the last old line`nsed -i -e '`$a\' backend.env`ncat >> backend.env <<'ENVEOF'`n" + ($lines -join "`n") + "`nENVEOF`nchmod 600 backend.env`ndocker compose -f docker-compose.azure.yml up -d --force-recreate backend`n"
 $tmp = Join-Path $SecretsDir 'configure-storage.sh'
 [IO.File]::WriteAllText($tmp, $script, (New-Object Text.UTF8Encoding $false))
 

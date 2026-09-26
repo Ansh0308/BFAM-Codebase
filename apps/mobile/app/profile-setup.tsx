@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, Alert, ScrollView } from 'react-native';
 import { BallLoader } from '../src/components/BallLoader';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import { AuthScreenBackground } from '../src/components/AuthScreenBackground';
@@ -56,6 +56,9 @@ const GENDERS = [
 // drawn cartoon art, which isn't something this pipeline can produce.
 export default function ProfileSetup() {
   const router = useRouter();
+  // "?from=profile" means this is an edit reached from the Profile tab or Settings, so saving
+  // returns there; first-time setup (no param) continues to Home.
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const authUser = useAuthStore((s) => s.user);
   const isPlayer = authUser?.role === 'PLAYER';
 
@@ -163,7 +166,7 @@ export default function ProfileSetup() {
             }
           : {}),
       });
-      router.replace('/session-active');
+      router.replace(from === 'profile' ? '/(tabs)/profile' : '/(tabs)');
     } catch {
       setError('Could not save your profile. Please try again.');
     } finally {

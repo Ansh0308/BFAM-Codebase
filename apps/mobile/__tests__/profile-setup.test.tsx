@@ -18,8 +18,10 @@ jest.mock('expo-image-picker', () => ({
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+let mockSearchParams: { from?: string } = {};
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
+  useLocalSearchParams: () => mockSearchParams,
 }));
 
 const mockGetMyProfile = jest.fn();
@@ -73,6 +75,7 @@ const EMPTY_PROFILE = {
 describe('ProfileSetup screen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSearchParams = {};
     mockGetMyProfile.mockResolvedValue(EMPTY_PROFILE);
     mockUpdateMyProfile.mockResolvedValue(EMPTY_PROFILE);
     mockUploadProfilePhoto.mockResolvedValue({
@@ -128,8 +131,30 @@ describe('ProfileSetup screen', () => {
       );
     });
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/session-active');
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
     });
+  });
+
+  it('goes straight to Home after first-time setup, with no hand-off screen', async () => {
+    useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
+
+    const { findByTestId } = await render(<ProfileSetup />);
+    await fillRequiredPlayerFields(findByTestId);
+    await fireEvent.press(await findByTestId('profile-setup-save'));
+
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)'));
+    expect(mockReplace).not.toHaveBeenCalledWith('/session-active');
+  });
+
+  it('returns to the Profile tab after editing from there', async () => {
+    mockSearchParams = { from: 'profile' };
+    useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
+
+    const { findByTestId } = await render(<ProfileSetup />);
+    await fillRequiredPlayerFields(findByTestId);
+    await fireEvent.press(await findByTestId('profile-setup-save'));
+
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)/profile'));
   });
 
   it('falls back to the local photo URI and shows a note when the server has no photo storage configured', async () => {

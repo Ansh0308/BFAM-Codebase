@@ -111,7 +111,7 @@ export default function Profile() {
           </Text>
 
           <Pressable
-            onPress={() => router.push('/profile-setup')}
+            onPress={() => router.push('/profile-setup?from=profile')}
             className="flex-row items-center mt-3 border border-border-strong rounded-md px-4 py-2"
             testID="edit-profile-button"
           >

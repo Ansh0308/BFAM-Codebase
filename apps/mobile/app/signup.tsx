@@ -81,7 +81,7 @@ export default function Signup() {
       return;
     }
     await setSession(body.token, { user_id: body.user_id, bfam_id: body.bfam_id, role: body.role });
-    router.replace('/session-active');
+    router.replace('/(tabs)');
   }
 
   async function handleGoogleToken(idToken: string) {

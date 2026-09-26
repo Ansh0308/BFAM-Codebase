@@ -17,7 +17,7 @@ const ROWS: SettingsRowConfig[] = [
   {
     icon: 'user',
     label: 'Edit Profile',
-    route: '/profile-setup',
+    route: '/profile-setup?from=profile',
     testID: 'settings-row-edit-profile',
   },
   {

@@ -52,7 +52,7 @@ export default function Login() {
       return;
     }
     await setSession(body.token, { user_id: body.user_id, bfam_id: body.bfam_id, role: body.role });
-    router.replace('/session-active');
+    router.replace('/(tabs)');
   }
 
   async function handleGoogleToken(idToken: string) {
@@ -98,7 +98,7 @@ export default function Login() {
       });
       setLoading(false);
       setLoginSuccess(true);
-      setTimeout(() => router.replace('/session-active'), 450);
+      setTimeout(() => router.replace('/(tabs)'), 450);
     } catch {
       setError('Invalid username or password.');
       setLoading(false);
