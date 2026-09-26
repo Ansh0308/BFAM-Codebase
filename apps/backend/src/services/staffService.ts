@@ -9,6 +9,7 @@ import {
   TurfNotFoundError,
 } from '../domain/errors';
 import { sendNotification } from './notificationService';
+import { resolveDocumentUrl } from './uploadService';
 
 interface TurfRow {
   turf_id: string;
@@ -43,6 +44,19 @@ export interface StaffAssignmentRow {
   verified_at: Date | null;
   rejection_reason: string | null;
   created_at: Date;
+}
+
+// The database holds a private reference to a staff member's ID document, never
+// a public link. Anything returned to a client swaps it for a short-lived
+// signed URL so the owner can open it (and nobody else can, later).
+async function presentAssignment<T extends { verification_document_url: string | null }>(
+  row: T | null,
+): Promise<T | null> {
+  if (!row) return row;
+  return {
+    ...row,
+    verification_document_url: await resolveDocumentUrl(row.verification_document_url),
+  };
 }
 
 async function fetchAssignment(assignmentId: string): Promise<StaffAssignmentRow | null> {
@@ -92,13 +106,14 @@ export async function listStaffForTurf(turfId: string, ownerUserId: string) {
   const turf = await fetchTurfOrThrow(turfId);
   await assertIsOwner(turf, ownerUserId);
 
-  return sequelize.query<StaffAssignmentRow & { phone_number: string }>(
+  const rows = await sequelize.query<StaffAssignmentRow & { phone_number: string }>(
     `SELECT tsa.*, u.phone_number FROM turf_staff_assignments tsa
      JOIN users u ON u.user_id = tsa.staff_user_id
      WHERE tsa.turf_id = :turfId
      ORDER BY tsa.created_at DESC`,
     { type: QueryTypes.SELECT, replacements: { turfId } },
   );
+  return Promise.all(rows.map((r) => presentAssignment(r) as Promise<typeof r>));
 }
 
 export async function removeStaff(assignmentId: string, ownerUserId: string) {
@@ -137,7 +152,7 @@ export async function submitVerificationDocument(
     },
     { assignment_id: assignment.assignment_id },
   );
-  return fetchAssignment(assignment.assignment_id);
+  return presentAssignment(await fetchAssignment(assignment.assignment_id));
 }
 
 // Staff Verification, step 2 (PRD §32.14): the owner reviews and decides.
@@ -176,7 +191,7 @@ export async function reviewVerification(
     relatedEntityId: assignment.turf_id,
   });
 
-  return fetchAssignment(assignmentId);
+  return presentAssignment(await fetchAssignment(assignmentId));
 }
 
 // The enforcement PRD §32.14 actually requires: called at the top of any
@@ -218,13 +233,14 @@ export async function listMatchesForStaff(staffUserId: string) {
 // Verification screen knows which turf_id to submit a document for,
 // without the client having to already know it).
 export async function getMyAssignments(staffUserId: string) {
-  return sequelize.query<StaffAssignmentRow & { turf_name: string }>(
+  const rows = await sequelize.query<StaffAssignmentRow & { turf_name: string }>(
     `SELECT tsa.*, t.turf_name FROM turf_staff_assignments tsa
      JOIN turfs t ON t.turf_id = tsa.turf_id
      WHERE tsa.staff_user_id = :staffUserId AND tsa.status = 'ACTIVE'
      ORDER BY tsa.created_at DESC`,
     { type: QueryTypes.SELECT, replacements: { staffUserId } },
   );
+  return Promise.all(rows.map((r) => presentAssignment(r) as Promise<typeof r>));
 }
 
 export async function assertStaffVerified(staffUserId: string): Promise<void> {

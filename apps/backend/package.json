@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
+    "@aws-sdk/s3-request-presigner": "^3.1141.0",
     "@bfam/shared-types": "*",
     "@sentry/node": "^8.26.0",
     "apple-signin-auth": "^2.1.0",
