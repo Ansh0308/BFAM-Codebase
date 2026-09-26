@@ -7,6 +7,7 @@ import { sendNotification } from './notificationService';
 import { assertStaffVerified } from './staffService';
 import { postSystemMessage } from './chatService';
 import { balanceTeams } from '../domain/teamBalance';
+import { bookingStartInstant } from '../domain/time';
 import { isActiveTeamMember, listActiveTeamMemberPlayerIds } from './teamService';
 import {
   ForbiddenActionError,
@@ -210,7 +211,7 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
   const teamAMatchTeamId = randomUUID();
   const teamBMatchTeamId = randomUUID();
   const now = new Date();
-  const scheduledStartTime = new Date(`${booking.booking_date}T${booking.start_time}`);
+  const scheduledStartTime = bookingStartInstant(booking.booking_date, booking.start_time);
 
   try {
     await sequelize.transaction(async (transaction) => {

@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { IST_TODAY_SQL } from '../domain/time';
 import { QueryTypes } from 'sequelize';
 import { isUniqueConstraintError } from '../domain/dbErrors';
 import { sequelize } from '../config/sequelize';
@@ -177,9 +178,9 @@ export async function listBookingsForUser(
 ) {
   const conditions = ['b.booked_by = :userId'];
   if (scope === 'upcoming')
-    conditions.push("b.booking_date >= CURDATE() AND b.booking_status != 'CANCELLED'");
+    conditions.push(`b.booking_date >= ${IST_TODAY_SQL} AND b.booking_status != 'CANCELLED'`);
   if (scope === 'past')
-    conditions.push("(b.booking_date < CURDATE() OR b.booking_status = 'CANCELLED')");
+    conditions.push(`(b.booking_date < ${IST_TODAY_SQL} OR b.booking_status = 'CANCELLED')`);
 
   return sequelize.query<BookingRecord & { turf_name: string; city: string }>(
     `SELECT b.*, t.turf_name, t.city

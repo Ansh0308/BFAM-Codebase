@@ -1,4 +1,5 @@
 import { QueryTypes } from 'sequelize';
+import { IST_TODAY_SQL } from '../domain/time';
 import { sequelize } from '../config/sequelize';
 import { TurfNotFoundError, VenueNotFoundError } from '../domain/errors';
 
@@ -128,7 +129,7 @@ export async function listTurfs(filters: TurfListFilters) {
       ${distanceExpr} AS distance_km,
       (SELECT image_url FROM turf_images ti WHERE ti.turf_id = t.turf_id ORDER BY ti.display_order ASC LIMIT 1) AS cover_image_url,
       (SELECT MIN(price_per_hour) FROM turf_pricing tp WHERE tp.turf_id = t.turf_id
-        AND (tp.effective_to IS NULL OR tp.effective_to >= CURDATE())) AS min_price_per_hour
+        AND (tp.effective_to IS NULL OR tp.effective_to >= ${IST_TODAY_SQL})) AS min_price_per_hour
     FROM turfs t
     LEFT JOIN venues v ON v.venue_id = t.venue_id
     WHERE ${conditions.join(' AND ')}
@@ -185,7 +186,7 @@ export async function getTurfDetails(turfId: string) {
     ? await sequelize.query<SiblingPitchRow>(
         `SELECT t.turf_id, t.turf_name,
            (SELECT MIN(price_per_hour) FROM turf_pricing tp WHERE tp.turf_id = t.turf_id
-             AND (tp.effective_to IS NULL OR tp.effective_to >= CURDATE())) AS min_price_per_hour
+             AND (tp.effective_to IS NULL OR tp.effective_to >= ${IST_TODAY_SQL})) AS min_price_per_hour
          FROM turfs t
          WHERE t.venue_id = :venueId AND t.turf_id != :turfId
            AND t.turf_status = 'ACTIVE' AND t.deleted_at IS NULL
@@ -212,7 +213,7 @@ export async function getTurfDetails(turfId: string) {
     ),
     sequelize.query(
       `SELECT pricing_id, day_type, start_time, end_time, price_per_hour, currency
-       FROM turf_pricing WHERE turf_id = :turfId AND (effective_to IS NULL OR effective_to >= CURDATE())
+       FROM turf_pricing WHERE turf_id = :turfId AND (effective_to IS NULL OR effective_to >= ${IST_TODAY_SQL})
        ORDER BY day_type ASC, start_time ASC`,
       { type: QueryTypes.SELECT, replacements: { turfId } },
     ),
@@ -272,7 +273,7 @@ export async function getVenueForPlayer(venueId: string) {
     `SELECT t.turf_id, t.turf_name,
        (SELECT image_url FROM turf_images ti WHERE ti.turf_id = t.turf_id ORDER BY ti.display_order ASC LIMIT 1) AS cover_image_url,
        (SELECT MIN(price_per_hour) FROM turf_pricing tp WHERE tp.turf_id = t.turf_id
-         AND (tp.effective_to IS NULL OR tp.effective_to >= CURDATE())) AS min_price_per_hour
+         AND (tp.effective_to IS NULL OR tp.effective_to >= ${IST_TODAY_SQL})) AS min_price_per_hour
      FROM turfs t
      WHERE t.venue_id = :venueId AND t.turf_status = 'ACTIVE' AND t.deleted_at IS NULL
      ORDER BY t.turf_name ASC`,

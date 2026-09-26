@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { bookingStartInstant } from '../domain/time';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import {
@@ -445,7 +446,7 @@ export async function refundPaymentsForBooking(
   const booking = await fetchBooking(bookingId);
   if (!booking) throw new BookingNotFoundError(bookingId);
 
-  const slotStart = new Date(`${booking.booking_date}T${booking.start_time}`);
+  const slotStart = bookingStartInstant(booking.booking_date, booking.start_time);
   const hoursBeforeSlot = (slotStart.getTime() - cancelledAt.getTime()) / (1000 * 60 * 60);
   const refundPct = calculateRefundPercentage(hoursBeforeSlot);
 
