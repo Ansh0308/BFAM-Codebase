@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, Share, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, Share, Text, TextInput, View } from 'react-native';
 import { BallLoader } from './BallLoader';
 import { Feather } from '@expo/vector-icons';
 import type { ContactMatch } from '@bfam/shared-types';
@@ -31,8 +31,12 @@ export function ContactsInviteSection({
   onInvite,
   testIDPrefix = 'contacts',
 }: ContactsInviteSectionProps) {
-  const { status, contacts, error, load } = useContactsMatch();
+  const { status, contacts, error, load, addByPhone } = useContactsMatch();
   const [search, setSearch] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const isWeb = Platform.OS === 'web';
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -40,10 +44,26 @@ export function ContactsInviteSection({
     return contacts.filter((c) => c.name.toLowerCase().includes(q));
   }, [contacts, search]);
 
+  // On the web build the invite points at the site the person is using; on a phone
+  // it is the demo install link (see INVITE_LINK).
   function inviteViaLink(name: string) {
+    const link =
+      isWeb && typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : INVITE_LINK;
     Share.share({
-      message: `Hey ${name}, join me for cricket on BFAM! Install the app and join my team: ${INVITE_LINK}`,
+      message: `Hey ${name}, join me for cricket on BFAM! Install the app and join my team: ${link}`,
+    }).catch(() => {
+      // The browser has no share sheet (desktop) or the person closed it — nothing to report.
     });
+  }
+
+  async function lookUpPhone() {
+    setPhoneBusy(true);
+    const problem = await addByPhone(phone);
+    setPhoneBusy(false);
+    setPhoneError(problem);
+    if (!problem) setPhone('');
   }
 
   return (
@@ -77,8 +97,19 @@ export function ContactsInviteSection({
           className="font-ui text-body text-text-secondary mb-6"
           testID={`${testIDPrefix}-contacts-denied`}
         >
-          BFAM needs permission to read your contacts&apos; phone numbers to find players you know.
-          You can allow it from your phone&apos;s Settings.
+          {isWeb
+            ? 'No contacts were shared. Tap the button again and choose the people you want to invite, or add players by phone number below.'
+            : "BFAM needs permission to read your contacts' phone numbers to find players you know. You can allow it from your phone's Settings."}
+        </Text>
+      )}
+
+      {status === 'unsupported' && (
+        <Text
+          className="font-ui text-body text-text-secondary mb-6"
+          testID={`${testIDPrefix}-contacts-unsupported`}
+        >
+          This browser can&apos;t open your contact list (Chrome on Android can). Add players by
+          phone number below, or share the invite link with anyone who isn&apos;t on BFAM yet.
         </Text>
       )}
 
@@ -91,6 +122,47 @@ export function ContactsInviteSection({
             onPress={load}
             testID={`${testIDPrefix}-retry-contacts-button`}
           />
+        </View>
+      )}
+
+      {isWeb && status !== 'loading' && (
+        <View className="mb-4" testID={`${testIDPrefix}-phone-lookup`}>
+          <Text className="font-ui text-micro text-text-tertiary mb-1">
+            Or add a player by phone number
+          </Text>
+          <View className="flex-row items-center">
+            <View
+              className="flex-1 mr-2 bg-surface-alt rounded-md px-3 justify-center"
+              style={{ height: 44 }}
+            >
+              <TextInput
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                placeholder="10-digit mobile number"
+                placeholderTextColor="#9C9C9C"
+                className="font-ui text-body text-text-primary"
+                testID={`${testIDPrefix}-phone-input`}
+              />
+            </View>
+            <Button
+              label="Find"
+              variant="secondary"
+              fullWidth={false}
+              loading={phoneBusy}
+              disabled={phoneBusy || phone.trim().length === 0}
+              onPress={lookUpPhone}
+              testID={`${testIDPrefix}-phone-find-button`}
+            />
+          </View>
+          {phoneError ? (
+            <Text
+              className="font-ui text-micro text-brand-red-dark mt-1"
+              testID={`${testIDPrefix}-phone-error`}
+            >
+              {phoneError}
+            </Text>
+          ) : null}
         </View>
       )}
 
