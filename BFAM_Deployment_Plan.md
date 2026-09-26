@@ -115,6 +115,13 @@ Testers' phones ─► Mobile-web (Azure Static Web Apps)     ─┐
 `[you]` = needs your login / card / a decision (I can't create accounts or enter payment or credentials for you).
 `[repo]` = the file that already exists for that step.
 
+> **One-command route (used for the first deployment, 2026-09-26):** after `az login`, run
+> `powershell -ExecutionPolicy Bypass -File .\deploy\deploy-azure.ps1` from the repo root. It does the provisioning, configuration, seeding and
+> mobile-web publishing below in about 10 minutes (resource group, static IP + DNS name, firewall, VM via `deploy/cloud-init.yaml`, MySQL,
+> Static Web App) and is safe to re-run. It reads secrets from `%USERPROFILE%\bfam-secrets\` (outside the repo). **South India** was used
+> because Central India restricts the free VM size for new subscriptions — check with `az vm list-skus` before choosing a region. Database TLS
+> verification worked with the default CA store (no fallback needed). Storage (R2), the admin web and the APK are not part of that script.
+
 ### Step 0 — Accounts (all under sportsbfam@gmail.com) `[you]`
 
 Azure free account (phone + card), Cloudflare (R2), Netlify, Expo, and the GitHub repo that holds this code. Turn on 2-step verification on each.
@@ -252,6 +259,10 @@ the API returns the code and the app shows it, so testers can finish sign-up and
 > ⚠️ **Security risk you are accepting:** anyone who knows the code can verify _any_ phone number and **reset any account's password**. Use it only for an
 > invite-only beta with people you know, on a URL you don't publish, with no real money and no sensitive data. Tell testers to use throwaway passwords.
 > Change the code any time by editing `STATIC_OTP_CODE` and restarting.
+>
+> **This repository is public and the default code is written in it, so set your own private `STATIC_OTP_CODE` on the server before sharing the link**
+> (edit `/opt/bfam/backend.env`, then `docker compose -f docker-compose.azure.yml up -d`). Also: an account is only as safe as its phone number is
+> secret — anyone who knows a tester's (or the admin's) phone number and the code can reset that account.
 
 ### Replacing it with a real provider (MSG91, already wired in the code)
 

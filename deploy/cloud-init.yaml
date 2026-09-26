@@ -1,0 +1,13 @@
+#cloud-config
+# First-boot setup for the BFAM beta VM (Ubuntu 24.04): Docker + Compose, 2 GB swap
+# (the free-tier VMs have 1 GiB RAM) and the folder the compose files live in.
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+runcmd:
+  - [bash, -c, "fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab"]
+  - [mkdir, -p, /opt/bfam]
+  - [chown, "azureuser:azureuser", /opt/bfam]
+  - [usermod, -aG, docker, azureuser]
+  - [systemctl, enable, --now, docker]
