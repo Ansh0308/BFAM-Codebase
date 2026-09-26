@@ -11,6 +11,7 @@ import { initSentry } from './config/sentry';
 import { USER_ROLES } from './domain/constants';
 import { authenticateJwt, requireRoles } from './middleware/auth';
 import { issueJwt, UserRole } from './services/authService';
+import { isLocalDevOrTest } from './config/env';
 import { createUserAccount } from './services/accountService';
 import { sequelize } from './config/sequelize';
 import {
@@ -154,9 +155,11 @@ async function touchLastLogin(userId: string): Promise<void> {
 initSentry();
 
 // A predictable JWT secret would let anyone forge auth tokens — refusing to
-// boot in production without a real one beats silently running insecurely.
-if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET must be set in production');
+// boot without a real one beats silently running insecurely. Only an explicit
+// local `development`/`test` run may fall back to the built-in dev secret;
+// production, staging, or an unset NODE_ENV must supply JWT_SECRET.
+if (!isLocalDevOrTest() && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set outside local development/test');
 }
 
 const app = express();
@@ -244,7 +247,12 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // A test error endpoint to verify Sentry
-app.get('/debug-sentry', (_req: Request, _res: Response) => {
+// Local only: on a real deployment this would be a public switch anyone could
+// flip to spam the error tracker.
+app.get('/debug-sentry', (_req: Request, res: Response) => {
+  if (!isLocalDevOrTest()) {
+    return res.status(404).json({ error: { message: 'Not found', status: 404 } });
+  }
   throw new Error('Sentry test error from BFAM backend!');
 });
 
@@ -742,7 +750,15 @@ app.get('/cricketers/search', async (req: Request, res: Response) => {
   }
 });
 
+// Test/dev helper that mints a token for ANY role and user id with no
+// credentials. It must never exist on a real deployment — in production it
+// would be a one-request admin takeover — so it 404s unless NODE_ENV is
+// explicitly `development` or `test`. Checked per request, not at import
+// time, so a mis-set environment can't leave it half-enabled.
 app.post('/auth/dev-token', (req: Request, res: Response) => {
+  if (!isLocalDevOrTest()) {
+    return res.status(404).json({ error: { message: 'Not found', status: 404 } });
+  }
   const role = req.body?.role as UserRole;
   if (!USER_ROLES.includes(role)) {
     return res.status(400).json({ error: { message: 'Invalid role', status: 400 } });
