@@ -1,0 +1,28 @@
+# Build context for apps/backend/Dockerfile (run from the repo root).
+
+# Never send secrets or local state into the image build.
+**/.env
+**/.env.*
+!**/.env.example
+
+**/node_modules
+**/dist
+**/.next
+**/.next-build
+**/.expo
+**/coverage
+.git
+.github
+.husky
+.claude
+deploy
+Images
+*.md
+*.csv
+
+# The image only needs the backend and the shared packages. The two other apps
+# contribute just their package.json (npm's lockfile lists every workspace).
+apps/mobile/*
+!apps/mobile/package.json
+apps/web/*
+!apps/web/package.json

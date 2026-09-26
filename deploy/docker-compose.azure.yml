@@ -1,0 +1,67 @@
+# Production stack for ONE small Linux VM (Azure B1s / B2ats v2, or any VPS):
+#   caddy   — HTTPS (free Let's Encrypt certificate, renewed automatically),
+#             terminates TLS and forwards to the backend, WebSockets included
+#   backend — the BFAM API + Socket.IO (image built by .github/workflows/deploy-backend.yml)
+#   redis   — presence store; the backend runs without it, but live viewer
+#             counts need it, and it is tiny
+#
+# MySQL is NOT in here: use the managed database (Azure Database for MySQL
+# Flexible Server) so backups and upgrades aren't your job.
+#
+# On the VM (default /opt/bfam) keep:
+#   docker-compose.azure.yml, Caddyfile   — copied by the deploy workflow
+#   .env          SITE_ADDRESS=<name>.<region>.cloudapp.azure.com   (compose reads it)
+#   backend.env   the backend's settings — start from deploy/azure.env.example
+#
+# Start / update:
+#   BACKEND_IMAGE=ghcr.io/<owner>/bfam-backend:latest docker compose -f docker-compose.azure.yml up -d
+services:
+  backend:
+    image: ${BACKEND_IMAGE:?set BACKEND_IMAGE, e.g. ghcr.io/<owner>/bfam-backend:latest}
+    restart: unless-stopped
+    env_file: backend.env
+    environment:
+      NODE_ENV: production
+      PORT: '5000'
+      TZ: Asia/Kolkata
+      # Exactly one proxy (Caddy) sits in front, so rate limits see the real client IP.
+      TRUST_PROXY: '1'
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - redis
+    expose:
+      - '5000'
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # A cache of who is watching a match — losing it costs nothing.
+    command: ['redis-server', '--save', '', '--appendonly', 'no', '--maxmemory', '64mb']
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Keep the certificate across restarts (Let's Encrypt rate-limits re-issuing).
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: *logging
+
+volumes:
+  caddy_data:
+  caddy_config:

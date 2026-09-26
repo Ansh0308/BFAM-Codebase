@@ -1,0 +1,7 @@
+# SITE_ADDRESS is the public host name, e.g. bfam-beta.centralindia.cloudapp.azure.com.
+# Caddy fetches and renews its HTTPS certificate on its own (ports 80 and 443
+# must be open to the internet), and proxies WebSocket upgrades (Socket.IO) as-is.
+{$SITE_ADDRESS} {
+	encode gzip
+	reverse_proxy backend:5000
+}
