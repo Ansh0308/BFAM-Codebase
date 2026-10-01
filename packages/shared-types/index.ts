@@ -447,6 +447,12 @@ export interface TeamDetails extends Team {
 
 export interface MyTeam extends Team {
   role_in_team: TeamMemberRole;
+  /** Active roster size. */
+  member_count: number;
+  /** Finalized matches this team played, and its wins/losses (ties and no-results count in neither). */
+  matches_played: number;
+  wins: number;
+  losses: number;
 }
 
 export interface OpenTeam extends Team {

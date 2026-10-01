@@ -15,6 +15,8 @@ jest.mock('expo-router', () => ({
 jest.mock('../src/lib/apiClient', () => ({
   apiClient: {
     getMyTeams: jest.fn(),
+    getMyProfile: jest.fn().mockResolvedValue({ coin_balance: 0 }),
+    getNotifications: jest.fn().mockResolvedValue({ results: [] }),
   },
 }));
 
@@ -35,6 +37,10 @@ const TEAM = {
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
   role_in_team: 'CAPTAIN',
+  member_count: 8,
+  matches_played: 12,
+  wins: 7,
+  losses: 5,
 };
 
 // Backlog A-11: the copy affordance on each My Teams row should hand every

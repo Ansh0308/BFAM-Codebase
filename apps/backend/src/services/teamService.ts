@@ -222,8 +222,25 @@ export async function searchTeamsByName(query: string) {
 // My Teams: every team the caller has an ACTIVE membership on.
 export async function listMyTeams(userId: string) {
   const playerId = await resolvePlayerId(userId);
-  return sequelize.query<TeamRow & { role_in_team: string }>(
-    `SELECT t.*, tm.role_in_team
+  return sequelize.query<
+    TeamRow & {
+      role_in_team: string;
+      member_count: number;
+      matches_played: number;
+      wins: number;
+      losses: number;
+    }
+  >(
+    `SELECT t.*, tm.role_in_team,
+       (SELECT COUNT(*) FROM team_members m
+         WHERE m.team_id = t.team_id AND m.membership_status = 'ACTIVE') AS member_count,
+       (SELECT COUNT(*) FROM match_teams mt JOIN match_results mr ON mr.match_id = mt.match_id
+         WHERE mt.team_id = t.team_id) AS matches_played,
+       (SELECT COUNT(*) FROM match_teams mt JOIN match_results mr ON mr.match_id = mt.match_id
+         WHERE mt.team_id = t.team_id AND mr.winning_match_team_id = mt.match_team_id) AS wins,
+       (SELECT COUNT(*) FROM match_teams mt JOIN match_results mr ON mr.match_id = mt.match_id
+         WHERE mt.team_id = t.team_id AND mr.winning_match_team_id IS NOT NULL
+           AND mr.winning_match_team_id <> mt.match_team_id) AS losses
      FROM teams t JOIN team_members tm ON tm.team_id = t.team_id
      WHERE tm.player_id = :playerId AND tm.membership_status = 'ACTIVE' AND t.deleted_at IS NULL
      ORDER BY t.team_name ASC`,
