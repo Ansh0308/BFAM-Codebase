@@ -10,7 +10,7 @@ jest.mock('expo-secure-store', () => ({
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, replace: mockReplace }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => ({ identifier: '+919876543210', purpose: 'LOGIN' }),
 }));
 

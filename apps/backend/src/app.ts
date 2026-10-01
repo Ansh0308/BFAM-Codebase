@@ -374,7 +374,7 @@ app.post('/auth/otp/send', async (req: Request, res: Response) => {
     if (purpose === 'SIGNUP') {
       if (existingUser) {
         return res.status(409).json({
-          error: { message: 'An account already exists for this identifier', status: 409 },
+          error: { message: 'An account already exists for this phone number', status: 409 },
         });
       }
       const { code } = await generateAndSendOtp(identifier, purpose);

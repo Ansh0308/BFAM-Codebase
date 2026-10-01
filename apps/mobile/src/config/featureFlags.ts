@@ -4,4 +4,7 @@
 // listing (module 2.3). Flipping this back to true re-enables Discover
 // with no rebuild of the underlying feature — nothing about module 2.3
 // itself is touched, only these two entry points into it.
-export const DISCOVERY_ENABLED = false;
+//
+// Re-enabled per feedback: Book Turf should open the turf list (Discover)
+// again rather than skip straight to one turf's time slots.
+export const DISCOVERY_ENABLED = true;

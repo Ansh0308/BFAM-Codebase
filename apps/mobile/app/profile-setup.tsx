@@ -178,7 +178,23 @@ export default function ProfileSetup() {
 
   return (
     <AuthScreenBackground scroll>
-      <View className="items-center mt-10 mb-8">
+      {/* Reached from Profile/Settings ("?from=profile") rather than the
+          onboarding hand-off — give it a way back, since there's no header
+          anywhere in this stack (headerShown is false app-wide). */}
+      {from === 'profile' ? (
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          className="mt-4 self-start items-center justify-center"
+          style={{ width: 36, height: 36 }}
+          testID="profile-setup-back-button"
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Feather name="arrow-left" size={22} color="#0D0D0D" />
+        </Pressable>
+      ) : null}
+      <View className={from === 'profile' ? 'items-center mt-2 mb-8' : 'items-center mt-10 mb-8'}>
         <Text className="font-display text-title-xl uppercase text-ink-black">
           Set Up Your Profile
         </Text>

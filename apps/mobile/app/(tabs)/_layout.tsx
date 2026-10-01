@@ -2,7 +2,6 @@ import React from 'react';
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { DISCOVERY_ENABLED } from '../../src/config/featureFlags';
 
 const ACTIVE = '#D80000';
 const INACTIVE = '#767676';
@@ -81,12 +80,12 @@ export default function TabsLayout() {
         options={{
           title: 'Discover',
           tabBarIcon: ({ focused }) => <TabIcon name="compass" focused={focused} />,
-          // Backlog A-12: `href: null` is Expo Router's documented way to
-          // drop a screen from the tab bar (and from tab-bar navigation)
-          // while keeping its routes reachable for direct navigation —
-          // Home's "Book Turf" quick action still deep-links straight to
-          // the owned turf's availability screen underneath this tree.
-          ...(DISCOVERY_ENABLED ? {} : { href: null }),
+          // Feedback: keep Discover off the bottom tab bar — it's only
+          // reached via Home's "Book Turf" quick action, not as its own
+          // tab. `href: null` is Expo Router's documented way to drop a
+          // screen from the tab bar (and from tab-bar navigation) while
+          // keeping its routes reachable for direct/deep-link navigation.
+          href: null,
         }}
       />
       <Tabs.Screen

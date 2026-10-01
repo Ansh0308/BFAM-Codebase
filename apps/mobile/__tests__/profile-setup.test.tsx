@@ -18,9 +18,10 @@ jest.mock('expo-image-picker', () => ({
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+const mockBack = jest.fn();
 let mockSearchParams: { from?: string } = {};
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, replace: mockReplace }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, back: mockBack }),
   useLocalSearchParams: () => mockSearchParams,
 }));
 
@@ -155,6 +156,25 @@ describe('ProfileSetup screen', () => {
     await fireEvent.press(await findByTestId('profile-setup-save'));
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(tabs)/profile'));
+  });
+
+  it('has a back button when editing from Profile, since there is no header to go back from', async () => {
+    mockSearchParams = { from: 'profile' };
+    useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
+
+    const { findByTestId } = await render(<ProfileSetup />);
+    await fireEvent.press(await findByTestId('profile-setup-back-button'));
+
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
+  });
+
+  it('has no back button during first-time onboarding setup', async () => {
+    useAuthStore.setState({ user: { user_id: 'u1', bfam_id: 'BF1000', role: 'PLAYER' } });
+
+    const { findByTestId, queryByTestId } = await render(<ProfileSetup />);
+    await findByTestId('profile-photo-picker');
+
+    expect(queryByTestId('profile-setup-back-button')).toBeNull();
   });
 
   it('falls back to the local photo URI and shows a note when the server has no photo storage configured', async () => {

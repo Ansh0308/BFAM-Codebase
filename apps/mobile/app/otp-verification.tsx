@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text } from 'react-native';
+import { Pressable, View, Text } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { AuthScreenBackground } from '../src/components/AuthScreenBackground';
@@ -62,6 +62,10 @@ export default function OtpVerification() {
       // that already has an account) instead of a generic message that
       // reads like a delivery failure when it's really a validation error.
       setError(err instanceof BFAMApiError ? err.message : 'Could not send OTP. Please try again.');
+      // No OTP was actually sent (e.g. SIGNUP with a number that already
+      // has an account) — drop back to the "enter code" UI's precondition
+      // so the screen doesn't claim a code was texted when it wasn't.
+      setOtpSent(false);
     } finally {
       setLoading(false);
     }
@@ -127,7 +131,22 @@ export default function OtpVerification() {
 
   return (
     <AuthScreenBackground scroll>
-      <View className="items-center mt-12 mb-6">
+      {/* No header anywhere in this stack (headerShown is false app-wide),
+          and nothing else on this screen gets back to Signup/Login — e.g.
+          SIGNUP with a number that already has an account, where retrying
+          the code can never succeed. */}
+      <Pressable
+        onPress={() => router.back()}
+        hitSlop={12}
+        className="mt-4 self-start items-center justify-center"
+        style={{ width: 36, height: 36 }}
+        testID="otp-back-button"
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+      >
+        <Feather name="arrow-left" size={22} color="#0D0D0D" />
+      </Pressable>
+      <View className="items-center mt-2 mb-6">
         <BrandLogo variant="horizontal" height={44} />
       </View>
 
@@ -163,6 +182,11 @@ export default function OtpVerification() {
             testID="otp-identifier"
             iconLeft={<Feather name="smartphone" size={18} color="#D80000" />}
           />
+          {error ? (
+            <Text className="font-ui text-body text-brand-red-dark mb-3" testID="otp-error">
+              {error}
+            </Text>
+          ) : null}
           <Button
             label="Send Code"
             onPress={sendOtp}
@@ -185,7 +209,9 @@ export default function OtpVerification() {
           ) : null}
 
           {error ? (
-            <Text className="font-ui text-body text-brand-red-dark mt-3">{error}</Text>
+            <Text className="font-ui text-body text-brand-red-dark mt-3" testID="otp-error">
+              {error}
+            </Text>
           ) : null}
 
           <View className="mt-6">

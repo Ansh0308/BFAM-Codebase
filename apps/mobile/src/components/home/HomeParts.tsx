@@ -5,6 +5,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
 import { colors } from '../../theme/tokens';
 import { CountUp } from './CountUp';
+import { CricketBatIcon } from '../CricketBatIcon';
 
 // Tactile press: the card lifts 3px and the icon swells a touch, on a
 // spring with no overshoot to speak of — subtle, not bouncy.
@@ -83,10 +84,25 @@ export function QuickAction({
 
 type MciName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-function Stat({ icon, value, label }: { icon: MciName; value: number; label: string }) {
+function Stat({
+  icon,
+  value,
+  label,
+}: {
+  // Either a MaterialCommunityIcons glyph name, or a custom icon element for
+  // the cases MCI has no good match for (e.g. no cricket-bat glyph — only
+  // baseball-bat — see CricketBatIcon).
+  icon: MciName | React.ReactElement;
+  value: number;
+  label: string;
+}) {
   return (
     <View className="flex-1 items-center">
-      <MaterialCommunityIcons name={icon} size={22} color={colors.inkBlack} />
+      {typeof icon === 'string' ? (
+        <MaterialCommunityIcons name={icon} size={22} color={colors.inkBlack} />
+      ) : (
+        icon
+      )}
       <CountUp
         value={value}
         className="font-display text-brand-red"
@@ -152,7 +168,11 @@ export function PerformanceCard({
       <View className="flex-row">
         <Stat icon="cricket" value={matches} label="Matches" />
         {divider}
-        <Stat icon="baseball-bat" value={runs} label="Runs" />
+        <Stat
+          icon={<CricketBatIcon size={22} color={colors.inkBlack} />}
+          value={runs}
+          label="Runs"
+        />
         {divider}
         <Stat icon="view-column" value={wickets} label="Wickets" />
         {divider}
