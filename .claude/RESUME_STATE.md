@@ -112,6 +112,15 @@ Razorpay keys; UPI/card can only be tested in the native app (APK) with Razorpay
 (Expo build ad965943-74ee-4b3d-b743-1d84a60d2723) but predates the last UI fixes - rebuild for
 testers when convenient (`eas build -p android --profile preview` from apps/mobile).
 
+**Slots (2026-10-02):** a booked slot holds several matches played one after another (no
+user-chosen times). Server rule in `backend/src/domain/matchSlot.ts`: a new match only while the slot
+has not ended and earlier matches are COMPLETED/CANCELLED; `actual_start_time`/`actual_end_time` are now
+recorded (start of match / finalize). `matches.scheduled_end_time` exists but is unused. App: Matches tab "Slots"
+tab -> `matches/slot/[bookingId]`. Extra-ball time stats: `domain/extrasImpact.ts` (estimate from the
+innings pace). Android app still closes on open with no message: entry is now `apps/mobile/index.js`
+(crash guard first); next step is the phone's adb logcat (needs user USB + OK to install platform-tools).
+Tester sheet rows still open: 17, 18, 23.
+
 **NativeWind gotcha:** `className` is silently ignored on React Native's own `Animated.*`
 components (unlike plain `View`/`ScrollView`) — use `style`/`contentContainerStyle`, or wrap a
 plain `View` (this caused the edge-to-edge Home on the deployed site; regression test:
