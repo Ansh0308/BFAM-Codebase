@@ -912,7 +912,11 @@ export async function finalizeMatch(
   ]);
   await sequelize
     .getQueryInterface()
-    .bulkUpdate('matches', { match_status: 'COMPLETED', updated_at: now }, { match_id: matchId });
+    .bulkUpdate(
+      'matches',
+      { match_status: 'COMPLETED', actual_end_time: now, updated_at: now },
+      { match_id: matchId },
+    );
   // The last innings never gets closed out by startInnings (there's no next
   // innings to trigger it), so finalizing the match has to do it here —
   // otherwise that innings stays IN_PROGRESS forever.

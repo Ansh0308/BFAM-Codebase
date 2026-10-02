@@ -239,7 +239,7 @@ describe('Match Player Replacement flow (module 2.6)', () => {
         booking_id: 'eeeeeeee-0000-4000-8000-000000000099',
         turf_id: 'turf-1',
         booked_by: ORGANIZER_USER,
-        booking_date: '2026-09-10',
+        booking_date: '2099-01-10',
         start_time: '18:00:00',
         end_time: '19:00:00',
         duration_minutes: 60,

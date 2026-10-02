@@ -1,10 +1,12 @@
 import { InvalidMatchStateError } from './errors';
 import { bookingStartInstant } from './time';
 
-// A booked turf slot (say 18:00-20:00) can hold several matches, each with its own
-// start and end, as long as they do not overlap and stay inside the slot. This is
-// the pure rule for working out where a new match goes; the caller supplies the
-// slot and the matches already in it.
+// A booked turf slot (say 6-8 PM) usually holds more than one match. Players cannot know
+// in advance when a match will end, so matches are NOT given a time window up front:
+// they run one after another. A new match can be created in a slot while the slot is
+// still running (or has not started) and every earlier match in it is finished
+// (COMPLETED) or CANCELLED. What a match actually took is recorded when it starts and
+// when it finishes (matches.actual_start_time / actual_end_time).
 
 export interface SlotInput {
   booking_date: string; // 'YYYY-MM-DD'
@@ -12,89 +14,67 @@ export interface SlotInput {
   end_time: string;
 }
 
-export interface ExistingMatchWindow {
-  scheduled_start_time: Date | string;
-  // Matches made before slots could be split have no end: they filled the slot.
-  scheduled_end_time: Date | string | null;
+export type SlotState = 'UPCOMING' | 'ACTIVE' | 'PASSED';
+
+export interface SlotAssessment {
+  slot_state: SlotState;
+  can_add_match: boolean;
+  // Why a match cannot be added (null when it can).
+  reason: string | null;
 }
 
-export interface RequestedWindow {
-  start_time?: string | null; // 'HH:MM' (India time)
-  end_time?: string | null;
+const FINISHED = new Set(['COMPLETED', 'CANCELLED']);
+
+export const SLOT_PASSED_MESSAGE = 'This slot has ended. Book a new slot to play more matches.';
+export const MATCH_STILL_RUNNING_MESSAGE =
+  'Finish the current match in this slot before creating the next one.';
+
+export function slotWindow(slot: SlotInput): { start: Date; end: Date } {
+  return {
+    start: bookingStartInstant(slot.booking_date, slot.start_time),
+    end: bookingStartInstant(slot.booking_date, slot.end_time),
+  };
 }
 
-export const MIN_MATCH_MINUTES = 15;
-const IST_OFFSET_MS = 330 * 60_000;
-
-export function formatIst(date: Date): string {
-  return new Date(date.getTime() + IST_OFFSET_MS).toISOString().slice(11, 16);
-}
-
-function parseTime(value: string): string {
-  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
-    throw new InvalidMatchStateError('Times must look like 18:30.');
-  }
-  return value;
-}
-
-export function resolveMatchWindow(
+export function assessSlot(
   slot: SlotInput,
-  existing: ExistingMatchWindow[],
-  requested: RequestedWindow = {},
-): { start: Date; end: Date } {
-  const slotStart = bookingStartInstant(slot.booking_date, slot.start_time);
-  const slotEnd = bookingStartInstant(slot.booking_date, slot.end_time);
+  matches: { match_status: string }[],
+  now: Date = new Date(),
+): SlotAssessment {
+  const { start, end } = slotWindow(slot);
+  const slotState: SlotState =
+    now.getTime() >= end.getTime()
+      ? 'PASSED'
+      : now.getTime() >= start.getTime()
+        ? 'ACTIVE'
+        : 'UPCOMING';
 
-  const occupied = existing
-    .map((m) => ({
-      start: new Date(m.scheduled_start_time),
-      end: m.scheduled_end_time ? new Date(m.scheduled_end_time) : slotEnd,
-    }))
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
-
-  // Where the next free time begins: right after the last match, or the start of the slot.
-  const nextFree = occupied.reduce(
-    (latest, o) => (o.end.getTime() > latest.getTime() ? o.end : latest),
-    slotStart,
-  );
-
-  const start = requested.start_time
-    ? bookingStartInstant(slot.booking_date, parseTime(requested.start_time))
-    : nextFree;
-
-  if (!requested.start_time && occupied.length > 0 && start.getTime() >= slotEnd.getTime()) {
-    throw new InvalidMatchStateError(
-      'This slot is already full. Book another slot to play more matches.',
-    );
+  if (slotState === 'PASSED') {
+    return { slot_state: slotState, can_add_match: false, reason: SLOT_PASSED_MESSAGE };
   }
-
-  // Without an explicit end, run until the next match begins or the slot ends.
-  const nextStart = occupied.find((o) => o.start.getTime() >= start.getTime());
-  const end = requested.end_time
-    ? bookingStartInstant(slot.booking_date, parseTime(requested.end_time))
-    : nextStart && nextStart.start.getTime() < slotEnd.getTime()
-      ? nextStart.start
-      : slotEnd;
-
-  if (start.getTime() < slotStart.getTime() || end.getTime() > slotEnd.getTime()) {
-    throw new InvalidMatchStateError(
-      `A match must fall inside the booked slot (${formatIst(slotStart)}-${formatIst(slotEnd)}).`,
-    );
+  if (matches.some((m) => !FINISHED.has(m.match_status))) {
+    return { slot_state: slotState, can_add_match: false, reason: MATCH_STILL_RUNNING_MESSAGE };
   }
-  if (end.getTime() - start.getTime() < MIN_MATCH_MINUTES * 60_000) {
-    throw new InvalidMatchStateError(
-      `A match needs at least ${MIN_MATCH_MINUTES} minutes in the slot.`,
-    );
-  }
+  return { slot_state: slotState, can_add_match: true, reason: null };
+}
 
-  const clash = occupied.find(
-    (o) => start.getTime() < o.end.getTime() && o.start.getTime() < end.getTime(),
-  );
-  if (clash) {
-    throw new InvalidMatchStateError(
-      `That time overlaps another match in this slot (${formatIst(clash.start)}-${formatIst(clash.end)}).`,
-    );
-  }
+export function assertSlotAcceptsNewMatch(
+  slot: SlotInput,
+  matches: { match_status: string }[],
+  now: Date = new Date(),
+): void {
+  const assessment = assessSlot(slot, matches, now);
+  if (!assessment.can_add_match) throw new InvalidMatchStateError(assessment.reason as string);
+}
 
-  return { start, end };
+// When the match is scheduled to begin: the first one at the slot's start; one created
+// later, once the earlier matches are done, starts as soon as it is created (never before
+// the slot itself begins).
+export function scheduledStartFor(
+  slot: SlotInput,
+  existingMatchCount: number,
+  now: Date = new Date(),
+): Date {
+  const { start } = slotWindow(slot);
+  return existingMatchCount === 0 || now.getTime() < start.getTime() ? start : now;
 }

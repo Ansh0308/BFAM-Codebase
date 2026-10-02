@@ -21,6 +21,7 @@ export default function MatchesLayout() {
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="create" options={{ title: 'Create Match' }} />
+      <Stack.Screen name="slot/[bookingId]" options={{ title: 'Your Slot' }} />
       {/* Draws its own header (back arrow + title) over the campaign artwork. */}
       <Stack.Screen name="rooms/index" options={{ headerShown: false }} />
       <Stack.Screen name="rooms/create" options={{ title: 'Create a Room' }} />

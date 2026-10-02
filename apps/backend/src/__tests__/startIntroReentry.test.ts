@@ -91,6 +91,8 @@ describe('startIntro re-entry does not reset everyone back to COUNTDOWN (backlog
     );
     expect(matchUpdates).toContainEqual({
       match_status: 'IN_PROGRESS',
+      // the real start of the match is recorded, so a slot knows how long matches take
+      actual_start_time: expect.any(Date),
       match_id: MATCH_ID,
     });
   });

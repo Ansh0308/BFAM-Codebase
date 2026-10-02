@@ -507,8 +507,6 @@ export interface Match {
   match_status: MatchStatus;
   visibility: 'PRIVATE' | 'PUBLIC';
   scheduled_start_time: string;
-  // Null on matches made before a slot could hold several; those fill the whole slot.
-  scheduled_end_time?: string | null;
   actual_start_time: string | null;
   actual_end_time: string | null;
   check_in_code: string | null;
@@ -572,15 +570,25 @@ export interface SlotMatch {
   match_type: MatchType;
   match_status: MatchStatus;
   scheduled_start_time: string;
-  scheduled_end_time: string | null;
+  // When the match really started / finished (null until it does).
+  actual_start_time: string | null;
+  actual_end_time: string | null;
   overs_per_innings: number;
 }
+
+// Matches in a slot run one after another: another can be created while the slot has not
+// ended and every earlier match in it is finished or cancelled.
+export type SlotState = 'UPCOMING' | 'ACTIVE' | 'PASSED';
 
 export interface BookingMatches {
   booking_id: string;
   booking_date: string;
   slot_start_time: string;
   slot_end_time: string;
+  slot_state: SlotState;
+  can_add_match: boolean;
+  // Why a match cannot be added right now (null when it can).
+  reason: string | null;
   matches: SlotMatch[];
 }
 
@@ -598,10 +606,6 @@ export interface CreateMatchInput {
   team_a_name?: string | null;
   team_b_name?: string | null;
   no_non_striker?: boolean;
-  // Where in the booked slot the match is played ('HH:MM', India time); a slot can hold several
-  // matches. Omitted = the next free time through to the end of the slot.
-  start_time?: string | null;
-  end_time?: string | null;
 }
 
 // Backlog G-20: a "Live Now" discovery row — a PUBLIC, IN_PROGRESS match

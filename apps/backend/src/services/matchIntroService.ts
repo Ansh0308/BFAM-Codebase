@@ -165,7 +165,11 @@ export async function startIntro(matchId: string, actorUserId: string) {
     // nothing ever set it before now.
     await sequelize
       .getQueryInterface()
-      .bulkUpdate('matches', { match_status: 'IN_PROGRESS' }, { match_id: matchId });
+      .bulkUpdate(
+        'matches',
+        { match_status: 'IN_PROGRESS', actual_start_time: new Date() },
+        { match_id: matchId },
+      );
     intro = await fetchIntro(matchId);
   }
 

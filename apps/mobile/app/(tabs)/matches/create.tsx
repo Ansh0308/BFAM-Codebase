@@ -18,8 +18,7 @@ import { ScreenContainer } from '../../../src/components/ScreenContainer';
 import { Button } from '../../../src/components/Button';
 import { TextField } from '../../../src/components/TextField';
 import { ChipSelect } from '../../../src/components/ChipSelect';
-import { TimeField, formatTimeForDisplay } from '../../../src/components/DateTimeFields';
-import { freeWindows, toMinutes, MIN_MATCH_MINUTES } from '../../../src/lib/slotTime';
+import { formatTimeForDisplay } from '../../../src/components/DateTimeFields';
 import { ToggleRow } from '../../../src/components/ToggleRow';
 import { useRebookStore } from '../../../src/store/rebookStore';
 import { useChallengeMatchStore } from '../../../src/store/challengeMatchStore';
@@ -61,11 +60,10 @@ export default function CreateMatchScreen() {
   const [loadingBookings, setLoadingBookings] = useState(!params.bookingId);
   const [bookingId, setBookingId] = useState<string | null>(params.bookingId ?? null);
 
-  // A booked slot can hold several matches: this match gets its own start and end inside
-  // the slot, defaulting to the first stretch that is still free.
+  // A booked slot can hold several matches, played one after another: nobody can say in
+  // advance when a match will end, so there is no time to choose. The server allows a new
+  // match while the slot has not ended and the earlier matches in it are finished.
   const [slot, setSlot] = useState<BookingMatches | null>(null);
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
 
   useEffect(() => {
     if (!bookingId) {
@@ -75,11 +73,7 @@ export default function CreateMatchScreen() {
     let cancelled = false;
     Promise.resolve(apiClient.getBookingMatches(bookingId))
       .then((res) => {
-        if (cancelled || !res) return;
-        setSlot(res);
-        const first = freeWindows(res.slot_start_time, res.slot_end_time, res.matches)[0];
-        setStartTime(first?.from ?? '');
-        setEndTime(first?.to ?? '');
+        if (!cancelled && res) setSlot(res);
       })
       .catch(() => {
         if (!cancelled) setSlot(null);
@@ -174,21 +168,9 @@ export default function CreateMatchScreen() {
       setError('Turf-staff-managed scoring needs an assigned scorer.');
       return;
     }
-    if (slot) {
-      if (!startTime || !endTime) {
-        setError(
-          freeWindows(slot.slot_start_time, slot.slot_end_time, slot.matches).length === 0
-            ? 'This slot is already full of matches. Book another slot to play more.'
-            : 'Choose when in your slot this match starts and ends.',
-        );
-        return;
-      }
-      if (toMinutes(endTime) - toMinutes(startTime) < MIN_MATCH_MINUTES) {
-        setError(
-          `A match needs at least ${MIN_MATCH_MINUTES} minutes, and must end after it starts.`,
-        );
-        return;
-      }
+    if (slot && !slot.can_add_match) {
+      setError(slot.reason ?? 'A match cannot be created in this slot right now.');
+      return;
     }
     if (isTeamMatch && (!homeTeamId || !awayTeamId)) {
       setError('Pick both Your Team and the Opponent Team, or turn off Team Match.');
@@ -207,7 +189,6 @@ export default function CreateMatchScreen() {
         assigned_scorer_id: scoringMode === 'TURF_STAFF_MANAGED' ? assignedScorerId.trim() : null,
         home_team_id: isTeamMatch ? homeTeamId : null,
         away_team_id: isTeamMatch ? awayTeamId : null,
-        ...(slot && startTime && endTime ? { start_time: startTime, end_time: endTime } : {}),
       });
 
       // Rebook Same Players (PRD §12.44): re-invite the prior match's
@@ -311,28 +292,21 @@ export default function CreateMatchScreen() {
         )}
 
         {slot && (
-          <View className="mb-2" testID="match-slot-time">
-            <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-1">
+          <View className="bg-surface-alt rounded-md p-3 mb-4" testID="match-slot-time">
+            <Text className="font-ui font-bold text-micro uppercase tracking-wide text-text-secondary">
               Your slot: {formatTimeForDisplay(slot.slot_start_time.slice(0, 5))} –{' '}
               {formatTimeForDisplay(slot.slot_end_time.slice(0, 5))}
             </Text>
-            <Text className="font-ui text-micro text-text-tertiary mb-3">
-              {slot.matches.filter((m) => m.match_status !== 'CANCELLED').length === 0
-                ? 'No other matches yet. You can fit more than one match in a slot.'
-                : `${slot.matches.filter((m) => m.match_status !== 'CANCELLED').length} match(es) already in this slot — pick a free time.`}
+            <Text
+              className={`font-ui text-micro mt-1 ${slot.can_add_match ? 'text-text-tertiary' : 'text-brand-red-dark'}`}
+              testID="match-slot-note"
+            >
+              {slot.can_add_match
+                ? slot.matches.length === 0
+                  ? 'The match starts with your slot. You can play more matches here once it finishes.'
+                  : 'The earlier matches in this slot are finished, so you can create the next one.'
+                : slot.reason}
             </Text>
-            <TimeField
-              label="Match starts"
-              value={startTime}
-              onChange={setStartTime}
-              testID="match-start-time"
-            />
-            <TimeField
-              label="Match ends"
-              value={endTime}
-              onChange={setEndTime}
-              testID="match-end-time"
-            />
           </View>
         )}
 

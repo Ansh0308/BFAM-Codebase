@@ -34,12 +34,15 @@ describe('Create Match screen — team-vs-team picker (backlog G-20)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCreateMatch.mockResolvedValue({ match_id: 'match-1' });
-    // An empty 18:00-20:00 slot: the match defaults to the whole slot.
+    // An empty slot: a match can be created in it.
     mockGetBookingMatches.mockResolvedValue({
       booking_id: 'booking-1',
       booking_date: '2026-12-20',
       slot_start_time: '18:00:00',
       slot_end_time: '20:00:00',
+      slot_state: 'UPCOMING',
+      can_add_match: true,
+      reason: null,
       matches: [],
     });
     mockGetMyTeams.mockResolvedValue({

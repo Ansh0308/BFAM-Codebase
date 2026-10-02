@@ -7,7 +7,7 @@ import { sendNotification } from './notificationService';
 import { assertStaffVerified } from './staffService';
 import { postSystemMessage } from './chatService';
 import { balanceTeams } from '../domain/teamBalance';
-import { resolveMatchWindow } from '../domain/matchSlot';
+import { assertSlotAcceptsNewMatch, assessSlot, scheduledStartFor } from '../domain/matchSlot';
 import { isActiveTeamMember, listActiveTeamMemberPlayerIds } from './teamService';
 import {
   ForbiddenActionError,
@@ -33,7 +33,6 @@ interface MatchRow {
   match_status: string;
   visibility: string;
   scheduled_start_time: Date;
-  scheduled_end_time: Date | null;
   actual_start_time: Date | null;
   actual_end_time: Date | null;
   check_in_code: string | null;
@@ -158,11 +157,6 @@ export interface CreateMatchInput {
   team_b_name?: string | null;
   // Box-cricket single-batter mode; defaults to on for new matches.
   no_non_striker?: boolean;
-  // Where in the booked slot the match is played ('HH:MM', India time). A slot can hold
-  // several matches; with neither given the match takes the next free time to the end of
-  // the slot (the whole slot when it is the first).
-  start_time?: string | null;
-  end_time?: string | null;
 }
 
 async function assertTeamExists(teamId: string) {
@@ -229,17 +223,17 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
         transaction,
       },
     );
-    const inSlot = await sequelize.query<{
-      scheduled_start_time: Date;
-      scheduled_end_time: Date | null;
-    }>(
-      "SELECT scheduled_start_time, scheduled_end_time FROM matches WHERE booking_id = :bookingId AND match_status <> 'CANCELLED'",
+    const inSlot = await sequelize.query<{ match_status: string }>(
+      'SELECT match_status FROM matches WHERE booking_id = :bookingId',
       { type: QueryTypes.SELECT, replacements: { bookingId: input.booking_id }, transaction },
     );
-    const window = resolveMatchWindow(booking, inSlot, {
-      start_time: input.start_time,
-      end_time: input.end_time,
-    });
+    // Matches in a slot run one after another: this one can be created only while the
+    // slot has not ended and every earlier match in it is finished or cancelled.
+    assertSlotAcceptsNewMatch(booking, inSlot);
+    const scheduledStart = scheduledStartFor(
+      booking,
+      inSlot.filter((m) => m.match_status !== 'CANCELLED').length,
+    );
 
     await sequelize.getQueryInterface().bulkInsert(
       'matches',
@@ -257,8 +251,7 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
           no_non_striker: input.no_non_striker ?? true,
           match_status: 'OPEN',
           visibility: isTeamMatch ? 'PUBLIC' : 'PRIVATE',
-          scheduled_start_time: window.start,
-          scheduled_end_time: window.end,
+          scheduled_start_time: scheduledStart,
           actual_start_time: null,
           actual_end_time: null,
           check_in_code: generateCheckInCode(),
@@ -337,9 +330,9 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
   return fetchMatchOrThrow(matchId);
 }
 
-// The matches played in one booked slot, earliest first, with the slot itself so a
-// screen can show what time is still free. Cancelled matches are listed too (they
-// free their time but are worth showing); callers can filter on match_status.
+// The matches played in one booked slot, in the order they were played, with the slot's
+// own state (upcoming / running / ended) and whether another match can be created in it
+// now - the same rule createMatch enforces. Cancelled matches are listed too.
 export async function listMatchesForBooking(
   bookingId: string,
   actor: { userId: string; role: string },
@@ -353,12 +346,13 @@ export async function listMatchesForBooking(
       | 'match_type'
       | 'match_status'
       | 'scheduled_start_time'
-      | 'scheduled_end_time'
+      | 'actual_start_time'
+      | 'actual_end_time'
       | 'overs_per_innings'
     >
   >(
     `SELECT match_id, match_name, match_type, match_status, scheduled_start_time,
-            scheduled_end_time, overs_per_innings
+            actual_start_time, actual_end_time, overs_per_innings
      FROM matches WHERE booking_id = :bookingId
      ORDER BY scheduled_start_time ASC, created_at ASC`,
     { type: QueryTypes.SELECT, replacements: { bookingId } },
@@ -368,6 +362,7 @@ export async function listMatchesForBooking(
     booking_date: booking.booking_date,
     slot_start_time: booking.start_time,
     slot_end_time: booking.end_time,
+    ...assessSlot(booking, matches),
     matches,
   };
 }

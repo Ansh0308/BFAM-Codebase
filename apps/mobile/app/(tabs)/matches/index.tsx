@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import type { MyMatch } from '@bfam/shared-types';
+import type { Booking, MyMatch } from '@bfam/shared-types';
 import { apiClient } from '../../../src/lib/apiClient';
 import { colors } from '../../../src/theme/tokens';
 import { Button } from '../../../src/components/Button';
@@ -18,9 +18,12 @@ import {
   MatchCard,
   type LiveScoreSummary,
 } from '../../../src/components/matches/MatchesParts';
+import { SlotCard } from '../../../src/components/matches/SlotCard';
+import { slotState } from '../../../src/lib/slotTime';
 import matchesBg from '../../../src/assets/images/matches-bg.jpg';
 
-type MatchScope = 'upcoming' | 'past';
+// 'slots' lists the player's booked slots, each holding the matches played in it.
+type MatchScope = 'upcoming' | 'past' | 'slots';
 
 const HERO_SCROLL_RANGE = 160;
 const USE_NATIVE_DRIVER = Platform.OS !== 'web';
@@ -35,6 +38,7 @@ export default function MyMatchesScreen() {
   const { width } = useWindowDimensions();
   const [scope, setScope] = useState<MatchScope>('upcoming');
   const [matches, setMatches] = useState<MyMatch[]>([]);
+  const [slots, setSlots] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [points, setPoints] = useState<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -43,6 +47,27 @@ export default function MyMatchesScreen() {
 
   const load = useCallback((forScope: MatchScope) => {
     setLoading(true);
+    if (forScope === 'slots') {
+      apiClient
+        .getMyBookings('all')
+        .then((res) => {
+          const confirmed = res.results.filter((b) => b.booking_status === 'CONFIRMED');
+          const rank = { ACTIVE: 0, UPCOMING: 1, PASSED: 2 } as const;
+          const at = (b: Booking) => `${b.booking_date}T${b.start_time}`;
+          setSlots(
+            confirmed.sort(
+              (a, b) =>
+                rank[slotState(a)] - rank[slotState(b)] ||
+                (slotState(a) === 'PASSED'
+                  ? at(b).localeCompare(at(a))
+                  : at(a).localeCompare(at(b))),
+            ),
+          );
+        })
+        .catch(() => setSlots([]))
+        .finally(() => setLoading(false));
+      return;
+    }
     apiClient
       .getMyMatches(forScope)
       .then((res) => {
@@ -153,6 +178,7 @@ export default function MyMatchesScreen() {
           options={[
             { value: 'upcoming', label: 'Upcoming' },
             { value: 'past', label: 'Past' },
+            { value: 'slots', label: 'Slots' },
           ]}
           value={scope}
           onChange={setScope}
@@ -165,9 +191,14 @@ export default function MyMatchesScreen() {
           className="font-ui font-bold text-ink-black"
           style={{ fontSize: 15, letterSpacing: 2 }}
         >
-          YOUR MATCHES
+          {scope === 'slots' ? 'YOUR SLOTS' : 'YOUR MATCHES'}
         </Text>
-        {!loading && (
+        {!loading && scope === 'slots' && (
+          <Text className="font-ui text-text-secondary" style={{ fontSize: 13 }}>
+            {slots.length} {slots.length === 1 ? 'Slot' : 'Slots'}
+          </Text>
+        )}
+        {!loading && scope !== 'slots' && (
           <Text className="font-ui text-text-secondary" style={{ fontSize: 13 }}>
             {matches.length} {matches.length === 1 ? 'Match' : 'Matches'}
           </Text>
@@ -193,14 +224,16 @@ export default function MyMatchesScreen() {
         <MaterialCommunityIcons name="cricket" size={28} color={colors.brandRed} />
       </View>
       <Text className="font-display text-ink-black" style={{ fontSize: 26, marginBottom: 6 }}>
-        NO MATCHES YET
+        {scope === 'slots' ? 'NO SLOTS YET' : 'NO MATCHES YET'}
       </Text>
       <Text className="font-ui text-body text-text-secondary text-center mb-6">
-        {scope === 'upcoming'
-          ? 'Your next game starts here. Book a turf, then create a match for it.'
-          : 'No past matches yet.'}
+        {scope === 'slots'
+          ? 'Book a turf and your slot appears here. Play as many matches in it as the time allows.'
+          : scope === 'upcoming'
+            ? 'Your next game starts here. Book a turf, then create a match for it.'
+            : 'No past matches yet.'}
       </Text>
-      {scope === 'upcoming' && (
+      {scope !== 'past' && (
         <Button
           label="Book a Turf"
           variant="secondary"
@@ -246,9 +279,25 @@ export default function MyMatchesScreen() {
 
       <SafeAreaView className="flex-1" edges={['top']}>
         <Animated.FlatList
-          data={loading ? [] : matches}
-          keyExtractor={(item) => (item as MyMatch).match_id}
+          data={(loading ? [] : scope === 'slots' ? slots : matches) as (Booking | MyMatch)[]}
+          keyExtractor={(item) =>
+            scope === 'slots' ? (item as Booking).booking_id : (item as MyMatch).match_id
+          }
           renderItem={({ item, index }) => {
+            if (scope === 'slots') {
+              const slot = item as Booking;
+              return (
+                <SlotCard
+                  booking={slot}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/matches/slot/[bookingId]',
+                      params: { bookingId: slot.booking_id, turfName: slot.turf_name ?? '' },
+                    })
+                  }
+                />
+              );
+            }
             const match = item as MyMatch;
             return (
               <MatchCard
