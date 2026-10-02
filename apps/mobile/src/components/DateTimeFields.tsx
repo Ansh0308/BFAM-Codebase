@@ -140,11 +140,22 @@ interface DateFieldProps {
   label: string;
   value: string; // 'YYYY-MM-DD' or ''
   onChange: (value: string) => void;
+  // Earliest date that can be chosen ('YYYY-MM-DD'), e.g. today for a booking.
+  minDate?: string;
+  // The text on the closed field when a date is already chosen (default MM-DD-YYYY).
+  formatValue?: (value: string) => string;
   testID?: string;
 }
 
 // Offers today and the next two years (bookings are never in the past).
-export function DateField({ label, value, onChange, testID }: DateFieldProps) {
+export function DateField({
+  label,
+  value,
+  onChange,
+  minDate,
+  formatValue = formatDateForDisplay,
+  testID,
+}: DateFieldProps) {
   const now = new Date();
   const thisYear = now.getFullYear();
   const [open, setOpen] = useState(false);
@@ -160,14 +171,16 @@ export function DateField({ label, value, onChange, testID }: DateFieldProps) {
   const max = daysIn(month, year);
   const days = Array.from({ length: max }, (_, i) => ({ value: pad(i + 1), label: pad(i + 1) }));
   const shownDay = day && Number(day) <= max ? day : null;
-  const complete = Boolean(shownDay && month && year);
+  const chosen = shownDay && month && year ? `${year}-${month}-${shownDay}` : null;
+  const tooEarly = Boolean(chosen && minDate && chosen < minDate);
+  const complete = Boolean(chosen) && !tooEarly;
 
   return (
     <View className="mb-4" testID={testID}>
       <Trigger
         label={label}
         icon="calendar"
-        text={value ? formatDateForDisplay(value) : null}
+        text={value ? formatValue(value) : null}
         placeholder="Select date (MM-DD-YYYY)"
         open={open}
         onPress={() => setOpen((o) => !o)}
@@ -205,6 +218,14 @@ export function DateField({ label, value, onChange, testID }: DateFieldProps) {
             testID={testID ? `${testID}-year` : undefined}
           />
         </Panel>
+      ) : null}
+      {open && tooEarly ? (
+        <Text
+          className="font-ui text-micro text-brand-red-dark mt-1"
+          testID={testID ? `${testID}-too-early` : undefined}
+        >
+          Pick today or a later date.
+        </Text>
       ) : null}
     </View>
   );

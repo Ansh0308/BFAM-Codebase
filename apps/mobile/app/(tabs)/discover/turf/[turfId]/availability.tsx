@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, Modal, Pressable, Text, View } from 'react-native';
+import { FlatList, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { BallLoader } from '../../../../../src/components/BallLoader';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,9 +10,13 @@ import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../../src/lib/apiClient';
 import { colors } from '../../../../../src/theme/tokens';
 import { SlotRow } from '../../../../../src/components/SlotRow';
+import { DateField } from '../../../../../src/components/DateTimeFields';
 
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // The player's own calendar date: toISOString() is UTC, a day behind in India between
+  // midnight and 5:30 AM.
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function todayStr(): string {
@@ -149,31 +153,46 @@ export default function TurfAvailabilityScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-surface-alt" edges={['bottom']}>
-      <Pressable
-        onPress={() => setShowDatePicker(true)}
-        className="flex-row items-center justify-between mx-6 mt-3 px-4 py-3 bg-surface rounded-md border border-border-strong"
-        testID="availability-date-picker-trigger"
-      >
-        <View className="flex-row items-center">
-          <Feather name="calendar" size={18} color={colors.brandRed} />
-          <Text className="font-ui font-semibold text-body text-ink-black ml-3">
-            {selectedDate === todayStr() ? 'Today' : formatDisplayDate(selectedDate)}
-          </Text>
+      {Platform.OS === 'web' ? (
+        <View className="mx-6 mt-3">
+          <DateField
+            label="Date"
+            value={selectedDate}
+            onChange={setSelectedDate}
+            minDate={todayStr()}
+            formatValue={(v) => (v === todayStr() ? 'Today' : formatDisplayDate(v))}
+            testID="availability-date-field"
+          />
         </View>
-        <Feather name="chevron-down" size={18} color={colors.textTertiary} />
-      </Pressable>
-      {showDatePicker && (
-        <DateTimePicker
-          value={new Date(`${selectedDate}T00:00:00`)}
-          mode="date"
-          display="default"
-          minimumDate={new Date()}
-          onChange={(event: DateTimePickerEvent, date?: Date) => {
-            setShowDatePicker(false);
-            if (event.type === 'dismissed' || !date) return;
-            setSelectedDate(toDateStr(date));
-          }}
-        />
+      ) : (
+        <>
+          <Pressable
+            onPress={() => setShowDatePicker(true)}
+            className="flex-row items-center justify-between mx-6 mt-3 px-4 py-3 bg-surface rounded-md border border-border-strong"
+            testID="availability-date-picker-trigger"
+          >
+            <View className="flex-row items-center">
+              <Feather name="calendar" size={18} color={colors.brandRed} />
+              <Text className="font-ui font-semibold text-body text-ink-black ml-3">
+                {selectedDate === todayStr() ? 'Today' : formatDisplayDate(selectedDate)}
+              </Text>
+            </View>
+            <Feather name="chevron-down" size={18} color={colors.textTertiary} />
+          </Pressable>
+          {showDatePicker && (
+            <DateTimePicker
+              value={new Date(`${selectedDate}T00:00:00`)}
+              mode="date"
+              display="default"
+              minimumDate={new Date()}
+              onChange={(event: DateTimePickerEvent, date?: Date) => {
+                setShowDatePicker(false);
+                if (event.type === 'dismissed' || !date) return;
+                setSelectedDate(toDateStr(date));
+              }}
+            />
+          )}
+        </>
       )}
 
       <View className="flex-1 px-6">

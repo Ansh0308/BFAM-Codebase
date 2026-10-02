@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
@@ -229,8 +229,25 @@ export function WheelColumn({
   onChange: (value: string) => void;
   testID?: string;
 }) {
+  const scrollRef = useRef<ScrollView>(null);
+
+  // Bring the selected value into view when the wheel opens (or its value changes from
+  // outside), otherwise a selection further down the list - say October - is highlighted
+  // but off screen and looks like nothing is chosen.
+  useEffect(() => {
+    const index = options.findIndex((o) => o.value === value);
+    if (index < 0) return;
+    const rowHeight = 44; // 40px row + 2 * 2px margin
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, index * rowHeight - rowHeight * 2),
+      animated: false,
+    });
+    // Only the value matters here; options are static per wheel.
+  }, [value]);
+
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1 }}
       contentContainerStyle={{ paddingVertical: 4 }}
       showsVerticalScrollIndicator={false}
