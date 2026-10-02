@@ -9,7 +9,6 @@
 // that already depends on ajv@8 as a REAL dependency (schema-utils itself).
 // npm prunes untracked nested folders on every `npm install`, so this must
 // be re-applied via postinstall rather than done once by hand.
-/* global __dirname */
 const fs = require('fs');
 const path = require('path');
 
