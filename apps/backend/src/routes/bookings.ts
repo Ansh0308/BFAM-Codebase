@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { listMatchesForBooking } from '../services/matchService';
 import { authenticateJwt, requireRoles } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import {
@@ -107,6 +108,29 @@ router.get(
         role: req.auth!.role,
       });
       return res.status(200).json(booking);
+    } catch (error) {
+      if (error instanceof BookingNotFoundError) {
+        return res.status(404).json({ error: { message: error.message, status: 404 } });
+      }
+      if (error instanceof ForbiddenActionError) {
+        return res.status(403).json({ error: { message: error.message, status: 403 } });
+      }
+      throw error;
+    }
+  }),
+);
+
+// GET /bookings/:bookingId/matches — the matches in this booked slot (a slot can hold several).
+router.get(
+  '/:bookingId/matches',
+  authenticateJwt,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const result = await listMatchesForBooking(req.params.bookingId, {
+        userId: req.auth!.sub,
+        role: req.auth!.role,
+      });
+      return res.status(200).json(result);
     } catch (error) {
       if (error instanceof BookingNotFoundError) {
         return res.status(404).json({ error: { message: error.message, status: 404 } });

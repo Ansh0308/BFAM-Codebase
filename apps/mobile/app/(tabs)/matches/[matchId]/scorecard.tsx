@@ -5,6 +5,7 @@ import { useLocalSearchParams } from 'expo-router';
 import type { Scorecard } from '@bfam/shared-types';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
+import { ExtrasImpactNote } from '../../../../src/components/ExtrasImpactNote';
 
 // Scorecard (PRD §12.18 requirement 4): batting/bowling tables, extras
 // breakdown, fall of wickets — aggregated live from score_events.
@@ -155,6 +156,11 @@ export default function ScorecardScreen() {
               Wide {inn.extras.WIDE} · No Ball {inn.extras.NO_BALL} · Bye {inn.extras.BYE} · Leg Bye{' '}
               {inn.extras.LEG_BYE}
             </Text>
+            <ExtrasImpactNote
+              impact={inn.extras_impact}
+              testID={`extras-impact-${inn.innings_number}`}
+              className="font-ui text-micro text-text-secondary mt-1"
+            />
 
             {inn.fall_of_wickets.length > 0 && (
               <>

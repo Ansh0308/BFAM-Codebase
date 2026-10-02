@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Booking } from '@bfam/shared-types';
 import { apiClient } from '../../../../../src/lib/apiClient';
 import { Button } from '../../../../../src/components/Button';
+import { SlotMatches } from '../../../../../src/components/SlotMatches';
 
 export default function BookingDetailsScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
@@ -59,6 +60,10 @@ export default function BookingDetailsScreen() {
           <Text className="text-text-secondary text-micro uppercase">Status</Text>
           <Text className="text-brand-red text-button uppercase">{booking.booking_status}</Text>
         </View>
+
+        {booking.booking_status === 'CONFIRMED' && (
+          <SlotMatches bookingId={bookingId} canAddMatch />
+        )}
 
         {booking.booking_status === 'CANCELLED' && booking.cancellation_reason && (
           <View className="mt-4">

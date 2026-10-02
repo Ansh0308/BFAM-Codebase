@@ -1,5 +1,6 @@
 import {
   Booking,
+  BookingMatches,
   CheckoutDiscountResult,
   ContactMatch,
   CreateBookingInput,
@@ -325,6 +326,11 @@ export class BFAMApiClient {
 
   async getBookingDetails(bookingId: string): Promise<Booking> {
     return this.request<Booking>(`/bookings/${bookingId}`);
+  }
+
+  // The matches played in a booked slot, with the slot's own start and end.
+  async getBookingMatches(bookingId: string): Promise<BookingMatches> {
+    return this.request<BookingMatches>(`/bookings/${bookingId}/matches`);
   }
 
   async cancelBooking(bookingId: string, cancellationReason?: string): Promise<Booking> {

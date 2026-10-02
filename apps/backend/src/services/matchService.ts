@@ -7,13 +7,12 @@ import { sendNotification } from './notificationService';
 import { assertStaffVerified } from './staffService';
 import { postSystemMessage } from './chatService';
 import { balanceTeams } from '../domain/teamBalance';
-import { bookingStartInstant } from '../domain/time';
+import { resolveMatchWindow } from '../domain/matchSlot';
 import { isActiveTeamMember, listActiveTeamMemberPlayerIds } from './teamService';
 import {
   ForbiddenActionError,
   InvalidCheckInCodeError,
   InvalidMatchStateError,
-  MatchAlreadyExistsForBookingError,
   MatchInvitationNotFoundError,
   MatchNotCompletedError,
   MatchNotFoundError,
@@ -34,6 +33,7 @@ interface MatchRow {
   match_status: string;
   visibility: string;
   scheduled_start_time: Date;
+  scheduled_end_time: Date | null;
   actual_start_time: Date | null;
   actual_end_time: Date | null;
   check_in_code: string | null;
@@ -158,6 +158,11 @@ export interface CreateMatchInput {
   team_b_name?: string | null;
   // Box-cricket single-batter mode; defaults to on for new matches.
   no_non_striker?: boolean;
+  // Where in the booked slot the match is played ('HH:MM', India time). A slot can hold
+  // several matches; with neither given the match takes the next free time to the end of
+  // the slot (the whole slot when it is the first).
+  start_time?: string | null;
+  end_time?: string | null;
 }
 
 async function assertTeamExists(teamId: string) {
@@ -211,89 +216,105 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
   const teamAMatchTeamId = randomUUID();
   const teamBMatchTeamId = randomUUID();
   const now = new Date();
-  const scheduledStartTime = bookingStartInstant(booking.booking_date, booking.start_time);
 
-  try {
-    await sequelize.transaction(async (transaction) => {
-      await sequelize.getQueryInterface().bulkInsert(
-        'matches',
-        [
-          {
-            match_id: matchId,
-            booking_id: input.booking_id,
-            match_name: input.match_name ?? null,
-            organizer_id: userId,
-            match_type: input.match_type,
-            ball_type: input.ball_type,
-            overs_per_innings: input.overs_per_innings,
-            scoring_mode: input.scoring_mode,
-            assigned_scorer_id: input.assigned_scorer_id ?? null,
-            no_non_striker: input.no_non_striker ?? true,
-            match_status: 'OPEN',
-            visibility: isTeamMatch ? 'PUBLIC' : 'PRIVATE',
-            scheduled_start_time: scheduledStartTime,
-            actual_start_time: null,
-            actual_end_time: null,
-            check_in_code: generateCheckInCode(),
-            created_at: now,
-            updated_at: now,
-          },
-        ],
-        { transaction },
-      );
-
-      // Two sides, always — ad-hoc (team_id: null) for a Friends Match, or
-      // linked to the two real teams picked above. Either way, player-to-
-      // side assignment for anyone other than the organizer happens as each
-      // invite is confirmed (team match) or later from the Game Room
-      // roster (ad-hoc match), not here.
-      await sequelize.getQueryInterface().bulkInsert(
-        'match_teams',
-        [
-          {
-            match_team_id: teamAMatchTeamId,
-            match_id: matchId,
-            team_id: input.home_team_id ?? null,
-            team_name: input.team_a_name?.trim() || null,
-            side_label: 'TEAM_A',
-            created_at: now,
-          },
-          {
-            match_team_id: teamBMatchTeamId,
-            match_id: matchId,
-            team_id: input.away_team_id ?? null,
-            team_name: input.team_b_name?.trim() || null,
-            side_label: 'TEAM_B',
-            created_at: now,
-          },
-        ],
-        { transaction },
-      );
-
-      await sequelize.getQueryInterface().bulkInsert(
-        'match_players',
-        [
-          {
-            match_player_id: randomUUID(),
-            match_id: matchId,
-            player_id: playerId,
-            match_team_id: isTeamMatch ? teamAMatchTeamId : null,
-            participant_role: 'CAPTAIN',
-            invitation_status: 'CONFIRMED',
-            attendance_status: 'PENDING',
-            checked_in_at: null,
-            added_at: now,
-          },
-        ],
-        { transaction },
-      );
+  await sequelize.transaction(async (transaction) => {
+    // A slot can hold several matches. Lock the booking so two people (or two taps)
+    // creating a match at once cannot both claim the same time, then place this
+    // match in what is still free.
+    await sequelize.query(
+      'SELECT booking_id FROM bookings WHERE booking_id = :bookingId FOR UPDATE',
+      {
+        type: QueryTypes.SELECT,
+        replacements: { bookingId: input.booking_id },
+        transaction,
+      },
+    );
+    const inSlot = await sequelize.query<{
+      scheduled_start_time: Date;
+      scheduled_end_time: Date | null;
+    }>(
+      "SELECT scheduled_start_time, scheduled_end_time FROM matches WHERE booking_id = :bookingId AND match_status <> 'CANCELLED'",
+      { type: QueryTypes.SELECT, replacements: { bookingId: input.booking_id }, transaction },
+    );
+    const window = resolveMatchWindow(booking, inSlot, {
+      start_time: input.start_time,
+      end_time: input.end_time,
     });
-  } catch (error) {
-    if (error instanceof Error && /uk_matches_booking_id/.test(error.message)) {
-      throw new MatchAlreadyExistsForBookingError();
-    }
-    throw error;
-  }
+
+    await sequelize.getQueryInterface().bulkInsert(
+      'matches',
+      [
+        {
+          match_id: matchId,
+          booking_id: input.booking_id,
+          match_name: input.match_name ?? null,
+          organizer_id: userId,
+          match_type: input.match_type,
+          ball_type: input.ball_type,
+          overs_per_innings: input.overs_per_innings,
+          scoring_mode: input.scoring_mode,
+          assigned_scorer_id: input.assigned_scorer_id ?? null,
+          no_non_striker: input.no_non_striker ?? true,
+          match_status: 'OPEN',
+          visibility: isTeamMatch ? 'PUBLIC' : 'PRIVATE',
+          scheduled_start_time: window.start,
+          scheduled_end_time: window.end,
+          actual_start_time: null,
+          actual_end_time: null,
+          check_in_code: generateCheckInCode(),
+          created_at: now,
+          updated_at: now,
+        },
+      ],
+      { transaction },
+    );
+
+    // Two sides, always — ad-hoc (team_id: null) for a Friends Match, or
+    // linked to the two real teams picked above. Either way, player-to-
+    // side assignment for anyone other than the organizer happens as each
+    // invite is confirmed (team match) or later from the Game Room
+    // roster (ad-hoc match), not here.
+    await sequelize.getQueryInterface().bulkInsert(
+      'match_teams',
+      [
+        {
+          match_team_id: teamAMatchTeamId,
+          match_id: matchId,
+          team_id: input.home_team_id ?? null,
+          team_name: input.team_a_name?.trim() || null,
+          side_label: 'TEAM_A',
+          created_at: now,
+        },
+        {
+          match_team_id: teamBMatchTeamId,
+          match_id: matchId,
+          team_id: input.away_team_id ?? null,
+          team_name: input.team_b_name?.trim() || null,
+          side_label: 'TEAM_B',
+          created_at: now,
+        },
+      ],
+      { transaction },
+    );
+
+    await sequelize.getQueryInterface().bulkInsert(
+      'match_players',
+      [
+        {
+          match_player_id: randomUUID(),
+          match_id: matchId,
+          player_id: playerId,
+          match_team_id: isTeamMatch ? teamAMatchTeamId : null,
+          participant_role: 'CAPTAIN',
+          invitation_status: 'CONFIRMED',
+          attendance_status: 'PENDING',
+          checked_in_at: null,
+          added_at: now,
+        },
+      ],
+      { transaction },
+    );
+  });
 
   if (isTeamMatch) {
     const [homeMemberIds, awayMemberIds] = await Promise.all([
@@ -314,6 +335,41 @@ export async function createMatch(userId: string, input: CreateMatchInput) {
   }
 
   return fetchMatchOrThrow(matchId);
+}
+
+// The matches played in one booked slot, earliest first, with the slot itself so a
+// screen can show what time is still free. Cancelled matches are listed too (they
+// free their time but are worth showing); callers can filter on match_status.
+export async function listMatchesForBooking(
+  bookingId: string,
+  actor: { userId: string; role: string },
+) {
+  const booking = await getBookingById(bookingId, actor);
+  const matches = await sequelize.query<
+    Pick<
+      MatchRow,
+      | 'match_id'
+      | 'match_name'
+      | 'match_type'
+      | 'match_status'
+      | 'scheduled_start_time'
+      | 'scheduled_end_time'
+      | 'overs_per_innings'
+    >
+  >(
+    `SELECT match_id, match_name, match_type, match_status, scheduled_start_time,
+            scheduled_end_time, overs_per_innings
+     FROM matches WHERE booking_id = :bookingId
+     ORDER BY scheduled_start_time ASC, created_at ASC`,
+    { type: QueryTypes.SELECT, replacements: { bookingId } },
+  );
+  return {
+    booking_id: booking.booking_id,
+    booking_date: booking.booking_date,
+    slot_start_time: booking.start_time,
+    slot_end_time: booking.end_time,
+    matches,
+  };
 }
 
 // Matches tab: every match the caller organizes, is assigned to score, or

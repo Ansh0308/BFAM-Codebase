@@ -19,6 +19,7 @@ import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
 import { Button } from '../../../../src/components/Button';
 import { BackButton } from '../../../../src/components/BackButton';
+import { ExtrasImpactNote } from '../../../../src/components/ExtrasImpactNote';
 import { useAuthStore } from '../../../../src/store/authStore';
 import { useRebookStore } from '../../../../src/store/rebookStore';
 
@@ -306,6 +307,11 @@ export default function MatchResultScreen() {
                       </Text>
                     </View>
                     <Text style={styles.runRate}>Run rate {inn.run_rate}</Text>
+                    <ExtrasImpactNote
+                      impact={inn.extras_impact}
+                      testID={`summary-extras-impact-${inn.innings_number}`}
+                      className="font-ui text-micro text-text-secondary"
+                    />
                     {topBat && (
                       <View style={styles.perfRow}>
                         <Feather name="disc" size={14} color={colors.brandRed} />

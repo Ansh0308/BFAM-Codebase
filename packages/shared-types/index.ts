@@ -507,6 +507,8 @@ export interface Match {
   match_status: MatchStatus;
   visibility: 'PRIVATE' | 'PUBLIC';
   scheduled_start_time: string;
+  // Null on matches made before a slot could hold several; those fill the whole slot.
+  scheduled_end_time?: string | null;
   actual_start_time: string | null;
   actual_end_time: string | null;
   check_in_code: string | null;
@@ -563,6 +565,25 @@ export interface GameRoom extends Match {
   attendance_summary: GameRoomAttendanceSummary;
 }
 
+// The matches played in one booked slot (GET /bookings/:id/matches). A slot can hold several.
+export interface SlotMatch {
+  match_id: string;
+  match_name: string | null;
+  match_type: MatchType;
+  match_status: MatchStatus;
+  scheduled_start_time: string;
+  scheduled_end_time: string | null;
+  overs_per_innings: number;
+}
+
+export interface BookingMatches {
+  booking_id: string;
+  booking_date: string;
+  slot_start_time: string;
+  slot_end_time: string;
+  matches: SlotMatch[];
+}
+
 export interface CreateMatchInput {
   booking_id: string;
   match_name?: string | null;
@@ -577,6 +598,10 @@ export interface CreateMatchInput {
   team_a_name?: string | null;
   team_b_name?: string | null;
   no_non_striker?: boolean;
+  // Where in the booked slot the match is played ('HH:MM', India time); a slot can hold several
+  // matches. Omitted = the next free time through to the end of the slot.
+  start_time?: string | null;
+  end_time?: string | null;
 }
 
 // Backlog G-20: a "Live Now" discovery row — a PUBLIC, IN_PROGRESS match
@@ -722,6 +747,19 @@ export interface FallOfWicket {
   full_name: string | null;
 }
 
+// Extra deliveries and the time they cost (see backend domain/extrasImpact.ts). The time is an
+// estimate from the innings' own pace.
+export interface ExtrasImpact {
+  wides: number;
+  no_balls: number;
+  byes: number;
+  leg_byes: number;
+  // wides + no-balls: deliveries that had to be bowled again.
+  rebowled_deliveries: number;
+  seconds_per_delivery: number;
+  estimated_seconds_lost: number;
+}
+
 export interface InningsScorecard {
   innings_id: string;
   innings_number: number;
@@ -734,6 +772,7 @@ export interface InningsScorecard {
   batting: BattingRow[];
   bowling: BowlingRow[];
   extras: { WIDE: number; NO_BALL: number; BYE: number; LEG_BYE: number };
+  extras_impact?: ExtrasImpact;
   fall_of_wickets: FallOfWicket[];
 }
 
@@ -741,6 +780,7 @@ export interface Scorecard {
   match_id: string;
   extras_count_toward_score: boolean;
   innings: InningsScorecard[];
+  extras_impact?: ExtrasImpact;
 }
 
 export interface MatchResult {

@@ -149,10 +149,11 @@ export async function sendPaymentReminders(now: Date = new Date()): Promise<numb
     amount_due: number;
     match_name: string | null;
   }>(
-    `SELECT o.obligation_id, o.player_id, b.booked_by, o.amount_due, m.match_name
+    `SELECT o.obligation_id, o.player_id, b.booked_by, o.amount_due,
+            (SELECT m.match_name FROM matches m WHERE m.booking_id = b.booking_id
+             ORDER BY m.scheduled_start_time LIMIT 1) AS match_name
      FROM payment_obligations o
      JOIN bookings b ON b.booking_id = o.booking_id
-     LEFT JOIN matches m ON m.booking_id = b.booking_id
      WHERE o.due_status IN ('PENDING', 'PARTIALLY_PAID')
        AND b.booking_status != 'CANCELLED'
        AND b.booking_date >= :today

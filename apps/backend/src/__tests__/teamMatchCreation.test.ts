@@ -138,6 +138,11 @@ jest.mock('../config/sequelize', () => {
       query: async (sql: string, options: { replacements?: Record<string, unknown> } = {}) => {
         const r = options.replacements ?? {};
 
+        // createMatch locks the booking, then reads the matches already in the slot.
+        if (sql.includes('FOR UPDATE')) return [];
+        if (sql.includes('FROM matches WHERE booking_id')) {
+          return tables.matches.filter((m) => m.booking_id === r.bookingId);
+        }
         if (sql.includes('SELECT player_id FROM players WHERE user_id')) {
           const p = players.find((p) => p.user_id === r.userId);
           return p ? [{ player_id: p.player_id }] : [];
@@ -247,6 +252,7 @@ function setUpMocks() {
     booking_status: 'CONFIRMED',
     booking_date: '2026-09-20',
     start_time: '18:00:00',
+    end_time: '20:00:00',
   });
 }
 

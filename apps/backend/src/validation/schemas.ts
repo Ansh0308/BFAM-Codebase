@@ -674,6 +674,17 @@ export const createMatchSchema = z.object({
   team_a_name: z.string().trim().max(60).nullable().optional(),
   team_b_name: z.string().trim().max(60).nullable().optional(),
   no_non_striker: z.boolean().optional(),
+  // Where in the booked slot the match goes (India time); see createMatch.
+  start_time: z
+    .string()
+    .regex(/^d{2}:d{2}$/, 'Use HH:MM')
+    .nullable()
+    .optional(),
+  end_time: z
+    .string()
+    .regex(/^d{2}:d{2}$/, 'Use HH:MM')
+    .nullable()
+    .optional(),
 });
 
 export const updateMatchSetupSchema = z.object({

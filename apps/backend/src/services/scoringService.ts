@@ -18,6 +18,7 @@ import {
   type ExtraType,
   type InningsTotals,
 } from '../domain/scoring';
+import { computeExtrasImpact, sumExtrasImpact } from '../domain/extrasImpact';
 import {
   computeMatchOutcome,
   pickPlayerOfTheMatch,
@@ -755,6 +756,7 @@ export async function getScorecard(matchId: string) {
           overs_balls > 0 ? Math.round((b.runs_conceded / (overs_balls / 6)) * 100) / 100 : 0,
       })),
       extras,
+      extras_impact: computeExtrasImpact(events),
       fall_of_wickets: fallOfWickets,
     });
   }
@@ -763,6 +765,7 @@ export async function getScorecard(matchId: string) {
     match_id: matchId,
     extras_count_toward_score: match.extras_count_toward_score,
     innings: result,
+    extras_impact: sumExtrasImpact(result.map((i) => i.extras_impact)),
   };
 }
 

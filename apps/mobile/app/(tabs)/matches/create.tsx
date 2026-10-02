@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type {
   Booking,
+  BookingMatches,
   MatchBallType,
   MatchScoringMode,
   MatchType,
@@ -17,6 +18,8 @@ import { ScreenContainer } from '../../../src/components/ScreenContainer';
 import { Button } from '../../../src/components/Button';
 import { TextField } from '../../../src/components/TextField';
 import { ChipSelect } from '../../../src/components/ChipSelect';
+import { TimeField, formatTimeForDisplay } from '../../../src/components/DateTimeFields';
+import { freeWindows, toMinutes, MIN_MATCH_MINUTES } from '../../../src/lib/slotTime';
 import { ToggleRow } from '../../../src/components/ToggleRow';
 import { useRebookStore } from '../../../src/store/rebookStore';
 import { useChallengeMatchStore } from '../../../src/store/challengeMatchStore';
@@ -57,6 +60,34 @@ export default function CreateMatchScreen() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(!params.bookingId);
   const [bookingId, setBookingId] = useState<string | null>(params.bookingId ?? null);
+
+  // A booked slot can hold several matches: this match gets its own start and end inside
+  // the slot, defaulting to the first stretch that is still free.
+  const [slot, setSlot] = useState<BookingMatches | null>(null);
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+
+  useEffect(() => {
+    if (!bookingId) {
+      setSlot(null);
+      return;
+    }
+    let cancelled = false;
+    Promise.resolve(apiClient.getBookingMatches(bookingId))
+      .then((res) => {
+        if (cancelled || !res) return;
+        setSlot(res);
+        const first = freeWindows(res.slot_start_time, res.slot_end_time, res.matches)[0];
+        setStartTime(first?.from ?? '');
+        setEndTime(first?.to ?? '');
+      })
+      .catch(() => {
+        if (!cancelled) setSlot(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId]);
 
   const [matchName, setMatchName] = useState(rebookPlan?.match_name ?? '');
   const [matchType, setMatchType] = useState<MatchType>(
@@ -143,6 +174,22 @@ export default function CreateMatchScreen() {
       setError('Turf-staff-managed scoring needs an assigned scorer.');
       return;
     }
+    if (slot) {
+      if (!startTime || !endTime) {
+        setError(
+          freeWindows(slot.slot_start_time, slot.slot_end_time, slot.matches).length === 0
+            ? 'This slot is already full of matches. Book another slot to play more.'
+            : 'Choose when in your slot this match starts and ends.',
+        );
+        return;
+      }
+      if (toMinutes(endTime) - toMinutes(startTime) < MIN_MATCH_MINUTES) {
+        setError(
+          `A match needs at least ${MIN_MATCH_MINUTES} minutes, and must end after it starts.`,
+        );
+        return;
+      }
+    }
     if (isTeamMatch && (!homeTeamId || !awayTeamId)) {
       setError('Pick both Your Team and the Opponent Team, or turn off Team Match.');
       return;
@@ -160,6 +207,7 @@ export default function CreateMatchScreen() {
         assigned_scorer_id: scoringMode === 'TURF_STAFF_MANAGED' ? assignedScorerId.trim() : null,
         home_team_id: isTeamMatch ? homeTeamId : null,
         away_team_id: isTeamMatch ? awayTeamId : null,
+        ...(slot && startTime && endTime ? { start_time: startTime, end_time: endTime } : {}),
       });
 
       // Rebook Same Players (PRD §12.44): re-invite the prior match's
@@ -223,7 +271,7 @@ export default function CreateMatchScreen() {
               <BallLoader size="inline" testID="create-match-bookings-loading" />
             ) : bookings.length === 0 ? (
               <Text className="font-ui text-body text-text-secondary mb-4">
-                No confirmed bookings without a match yet. Book a turf first.
+                No confirmed bookings yet. Book a turf first.
               </Text>
             ) : (
               <View className="mb-4">
@@ -260,6 +308,32 @@ export default function CreateMatchScreen() {
               </View>
             )}
           </>
+        )}
+
+        {slot && (
+          <View className="mb-2" testID="match-slot-time">
+            <Text className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-1">
+              Your slot: {formatTimeForDisplay(slot.slot_start_time.slice(0, 5))} –{' '}
+              {formatTimeForDisplay(slot.slot_end_time.slice(0, 5))}
+            </Text>
+            <Text className="font-ui text-micro text-text-tertiary mb-3">
+              {slot.matches.filter((m) => m.match_status !== 'CANCELLED').length === 0
+                ? 'No other matches yet. You can fit more than one match in a slot.'
+                : `${slot.matches.filter((m) => m.match_status !== 'CANCELLED').length} match(es) already in this slot — pick a free time.`}
+            </Text>
+            <TimeField
+              label="Match starts"
+              value={startTime}
+              onChange={setStartTime}
+              testID="match-start-time"
+            />
+            <TimeField
+              label="Match ends"
+              value={endTime}
+              onChange={setEndTime}
+              testID="match-end-time"
+            />
+          </View>
         )}
 
         <TextField
