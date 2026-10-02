@@ -18,6 +18,7 @@ import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../../src/lib/apiClient';
 import { colors } from '../../../../src/theme/tokens';
 import { Button } from '../../../../src/components/Button';
+import { BackButton } from '../../../../src/components/BackButton';
 import { useAuthStore } from '../../../../src/store/authStore';
 import { useRebookStore } from '../../../../src/store/rebookStore';
 
@@ -202,6 +203,13 @@ export default function MatchResultScreen() {
         <SafeAreaView edges={['top']} style={styles.hero}>
           <View style={[styles.shape, styles.shapeTop]} pointerEvents="none" />
           <View style={[styles.shape, styles.shapeBottom]} pointerEvents="none" />
+          <View style={{ position: 'absolute', top: 12, left: 12, zIndex: 5 }}>
+            <BackButton
+              fallback={`/(tabs)/matches/${matchId}`}
+              color="#FFFFFF"
+              testID="result-back"
+            />
+          </View>
           <View style={styles.heroInner}>
             <Text style={styles.eyebrow}>
               {room.match_name ? room.match_name.toUpperCase() : 'MATCH RESULT'}

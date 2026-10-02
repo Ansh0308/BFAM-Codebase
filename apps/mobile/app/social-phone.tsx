@@ -36,7 +36,7 @@ export default function SocialPhone() {
   }
 
   return (
-    <ScreenContainer scroll>
+    <ScreenContainer scroll back="/login">
       <View className="mt-10 mb-8">
         <Text className="font-ui font-bold text-title-xl text-ink-black">Add Your Phone</Text>
         <Text className="font-ui text-body text-text-secondary mt-2">

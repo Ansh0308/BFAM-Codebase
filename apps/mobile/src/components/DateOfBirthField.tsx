@@ -218,7 +218,7 @@ export function DateOfBirthField({ value, onChange, testID }: DateOfBirthFieldPr
   );
 }
 
-function WheelColumn({
+export function WheelColumn({
   options,
   value,
   onChange,

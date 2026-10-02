@@ -17,6 +17,7 @@ interface MatchRow {
   match_name: string | null;
   organizer_id: string;
   assigned_scorer_id: string | null;
+  match_status?: string;
 }
 
 interface MatchIntroRow {
@@ -42,7 +43,7 @@ interface PlayingXiPlayer {
 
 async function fetchMatch(matchId: string): Promise<MatchRow | null> {
   const [match] = await sequelize.query<MatchRow>(
-    'SELECT match_id, booking_id, match_name, organizer_id, assigned_scorer_id FROM matches WHERE match_id = :matchId',
+    'SELECT match_id, booking_id, match_name, organizer_id, assigned_scorer_id, match_status FROM matches WHERE match_id = :matchId',
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
   return match ?? null;
@@ -131,6 +132,14 @@ export async function startIntro(matchId: string, actorUserId: string) {
   const match = await fetchMatch(matchId);
   if (!match) throw new MatchNotFoundError(matchId);
   await assertCanManage(match, actorUserId);
+  // A finished (or cancelled) match can never be started again.
+  if (match.match_status === 'COMPLETED' || match.match_status === 'CANCELLED') {
+    throw new InvalidMatchStateError(
+      match.match_status === 'COMPLETED'
+        ? 'This match is already completed.'
+        : 'This match was cancelled.',
+    );
+  }
 
   let intro = await fetchIntro(matchId);
   const isFirstStart = !intro;

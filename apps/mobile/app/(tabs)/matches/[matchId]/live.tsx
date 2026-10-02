@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import type { GameRoom, LiveScore } from '@bfam/shared-types';
 import { apiClient } from '../../../../src/lib/apiClient';
+import { BackButton } from '../../../../src/components/BackButton';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { Button } from '../../../../src/components/Button';
 import { ViewerCountBadge } from '../../../../src/components/ViewerCountBadge';
@@ -51,7 +52,7 @@ export default function LiveScoreScreen() {
 
   if (loading) {
     return (
-      <ScreenContainer>
+      <ScreenContainer back="/(tabs)/matches">
         <View className="flex-1 items-center justify-center">
           <BallLoader testID="live-score-loading" />
         </View>
@@ -61,7 +62,7 @@ export default function LiveScoreScreen() {
 
   if (!room) {
     return (
-      <ScreenContainer>
+      <ScreenContainer back="/(tabs)/matches">
         <View className="flex-1 items-center justify-center" testID="live-score-error">
           <Text className="font-ui text-body text-text-secondary text-center">
             Could not load this match.
@@ -78,6 +79,7 @@ export default function LiveScoreScreen() {
   return (
     <ScrollView className="flex-1 bg-surface" testID="live-score-screen">
       <View className="px-6 pt-6">
+        <BackButton fallback="/(tabs)/matches" />
         <View className="flex-row items-center justify-between">
           <Text className="font-ui font-bold text-title-xl text-ink-black">
             {room.match_name ?? 'Live Match'}

@@ -1,6 +1,10 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { SCREEN_TRANSITION } from '../../../src/theme/navigation';
+import { stackBackButton } from '../../../src/components/BackButton';
+
+// A back arrow that still works after a refresh or when the page is opened directly.
+const HeaderBack = stackBackButton('/(tabs)/teams');
 
 // Module 2.5 — Teams. Reached from the Teams tab in the bottom nav.
 //
@@ -19,6 +23,7 @@ export default function TeamsLayout() {
         headerTintColor: '#0D0D0D',
         headerShadowVisible: false,
         animation: SCREEN_TRANSITION,
+        headerLeft: HeaderBack,
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />

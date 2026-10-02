@@ -9,8 +9,8 @@ import { colors } from '../../../../../src/theme/tokens';
 import { ScreenContainer } from '../../../../../src/components/ScreenContainer';
 import { StatusBadge } from '../../../../../src/components/StatusBadge';
 import { Button } from '../../../../../src/components/Button';
-import { TextField } from '../../../../../src/components/TextField';
 import { ChipSelect } from '../../../../../src/components/ChipSelect';
+import { DateField, TimeField } from '../../../../../src/components/DateTimeFields';
 import { useAuthStore } from '../../../../../src/store/authStore';
 
 const SIDE_LABEL: Record<RoomPlayerSide, string> = {
@@ -271,18 +271,16 @@ export default function RoomLobbyScreen() {
                     testID="room-turf-select"
                   />
                 )}
-                <TextField
-                  label="Booking Date (YYYY-MM-DD)"
+                <DateField
+                  label="Booking Date (MM-DD-YYYY)"
                   value={bookingDate}
-                  onChangeText={setBookingDate}
-                  placeholder="2026-10-01"
+                  onChange={setBookingDate}
                   testID="room-booking-date"
                 />
-                <TextField
-                  label="Start Time (HH:MM)"
+                <TimeField
+                  label="Start Time"
                   value={startTime}
-                  onChangeText={setStartTime}
-                  placeholder="18:00"
+                  onChange={setStartTime}
                   testID="room-start-time"
                 />
                 <ChipSelect

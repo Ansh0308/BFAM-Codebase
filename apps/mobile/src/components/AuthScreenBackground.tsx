@@ -3,7 +3,9 @@ import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
 import { Easing } from 'react-native-reanimated';
+import type { Href } from 'expo-router';
 import { CricketBallIcon } from './CricketBallIcon';
+import { BackButton } from './BackButton';
 
 interface AuthScreenBackgroundProps {
   children: React.ReactNode;
@@ -16,6 +18,8 @@ interface AuthScreenBackgroundProps {
    * form — an ambient sports-tech touch, opt-in so it doesn't change the
    * look of every screen that shares this shell. */
   showBallMotif?: boolean;
+  /** Show a back button at the top; the value is where it goes when there is no history. */
+  back?: Href;
 }
 
 // Shared decorative shell for the auth/onboarding flow (Login, Signup, etc.)
@@ -29,11 +33,17 @@ export function AuthScreenBackground({
   scroll = false,
   avoidKeyboard = false,
   showBallMotif = false,
+  back,
 }: AuthScreenBackgroundProps) {
   const Wrapper = scroll ? ScrollView : View;
 
   const content = (
     <Wrapper className="flex-1 px-5" contentContainerStyle={scroll ? { flexGrow: 1 } : undefined}>
+      {back ? (
+        <View style={{ paddingTop: 8 }}>
+          <BackButton fallback={back} />
+        </View>
+      ) : null}
       <MotiView
         from={{ opacity: 0, translateY: 12 }}
         animate={{ opacity: 1, translateY: 0 }}

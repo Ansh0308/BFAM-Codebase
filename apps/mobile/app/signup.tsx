@@ -138,7 +138,7 @@ export default function Signup() {
   }
 
   return (
-    <AuthScreenBackground scroll avoidKeyboard>
+    <AuthScreenBackground scroll avoidKeyboard back="/login">
       <SignupHero />
 
       <View style={{ marginTop: 8 }}>

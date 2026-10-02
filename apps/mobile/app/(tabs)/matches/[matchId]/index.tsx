@@ -323,7 +323,17 @@ export default function GameRoomScreen() {
           />
         ))}
 
-        {isManager && (
+        {room.match_status === 'COMPLETED' && (
+          <View className="mt-6 mb-3">
+            <Button
+              label="View Result"
+              onPress={() => router.push(`/(tabs)/matches/${matchId}/result`)}
+              testID="view-result-button"
+            />
+          </View>
+        )}
+
+        {isManager && room.match_status !== 'COMPLETED' && room.match_status !== 'CANCELLED' && (
           <View className="mt-6 mb-3">
             <Button
               label={room.match_status === 'IN_PROGRESS' ? 'Resume Match' : 'Start Match'}

@@ -373,8 +373,19 @@ export function HubCard({
 // The rating is an open-ended number (default 500), so the bar is a simple
 // visual cue against a 0-1000 scale rather than a precise percentage.
 const RATING_SCALE = 1000;
+const BASELINE_RATING = 500;
+
+// Mirrors apps/backend/src/domain/rating.ts (computeMatchPerformanceRatingDelta).
+const RATING_RULES: { label: string; value: string }[] = [
+  { label: 'Batting', value: '1 point per run, plus a small strike-rate bonus' },
+  { label: 'Bowling', value: '20 points per wicket, minus a small economy penalty' },
+  { label: 'Fielding', value: '10 points per catch, run-out or stumping' },
+  { label: 'Winning', value: '+15 when your team wins' },
+  { label: 'Player of the Match', value: '+25' },
+];
 
 export function SkillRatingCard({ rating }: { rating: number }) {
+  const [showRules, setShowRules] = useState(false);
   const pct = Math.max(4, Math.min(100, (rating / RATING_SCALE) * 100));
   return (
     <Reveal delay={60} distance={10} duration={420}>
@@ -429,6 +440,41 @@ export function SkillRatingCard({ rating }: { rating: number }) {
         >
           Fair Play, Reliability, and Community Rating — coming in a later module.
         </Text>
+        <Pressable
+          onPress={() => setShowRules((v) => !v)}
+          accessibilityRole="button"
+          testID="skill-rating-how"
+          style={{ marginTop: 12 }}
+        >
+          <Text className="font-ui font-bold text-brand-red" style={{ fontSize: 13 }}>
+            {showRules ? 'Hide how this is decided' : 'How is this decided?'}
+          </Text>
+        </Pressable>
+        {showRules ? (
+          <View testID="skill-rating-rules" style={{ marginTop: 10 }}>
+            <Text
+              className="font-ui text-text-secondary"
+              style={{ fontSize: 12.5, lineHeight: 18 }}
+            >
+              Everyone starts at {BASELINE_RATING}. After each completed match your rating moves by
+              the points you earned in it (from -30 up to +80 in a single match), and stays between
+              0 and 999:
+            </Text>
+            {RATING_RULES.map((rule) => (
+              <View key={rule.label} className="flex-row" style={{ marginTop: 6 }}>
+                <Text
+                  className="font-ui font-bold text-ink-black"
+                  style={{ fontSize: 12.5, width: 118 }}
+                >
+                  {rule.label}
+                </Text>
+                <Text className="font-ui text-text-secondary flex-1" style={{ fontSize: 12.5 }}>
+                  {rule.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
     </Reveal>
   );

@@ -19,6 +19,7 @@ const match = {
   match_name: 'Sunday Cricket',
   organizer_id: ORGANIZER_USER,
   assigned_scorer_id: null,
+  match_status: 'CONFIRMED',
 };
 
 const mockEmit = jest.fn();
@@ -76,6 +77,7 @@ import { startIntro } from '../services/matchIntroService';
 describe('startIntro re-entry does not reset everyone back to COUNTDOWN (backlog A-26)', () => {
   beforeEach(() => {
     introExists = false;
+    match.match_status = 'CONFIRMED';
     mockEmit.mockClear();
     matchUpdates.length = 0;
   });
@@ -100,6 +102,15 @@ describe('startIntro re-entry does not reset everyone back to COUNTDOWN (backlog
 
     expect(mockEmit).not.toHaveBeenCalled();
     // Re-entry never touches match_status either — it's already set.
+    expect(matchUpdates).toHaveLength(0);
+  });
+
+  it.each(['COMPLETED', 'CANCELLED'])('refuses to start a %s match', async (status) => {
+    match.match_status = status;
+    introExists = true;
+
+    await expect(startIntro(MATCH_ID, ORGANIZER_USER)).rejects.toThrow(/completed|cancelled/);
+    expect(mockEmit).not.toHaveBeenCalled();
     expect(matchUpdates).toHaveLength(0);
   });
 

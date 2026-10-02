@@ -1,6 +1,10 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { SCREEN_TRANSITION } from '../../../src/theme/navigation';
+import { stackBackButton } from '../../../src/components/BackButton';
+
+// A back arrow that still works after a refresh or when the page is opened directly.
+const HeaderBack = stackBackButton('/(tabs)/matches');
 
 // Module 2.6 — Match Creation & Game Room. Reached from the Matches tab in
 // the bottom nav, or from a booking's confirmation screen once it's paid.
@@ -12,6 +16,7 @@ export default function MatchesLayout() {
         headerTintColor: '#0D0D0D',
         headerShadowVisible: false,
         animation: SCREEN_TRANSITION,
+        headerLeft: HeaderBack,
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
