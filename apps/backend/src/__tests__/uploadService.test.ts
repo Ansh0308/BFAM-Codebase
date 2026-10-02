@@ -38,6 +38,7 @@ import {
   resolveDocumentUrl,
   uploadProfilePhoto,
   uploadStaffVerificationDocument,
+  uploadTeamLogo,
 } from '../services/uploadService';
 
 const KEYS = [
@@ -131,6 +132,25 @@ describe('uploadProfilePhoto', () => {
     );
     for (const k of KEYS) delete process.env[k];
     await expect(uploadProfilePhoto('u', Buffer.from('x'), 'image/png')).rejects.toThrow(
+      /not configured/,
+    );
+  });
+});
+
+describe('uploadTeamLogo', () => {
+  it('stores under team-logos/{userId}/, keyed by the uploading user (not a team ID)', async () => {
+    configure();
+    const url = await uploadTeamLogo('user-1', Buffer.from('x'), 'image/png');
+    expect(url).toMatch(
+      /^https:\/\/bfam-public\.s3\.ap-south-1\.amazonaws\.com\/team-logos\/user-1\/.+\.png$/,
+    );
+  });
+
+  it('rejects unsupported types and an unconfigured server', async () => {
+    configure();
+    await expect(uploadTeamLogo('u', Buffer.from('x'), 'image/gif')).rejects.toThrow(/Unsupported/);
+    for (const k of KEYS) delete process.env[k];
+    await expect(uploadTeamLogo('u', Buffer.from('x'), 'image/png')).rejects.toThrow(
       /not configured/,
     );
   });

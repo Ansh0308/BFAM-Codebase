@@ -1,25 +1,41 @@
-import React, { useCallback, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Text, View, useWindowDimensions } from 'react-native';
 import { BallLoader } from '../../../src/components/BallLoader';
-import { useFocusEffect } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MotiView } from 'moti';
 import type { MyTeam, OpenTeam } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../../../src/lib/apiClient';
-import { ScreenContainer } from '../../../src/components/ScreenContainer';
-import { TextField } from '../../../src/components/TextField';
+import { Reveal } from '../../../src/components/Reveal';
+import { ScreenHeader } from '../../../src/components/ScreenHeader';
+import { SegmentedTabs } from '../../../src/components/SegmentedTabs';
+import { colors } from '../../../src/theme/tokens';
+import {
+  CityFilterField,
+  EmptyOpenTeams,
+  OpenTeamCard,
+} from '../../../src/components/teams/OpenTeamsParts';
+import teamsBg from '../../../src/assets/images/teams-bg.jpg';
 
 type DiscoveryMode = 'players' | 'challenge';
+
+const HERO_HEIGHT = 260;
 
 // Open Teams: vacancy discovery + Join Team Request (PRD §12.4), plus
 // (backlog B-13) a second mode for teams open to a Team vs Team challenge
 // — folded into this same screen per the founder's own suggested option,
-// rather than a wholly separate screen. Filter by skill level and city
-// only — map view is explicitly out of scope, same as Turf Discovery
-// (module 2.3).
+// rather than a wholly separate screen. Presentation-only redesign: the
+// data, both modes, the city filter, the Fair Play / min-skill-rating
+// callouts, and every request/challenge action are unchanged.
 export default function OpenTeamsScreen() {
+  const router = useRouter();
+  const { width } = useWindowDimensions();
   const [mode, setMode] = useState<DiscoveryMode>('players');
   const [city, setCity] = useState('');
+  const [cityOptions, setCityOptions] = useState<string[]>([]);
   const [teams, setTeams] = useState<OpenTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
@@ -27,6 +43,7 @@ export default function OpenTeamsScreen() {
   const [myCaptainedTeams, setMyCaptainedTeams] = useState<MyTeam[]>([]);
   const [challengingTeamId, setChallengingTeamId] = useState<string | null>(null);
   const [challengeSentIds, setChallengeSentIds] = useState<Set<string>>(new Set());
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const load = useCallback(async (discoveryMode: DiscoveryMode, cityFilter: string) => {
     setLoading(true);
@@ -61,6 +78,22 @@ export default function OpenTeamsScreen() {
     }, [load, mode, city]),
   );
 
+  // The city picker's options come from the full (unfiltered-by-city)
+  // result set for the current mode, not a fixed/hardcoded city list —
+  // refetched only when the mode changes, so picking a city doesn't shrink
+  // its own option list.
+  useEffect(() => {
+    apiClient
+      .getOpenTeams({ mode })
+      .then((res) => {
+        const cities = Array.from(
+          new Set(res.results.map((t) => t.home_city).filter((c): c is string => Boolean(c))),
+        ).sort((a, b) => a.localeCompare(b));
+        setCityOptions(cities);
+      })
+      .catch(() => {});
+  }, [mode]);
+
   async function requestToJoin(teamId: string) {
     setError(null);
     try {
@@ -86,162 +119,133 @@ export default function OpenTeamsScreen() {
     }
   }
 
-  return (
-    <ScreenContainer>
-      <View className="pt-6 flex-1" testID="open-teams-screen">
-        <Text className="font-ui font-bold text-title-xl text-ink-black mb-4">Open Teams</Text>
-
-        <View className="flex-row bg-surface-alt rounded-md p-1 mb-4">
-          {(['players', 'challenge'] as DiscoveryMode[]).map((m) => (
-            <Pressable
-              key={m}
-              onPress={() => setMode(m)}
-              className={`flex-1 items-center py-2 rounded-md ${mode === m ? 'bg-brand-red' : ''}`}
-              testID={`open-teams-mode-${m}`}
-            >
-              <Text
-                className={`font-ui font-bold text-micro uppercase ${
-                  mode === m ? 'text-white' : 'text-text-secondary'
-                }`}
-              >
-                {m === 'players' ? 'Open for Players' : 'Open for Challenge'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <TextField
-          label="City"
-          value={city}
-          onChangeText={setCity}
-          onSubmitEditing={() => load(mode, city)}
-          placeholder="Filter by city"
-          iconLeft={<Feather name="map-pin" size={16} color="#767676" />}
-          testID="open-teams-city-filter"
-          returnKeyType="search"
+  const header = (
+    <View testID="open-teams-header">
+      <View style={{ height: HERO_HEIGHT, overflow: 'hidden' }} testID="open-teams-hero">
+        <MotiView
+          from={{ translateX: 14 }}
+          animate={{ translateX: 0 }}
+          transition={{ type: 'timing', duration: 900 }}
+          style={{ position: 'absolute', top: 0, right: 0, width, height: HERO_HEIGHT }}
+        >
+          <Image
+            source={teamsBg}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+            contentPosition="right top"
+            accessibilityElementsHidden
+          />
+        </MotiView>
+        <LinearGradient
+          colors={['rgba(255,255,255,0)', '#FFFFFF', '#FFFFFF']}
+          locations={[0, 0.82, 1]}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: -2, height: 190 }}
         />
 
-        {error && <Text className="text-brand-red text-body mb-3">{error}</Text>}
-
-        {loading ? (
-          <BallLoader testID="open-teams-loading" />
-        ) : teams.length === 0 ? (
-          <Text className="font-ui text-body text-text-secondary text-center mt-4">
-            {mode === 'challenge' ? 'No teams open for a challenge yet.' : 'No open teams found.'}
-          </Text>
-        ) : (
-          <FlatList
-            data={teams}
-            keyExtractor={(item) => item.team_id}
-            renderItem={({ item }) => {
-              const requested = requestedIds.has(item.team_id);
-              return (
-                <View
-                  className="bg-surface rounded-lg border border-border-subtle p-4 mb-3"
-                  testID={`open-team-row-${item.team_id}`}
-                >
-                  <View className="flex-row items-center">
-                    <View
-                      className="rounded-full bg-surface-alt items-center justify-center mr-3"
-                      style={{ width: 44, height: 44 }}
-                    >
-                      <Feather name="users" size={18} color="#D80000" />
-                    </View>
-                    <View className="flex-1">
-                      <View className="flex-row items-center">
-                        <Text
-                          className="font-ui font-semibold text-card-title text-ink-black flex-shrink"
-                          numberOfLines={1}
-                        >
-                          {item.team_name}
-                        </Text>
-                        {/* Backlog B-5: Fair Play score — how evenly this
-                            team has shared batting/bowling chances across
-                            its roster, averaged from active members'
-                            reliability_score. Hidden until the team has
-                            an active member with a computed score. */}
-                        {item.fair_play_score != null && (
-                          <View
-                            className="ml-2 rounded-md bg-status-info-bg px-2.5 py-1 flex-row items-center"
-                            testID={`fair-play-score-${item.team_id}`}
-                          >
-                            <Feather name="shield" size={10} color="#1D5DAD" />
-                            <Text className="font-ui text-micro font-bold text-status-info ml-1">
-                              {item.fair_play_score}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text className="text-text-secondary text-micro mt-0.5">
-                        {item.home_city ?? 'City not set'} · {item.skill_level ?? 'Any level'} ·{' '}
-                        {item.active_member_count} members
-                      </Text>
-                      {/* Backlog B-8: shown so a player knows the
-                          requirement before requesting, rather than only
-                          finding out from a rejected request. */}
-                      {item.min_skill_rating != null && (
-                        <Text
-                          className="text-text-tertiary text-micro mt-0.5"
-                          testID={`min-skill-rating-${item.team_id}`}
-                        >
-                          Requires {item.min_skill_rating}+ Skill Rating
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                  {mode === 'players' ? (
-                    <Pressable
-                      onPress={() => requestToJoin(item.team_id)}
-                      disabled={requested}
-                      className={`mt-3 rounded-md py-3 items-center ${
-                        requested ? 'bg-disabled-surface' : 'bg-brand-red'
-                      }`}
-                      testID={`request-to-join-${item.team_id}`}
-                    >
-                      <Text
-                        className={`font-ui font-bold text-button uppercase tracking-wide ${
-                          requested ? 'text-text-tertiary' : 'text-white'
-                        }`}
-                      >
-                        {requested ? 'Requested' : 'Request to Join'}
-                      </Text>
-                    </Pressable>
-                  ) : myCaptainedTeams.filter((t) => t.team_id !== item.team_id).length === 0 ? (
-                    <Text className="text-text-tertiary text-micro mt-3">
-                      You need to captain a team to send a challenge.
-                    </Text>
-                  ) : (
-                    myCaptainedTeams
-                      .filter((t) => t.team_id !== item.team_id)
-                      .map((myTeam) => {
-                        const sent = challengeSentIds.has(item.team_id);
-                        return (
-                          <Pressable
-                            key={myTeam.team_id}
-                            onPress={() => challengeTeam(item.team_id, myTeam.team_id)}
-                            disabled={sent || challengingTeamId === myTeam.team_id}
-                            className={`mt-3 rounded-md py-3 items-center ${
-                              sent ? 'bg-disabled-surface' : 'bg-brand-red'
-                            }`}
-                            testID={`challenge-open-team-${item.team_id}-${myTeam.team_id}`}
-                          >
-                            <Text
-                              className={`font-ui font-bold text-button uppercase tracking-wide ${
-                                sent ? 'text-text-tertiary' : 'text-white'
-                              }`}
-                            >
-                              {sent ? 'Challenge Sent' : `Challenge with ${myTeam.team_name}`}
-                            </Text>
-                          </Pressable>
-                        );
-                      })
-                  )}
-                </View>
-              );
-            }}
+        <View style={{ paddingTop: 2 }}>
+          <Reveal delay={60}>
+            <Text
+              className="font-display text-ink-black"
+              style={{ fontSize: 46, lineHeight: 48 }}
+              testID="open-teams-title"
+            >
+              OPEN
+            </Text>
+            <Text className="font-display text-brand-red" style={{ fontSize: 46, lineHeight: 48 }}>
+              TEAMS
+            </Text>
+          </Reveal>
+          <Reveal delay={180}>
+            <Text
+              className="font-ui text-text-secondary"
+              style={{ fontSize: 11, lineHeight: 17, letterSpacing: 2.4, marginTop: 8 }}
+            >
+              {'FIND YOUR SQUAD.\nPLAY TOGETHER.'}
+            </Text>
+          </Reveal>
+          <MotiView
+            from={{ width: 0 }}
+            animate={{ width: 44 }}
+            transition={{ type: 'timing', duration: 450, delay: 320 }}
+            style={{ height: 3, borderRadius: 2, backgroundColor: colors.brandRed, marginTop: 12 }}
           />
-        )}
+        </View>
       </View>
-    </ScreenContainer>
+
+      <SegmentedTabs
+        options={[
+          { value: 'players', label: 'Open for Players' },
+          { value: 'challenge', label: 'Open for Challenge' },
+        ]}
+        value={mode}
+        onChange={(m) => setMode(m as DiscoveryMode)}
+        testIDPrefix="open-teams-mode"
+      />
+
+      <CityFilterField value={city} options={cityOptions} onChange={setCity} />
+
+      {error && (
+        <Text className="text-brand-red text-body mb-3" testID="open-teams-error">
+          {error}
+        </Text>
+      )}
+
+      {!loading && teams.length > 0 && (
+        <View className="flex-row items-center justify-between" style={{ marginBottom: 14 }}>
+          <Text
+            className="font-ui font-bold text-ink-black"
+            style={{ fontSize: 13, letterSpacing: 1.6 }}
+          >
+            {teams.length} {teams.length === 1 ? 'TEAM' : 'TEAMS'} AVAILABLE
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const empty = loading ? (
+    <BallLoader testID="open-teams-loading" style={{ marginTop: 24 }} />
+  ) : (
+    <EmptyOpenTeams mode={mode} onCreateTeam={() => router.push('/(tabs)/teams/create')} />
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }} testID="open-teams-screen">
+      <SafeAreaView className="flex-1" edges={['top', 'bottom']}>
+        <View className="px-5">
+          <ScreenHeader title="Open Teams" />
+        </View>
+
+        <Animated.FlatList
+          data={loading ? [] : teams}
+          keyExtractor={(item) => (item as OpenTeam).team_id}
+          renderItem={({ item, index }) => {
+            const team = item as OpenTeam;
+            return (
+              <OpenTeamCard
+                team={team}
+                index={index}
+                mode={mode}
+                requested={requestedIds.has(team.team_id)}
+                onRequestToJoin={() => requestToJoin(team.team_id)}
+                myCaptainedTeams={myCaptainedTeams}
+                challengeSentIds={challengeSentIds}
+                challengingTeamId={challengingTeamId}
+                onChallenge={(myTeamId) => challengeTeam(team.team_id, myTeamId)}
+                onPress={() => router.push(`/(tabs)/teams/${team.team_id}`)}
+              />
+            );
+          }}
+          ListHeaderComponent={header}
+          ListEmptyComponent={empty}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: false,
+          })}
+        />
+      </SafeAreaView>
+    </View>
   );
 }

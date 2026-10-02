@@ -162,7 +162,8 @@ export default function Home() {
     extrapolate: 'clamp',
   });
 
-  const displayName = profile?.full_name?.split(' ')[0] ?? profile?.bfam_id ?? 'Player';
+  // The player's name leads; the BFAM ID is shown beneath it, never in its place.
+  const displayName = profile?.full_name?.trim() || 'Player';
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>

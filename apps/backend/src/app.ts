@@ -82,6 +82,7 @@ import {
   isS3Configured,
   isAllowedImageContentType,
   uploadProfilePhoto,
+  uploadTeamLogo,
 } from './services/uploadService';
 import {
   persistRazorpayWebhookEvent,
@@ -916,6 +917,40 @@ app.post(
       return res.status(200).json({ profile_photo_url: url });
     } catch {
       return res.status(500).json({ error: { message: 'Failed to upload photo', status: 500 } });
+    }
+  },
+);
+
+// POST /teams/logo — uploads a team logo to S3 and returns its URL, for
+// Create Team to pass into POST /teams as team_logo_url. Keyed by the
+// uploading user (not a team ID) since the team doesn't exist yet at the
+// point the logo is picked — same 501-when-unconfigured contract as
+// /profile/photo, so the mobile client can fall back cleanly.
+app.post(
+  '/teams/logo',
+  authenticateJwt,
+  photoUpload.single('photo'),
+  async (req: Request, res: Response) => {
+    if (!isS3Configured()) {
+      return res.status(501).json({
+        error: { message: 'Photo upload storage is not configured on this server', status: 501 },
+      });
+    }
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: { message: 'No photo file provided', status: 400 } });
+    }
+    if (!isAllowedImageContentType(file.mimetype)) {
+      return res.status(400).json({
+        error: { message: 'Unsupported image type — use JPEG, PNG, or WebP', status: 400 },
+      });
+    }
+
+    try {
+      const url = await uploadTeamLogo(req.auth!.sub, file.buffer, file.mimetype);
+      return res.status(200).json({ team_logo_url: url });
+    } catch {
+      return res.status(500).json({ error: { message: 'Failed to upload logo', status: 500 } });
     }
   },
 );

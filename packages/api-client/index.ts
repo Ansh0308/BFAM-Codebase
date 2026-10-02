@@ -576,6 +576,45 @@ export class BFAMApiClient {
     return this.request<TeamDetails>('/teams', { method: 'POST', body: JSON.stringify(input) });
   }
 
+  // Uploads a picked logo (as a React Native file-uri blob) to S3 and
+  // returns the hosted URL, for Create Team to pass straight into
+  // createTeam's team_logo_url — same shape/error contract as
+  // uploadProfilePhoto, including the 501-when-unconfigured case.
+  async uploadTeamLogo(fileUri: string, mimeType: string): Promise<{ team_logo_url: string }> {
+    const headers = new Headers();
+    if (this.token) {
+      headers.set('Authorization', `Bearer ${this.token}`);
+    }
+
+    const extension = mimeType.split('/')[1] ?? 'jpg';
+    const formData = new FormData();
+    await appendPickedFile(formData, 'photo', {
+      uri: fileUri,
+      name: `logo.${extension}`,
+      type: mimeType,
+    });
+
+    const response = await fetch(`${this.baseUrl}/teams/logo`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const bodyText = await response.text().catch(() => '');
+      let message = `BFAM API error: ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(bodyText);
+        if (parsed?.error?.message) message = parsed.error.message;
+      } catch {
+        // Non-JSON error body — fall back to the generic message above.
+      }
+      throw new BFAMApiError(message, response.status);
+    }
+
+    return response.json() as Promise<{ team_logo_url: string }>;
+  }
+
   async getMyTeams(): Promise<{ results: MyTeam[] }> {
     return this.request<{ results: MyTeam[] }>('/teams/mine');
   }

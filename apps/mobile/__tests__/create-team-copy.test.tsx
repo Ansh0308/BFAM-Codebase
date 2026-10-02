@@ -59,6 +59,7 @@ describe('Create Team screen — copy from an existing team (backlog A-11)', () 
         skill_level: 'ADVANCED',
         is_open_for_players: false,
         min_skill_rating: null,
+        team_logo_url: null,
       });
     });
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)/teams/new-team-1');

@@ -15,11 +15,21 @@ jest.mock('../src/lib/apiClient', () => ({
 // than via react-navigation as of SDK 57) needs the real router context this
 // standalone test doesn't set up, so swap it for a plain mount-time effect —
 // same pattern as team-management.test.tsx.
+const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+  // The real useFocusEffect re-runs whenever the memoized callback passed to
+  // it changes identity, not just on mount — the screen relies on that to
+  // refetch when `mode`/`city` change (no explicit "search" button). The
+  // screen already wraps its callback in `useCallback(..., [load, mode,
+  // city])`, so depending on `callback` itself here reproduces that: it
+  // only re-runs when mode/city actually change, not on every render (an
+  // empty `[]` would miss those changes; no deps array at all would loop,
+  // since the callback sets state that re-renders the component).
   useFocusEffect: (callback: () => void) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const ReactForMock = require('react');
-    ReactForMock.useEffect(callback, []);
+    ReactForMock.useEffect(callback, [callback]);
   },
 }));
 
@@ -51,7 +61,7 @@ describe('OpenTeamsScreen (module 2.5)', () => {
   });
 
   it('loads open teams on mount', async () => {
-    mockGetOpenTeams.mockResolvedValueOnce({ results: [OPEN_TEAM] });
+    mockGetOpenTeams.mockResolvedValue({ results: [OPEN_TEAM] });
     const { findByTestId } = await render(<OpenTeamsScreen />);
 
     await findByTestId('open-team-row-team-1');
@@ -61,7 +71,7 @@ describe('OpenTeamsScreen (module 2.5)', () => {
   // Backlog B-5: Fair Play score shown per team so players can factor it
   // into which open team they request to join.
   it('shows the Fair Play score badge when the team has one', async () => {
-    mockGetOpenTeams.mockResolvedValueOnce({ results: [OPEN_TEAM] });
+    mockGetOpenTeams.mockResolvedValue({ results: [OPEN_TEAM] });
     const { findByTestId } = await render(<OpenTeamsScreen />);
 
     const badge = await findByTestId('fair-play-score-team-1');
@@ -69,7 +79,7 @@ describe('OpenTeamsScreen (module 2.5)', () => {
   });
 
   it('hides the Fair Play badge for a team with no active members yet', async () => {
-    mockGetOpenTeams.mockResolvedValueOnce({
+    mockGetOpenTeams.mockResolvedValue({
       results: [{ ...OPEN_TEAM, fair_play_score: null }],
     });
     const { findByTestId, queryByTestId } = await render(<OpenTeamsScreen />);
@@ -80,7 +90,7 @@ describe('OpenTeamsScreen (module 2.5)', () => {
 
   // Backlog B-8: rating-gated team vacancies.
   it('shows the minimum skill rating requirement when the team has one', async () => {
-    mockGetOpenTeams.mockResolvedValueOnce({
+    mockGetOpenTeams.mockResolvedValue({
       results: [{ ...OPEN_TEAM, min_skill_rating: 600 }],
     });
     const { findByText } = await render(<OpenTeamsScreen />);
@@ -89,7 +99,7 @@ describe('OpenTeamsScreen (module 2.5)', () => {
   });
 
   it('hides the requirement line for a team with no minimum', async () => {
-    mockGetOpenTeams.mockResolvedValueOnce({
+    mockGetOpenTeams.mockResolvedValue({
       results: [{ ...OPEN_TEAM, min_skill_rating: null }],
     });
     const { findByTestId, queryByTestId } = await render(<OpenTeamsScreen />);
@@ -99,7 +109,7 @@ describe('OpenTeamsScreen (module 2.5)', () => {
   });
 
   it('surfaces the backend rejection when the player is below the minimum', async () => {
-    mockGetOpenTeams.mockResolvedValueOnce({
+    mockGetOpenTeams.mockResolvedValue({
       results: [{ ...OPEN_TEAM, min_skill_rating: 600 }],
     });
     const { BFAMApiError } = jest.requireActual('@bfam/api-client');
@@ -116,17 +126,18 @@ describe('OpenTeamsScreen (module 2.5)', () => {
   it('refetches on every focus, not just first mount, so a newly-open team appears without restarting the app', async () => {
     mockGetOpenTeams.mockResolvedValue({ results: [] });
     await render(<OpenTeamsScreen />);
-    await waitFor(() => expect(mockGetOpenTeams).toHaveBeenCalledTimes(1));
 
     // useFocusEffect's own useEffect re-runs on mount too in this RTL
     // setup (there's no real navigation focus/blur to simulate here), so
     // this mainly guards against a regression back to a plain mount-once
-    // useEffect that would only ever call once, full stop.
-    expect(mockGetOpenTeams).toHaveBeenCalledWith({ mode: 'players' });
+    // useEffect that would only ever call once, full stop. (The screen
+    // also makes a second, separate getOpenTeams call on mount to
+    // populate the city filter's own option list.)
+    await waitFor(() => expect(mockGetOpenTeams).toHaveBeenCalledWith({ mode: 'players' }));
   });
 
   it('sends a join request and marks the team as requested', async () => {
-    mockGetOpenTeams.mockResolvedValueOnce({ results: [OPEN_TEAM] });
+    mockGetOpenTeams.mockResolvedValue({ results: [OPEN_TEAM] });
     mockRequestToJoinTeam.mockResolvedValueOnce({ request_id: 'req-1' });
 
     const { findByTestId } = await render(<OpenTeamsScreen />);
@@ -137,13 +148,15 @@ describe('OpenTeamsScreen (module 2.5)', () => {
     expect(button.props.accessibilityState?.disabled ?? button.props.disabled).toBeTruthy();
   });
 
-  it('re-fetches with the city filter when submitted', async () => {
-    mockGetOpenTeams.mockResolvedValue({ results: [] });
-    const { getByTestId } = await render(<OpenTeamsScreen />);
+  it('re-fetches with the city filter once a city is picked', async () => {
+    // Also backs the city picker's own option list (a separate,
+    // unfiltered-by-city fetch for the current mode).
+    mockGetOpenTeams.mockResolvedValue({ results: [OPEN_TEAM] });
+    const { getByTestId, findByTestId } = await render(<OpenTeamsScreen />);
     await waitFor(() => expect(mockGetOpenTeams).toHaveBeenCalledWith({ mode: 'players' }));
 
-    await fireEvent.changeText(getByTestId('open-teams-city-filter'), 'Rajkot');
-    fireEvent(getByTestId('open-teams-city-filter'), 'submitEditing');
+    await fireEvent.press(getByTestId('open-teams-city-filter-trigger'));
+    await fireEvent.press(await findByTestId('open-teams-city-filter-option-Rajkot'));
 
     await waitFor(() =>
       expect(mockGetOpenTeams).toHaveBeenCalledWith({ mode: 'players', city: 'Rajkot' }),

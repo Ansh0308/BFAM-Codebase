@@ -107,6 +107,43 @@ export async function uploadProfilePhoto(
   return publicObjectUrl(bucket, region, key);
 }
 
+/**
+ * Uploads a team logo buffer under `team-logos/{userId}/` and returns its
+ * public URL. Keyed by the uploading (creator) user rather than a team ID —
+ * Create Team picks/uploads the logo before the team itself exists, then
+ * passes the returned URL into createTeam like any other field. Throws if
+ * storage isn't configured — callers should check `isS3Configured()` first
+ * to return a clean 501, same as uploadProfilePhoto.
+ */
+export async function uploadTeamLogo(
+  userId: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<string> {
+  if (!isS3Configured()) {
+    throw new Error('S3 is not configured on this server');
+  }
+  const extension = ALLOWED_CONTENT_TYPES[contentType];
+  if (!extension) {
+    throw new Error(`Unsupported image content type: ${contentType}`);
+  }
+
+  const bucket = process.env.AWS_S3_BUCKET as string;
+  const region = process.env.AWS_REGION as string;
+  const key = `team-logos/${userId}/${randomUUID()}.${extension}`;
+
+  await getS3Client().send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    }),
+  );
+
+  return publicObjectUrl(bucket, region, key);
+}
+
 // Staff Verification document upload (module 2.12, PRD §32.14) — under its own
 // prefix and with PDF also allowed (ID documents are frequently scanned as
 // PDFs, not just images).
