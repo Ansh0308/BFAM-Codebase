@@ -4,12 +4,6 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories can't reference module-scope imports
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
 
-jest.mock('expo-av', () => ({
-  Audio: {
-    Sound: { createAsync: jest.fn().mockResolvedValue({ sound: { replayAsync: jest.fn() } }) },
-  },
-}));
-
 const mockReplace = jest.fn();
 const mockBack = jest.fn();
 jest.mock('expo-router', () => ({
