@@ -27,14 +27,13 @@ export interface GoogleSignInResult {
  * `params.id_token` is the Google ID token to send to POST /auth/google.
  */
 export function useGoogleSignIn() {
-  // On web specifically, expo-auth-session's Google provider throws
-  // synchronously (during render, inside a useMemo) if webClientId is
-  // missing — "Client Id property `webClientId` must be defined to use
-  // Google auth on this platform." Until real Google OAuth credentials
-  // exist for this project, EXPO_PUBLIC_GOOGLE_CLIENT_ID is legitimately
-  // unset, so we pass a placeholder to avoid the crash and instead report
-  // "not available" via `request: null` — the caller already disables the
-  // Google button when `request` is falsy (see app/login.tsx).
+  // expo-auth-session's Google provider throws synchronously (during render, inside a
+  // useMemo) if the client id for the current platform is missing — "Client Id property
+  // `androidClientId` must be defined to use Google auth on this platform." That took the
+  // whole Login screen down on Android. Until real Google OAuth credentials exist for this
+  // project the ids are legitimately unset, so every platform gets a placeholder to avoid
+  // the crash and we report "not available" via `request: null` — the caller already
+  // disables the Google button when `request` is falsy (see app/login.tsx).
   const isConfigured = Boolean(
     Platform.OS === 'web'
       ? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID
@@ -48,8 +47,9 @@ export function useGoogleSignIn() {
     // id_token audience actually matters server-side (see
     // GOOGLE_CLIENT_ID/_IOS/_ANDROID in apps/backend/.env.example) — these
     // client-side values must match those server-configured audiences.
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || 'unconfigured-ios-client-id',
+    androidClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID || 'unconfigured-android-client-id',
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || 'unconfigured-web-client-id',
   });
 
