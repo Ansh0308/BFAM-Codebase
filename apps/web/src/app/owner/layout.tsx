@@ -5,14 +5,15 @@ import { usePathname } from 'next/navigation';
 import { useRequireRole } from '../../lib/auth';
 import { DashboardShell } from '../../components/DashboardShell';
 import { BallLoader } from '../../components/BallLoader';
+import { CalendarCheck, CreditCard, LayoutDashboard, Swords, Tv, UserCog } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/owner', label: 'Dashboard' },
-  { href: '/owner/bookings', label: "Today's Bookings" },
-  { href: '/owner/matches', label: 'Match Management' },
-  { href: '/owner/staff', label: 'Staff Management' },
-  { href: '/owner/payments', label: 'Payments' },
-  { href: '/owner/scoreboard', label: 'Scoreboard' },
+  { href: '/owner', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/owner/bookings', label: "Today's Bookings", icon: CalendarCheck },
+  { href: '/owner/matches', label: 'Match Management', icon: Swords },
+  { href: '/owner/staff', label: 'Staff Management', icon: UserCog },
+  { href: '/owner/payments', label: 'Payments', icon: CreditCard },
+  { href: '/owner/scoreboard', label: 'Scoreboard', icon: Tv },
 ];
 
 // Owner Web (module 2.12, PRD §9.2) — same functionality as Owner Mobile,

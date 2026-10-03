@@ -89,14 +89,14 @@
 
 ### 2.3 Turf Staff Web (PRD §9.3, §22.2–22.3)
 
-| ID   | Item                                                                            | PRD ref     | Backend       | Notes                                                                                                |
-| ---- | ------------------------------------------------------------------------------- | ----------- | ------------- | ---------------------------------------------------------------------------------------------------- |
-| SW-1 | **Desk check-in** — mark Checked in / Late / No-show per booking and per player | §9.3, §22.3 | Ready         | Attendance logic exists in the backend (used by Staff Mobile). Staff Web has no actions.             |
-| SW-2 | **Cash collection** at the desk                                                 | §9.3 / §17  | Ready         | `POST /payments/cash`.                                                                               |
-| SW-3 | **Match management + turf-managed live scoring**                                | §9.3        | Ready         | Match Operations is a table; no scoring console. Shares work with OW-11.                             |
-| SW-4 | **Booking verification** (QR / confirmation lookup)                             | §22.3       | Partial       | Verification page is for the staff member's own ID document, not for verifying a customer's booking. |
-| SW-5 | **Turf status** (open / closed for the day)                                     | §22.2       | Needs backend |                                                                                                      |
-| SW-6 | **Customer assistance**                                                         | §22.2       | Needs backend |                                                                                                      |
+| ID   | Item                                                                                                    | PRD ref     | Backend       | Notes                                                                                                |
+| ---- | ------------------------------------------------------------------------------------------------------- | ----------- | ------------- | ---------------------------------------------------------------------------------------------------- |
+| SW-1 | ✅ **DONE (Phase 1)** — **Desk check-in** — mark Checked in / Late / No-show per booking and per player | §9.3, §22.3 | Ready         | Attendance logic exists in the backend (used by Staff Mobile). Staff Web has no actions.             |
+| SW-2 | ✅ **DONE (Phase 1)** — **Cash collection** at the desk                                                 | §9.3 / §17  | Ready         | `POST /payments/cash`.                                                                               |
+| SW-3 | **Match management + turf-managed live scoring**                                                        | §9.3        | Ready         | Match Operations is a table; no scoring console. Shares work with OW-11.                             |
+| SW-4 | ✅ **DONE (Phase 1)** — **Booking verification** (QR / confirmation lookup)                             | §22.3       | Partial       | Verification page is for the staff member's own ID document, not for verifying a customer's booking. |
+| SW-5 | **Turf status** (open / closed for the day)                                                             | §22.2       | Needs backend |                                                                                                      |
+| SW-6 | **Customer assistance**                                                                                 | §22.2       | Needs backend |                                                                                                      |
 
 ---
 
@@ -110,6 +110,12 @@
 | X-4 | **Test coverage**                         | 13 web test files for 23 pages. Each new page below needs tests.                                                                                                                           |
 | X-5 | **Empty / error / loading states**        | Several pages swallow errors into an empty list. Needs a consistent error state.                                                                                                           |
 | X-6 | **Responsive / desktop-vs-mobile polish** | PRD: owners work on desktop, staff are mobile-first on the ground. Staff Web needs to work well on a phone.                                                                                |
+
+---
+
+## 3.1 Phase 1 status (2026-10-03)
+
+Phase 1 (Staff Web desk operations) is built: Today's Desk with live stats, timeline and booking lookup; per-booking drawer with roster check-in / running late / no-show (single and bulk), cash collection with reference, payment history and booking details; Match Operations with filters and a per-match roster. The shared shell (sidebar with animated active indicator, top bar, page transitions), tables, buttons and inputs were rebuilt with the `motion` and `lucide-react` packages already in the web app. Web tests: 11 new/updated for the staff pages.
 
 ---
 

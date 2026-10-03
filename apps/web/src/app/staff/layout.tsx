@@ -4,11 +4,12 @@ import React from 'react';
 import { useRequireRole } from '../../lib/auth';
 import { DashboardShell } from '../../components/DashboardShell';
 import { BallLoader } from '../../components/BallLoader';
+import { ClipboardCheck, ShieldCheck, Swords } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/staff', label: "Today's Bookings" },
-  { href: '/staff/matches', label: 'Match Operations' },
-  { href: '/staff/verification', label: 'Verification' },
+  { href: '/staff', label: "Today's Desk", icon: ClipboardCheck },
+  { href: '/staff/matches', label: 'Match Operations', icon: Swords },
+  { href: '/staff/verification', label: 'Verification', icon: ShieldCheck },
 ];
 
 // Staff Web (module 2.12, PRD §9.3) — a desk-based alternative to Staff

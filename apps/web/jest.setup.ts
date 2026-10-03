@@ -5,3 +5,19 @@ import '@testing-library/jest-dom';
 jest.mock('@lottiefiles/dotlottie-react', () => ({
   DotLottieReact: () => null,
 }));
+
+// jsdom has no matchMedia; motion's reduced-motion check and a few layout
+// helpers read it. Report "no preference" and no-op listeners.
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }),
+});
