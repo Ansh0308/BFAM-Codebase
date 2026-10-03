@@ -9,10 +9,24 @@ import { WheelColumn } from './DateOfBirthField';
 // Values stay machine-friendly ('YYYY-MM-DD', 'HH:MM'); what the person sees is
 // shown as MM-DD-YYYY and a 12-hour time, as asked in tester feedback.
 
-const MONTHS = Array.from({ length: 12 }, (_, i) => {
-  const v = String(i + 1).padStart(2, '0');
-  return { value: v, label: v };
-});
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+const MONTHS = MONTH_NAMES.map((name, i) => ({
+  value: String(i + 1).padStart(2, '0'),
+  label: name,
+}));
 
 function pad(n: number) {
   return String(n).padStart(2, '0');
@@ -25,7 +39,7 @@ function daysIn(month: string | null, year: string | null): number {
 
 export function formatDateForDisplay(value: string): string {
   const [y, m, d] = value.split('-');
-  return y && m && d ? `${m}-${d}-${y}` : value;
+  return y && m && d ? `${d}-${m}-${y}` : value;
 }
 
 export function formatTimeForDisplay(value: string): string {
@@ -83,6 +97,7 @@ function Trigger({
 
 function Panel({
   title,
+  columnLabels,
   children,
   canConfirm,
   onConfirm,
@@ -90,6 +105,8 @@ function Panel({
   testID,
 }: {
   title: string;
+  // Names above the wheels ("Day", "Month", "Year"), in the order the wheels appear.
+  columnLabels?: string[];
   children: React.ReactNode;
   canConfirm: boolean;
   onConfirm: () => void;
@@ -107,6 +124,21 @@ function Panel({
           <Feather name="x" size={18} color="#767676" />
         </Pressable>
       </View>
+      {columnLabels ? (
+        <View
+          className="flex-row border-b border-border-subtle"
+          testID={testID ? `${testID}-column-labels` : undefined}
+        >
+          {columnLabels.map((name, i) => (
+            <React.Fragment key={name}>
+              {i > 0 ? <View className="w-px bg-border-subtle" /> : null}
+              <Text className="flex-1 text-center font-ui font-bold text-micro uppercase tracking-wide text-text-secondary py-2">
+                {name}
+              </Text>
+            </React.Fragment>
+          ))}
+        </View>
+      ) : null}
       <View className="flex-row" style={{ height: 200 }}>
         {children}
       </View>
@@ -181,7 +213,7 @@ export function DateField({
         label={label}
         icon="calendar"
         text={value ? formatValue(value) : null}
-        placeholder="Select date (MM-DD-YYYY)"
+        placeholder="Select date (DD-MM-YYYY)"
         open={open}
         onPress={() => setOpen((o) => !o)}
         testID={testID}
@@ -189,6 +221,7 @@ export function DateField({
       {open ? (
         <Panel
           title={label}
+          columnLabels={['Day', 'Month', 'Year']}
           canConfirm={complete}
           onConfirm={() => {
             onChange(`${year}-${month}-${shownDay}`);
@@ -198,17 +231,17 @@ export function DateField({
           testID={testID}
         >
           <WheelColumn
-            options={MONTHS}
-            value={month}
-            onChange={setMonth}
-            testID={testID ? `${testID}-month` : undefined}
-          />
-          <View className="w-px bg-border-subtle" />
-          <WheelColumn
             options={days}
             value={shownDay}
             onChange={setDay}
             testID={testID ? `${testID}-day` : undefined}
+          />
+          <View className="w-px bg-border-subtle" />
+          <WheelColumn
+            options={MONTHS}
+            value={month}
+            onChange={setMonth}
+            testID={testID ? `${testID}-month` : undefined}
           />
           <View className="w-px bg-border-subtle" />
           <WheelColumn
@@ -264,6 +297,7 @@ export function TimeField({ label, value, onChange, testID }: TimeFieldProps) {
       {open ? (
         <Panel
           title={label}
+          columnLabels={['Hour', 'Minute']}
           canConfirm={complete}
           onConfirm={() => {
             onChange(`${hour}:${minute}`);

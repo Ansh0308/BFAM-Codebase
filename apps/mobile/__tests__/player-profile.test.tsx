@@ -144,37 +144,35 @@ describe('Player Profile screen (backlog B-10)', () => {
     });
   });
 
-  // Backlog B-12: reached via player search, a viewer can book a turf
-  // straight from this profile.
-  describe('Book a Turf', () => {
-    it('routes to the one available turf while Discover stays hidden (backlog A-12)', async () => {
+  // Tester feedback: the profile of another player has no "Book a Turf" button, and shows
+  // their details in plain wording instead of codes like RIGHT_HANDED.
+  describe('what the profile shows', () => {
+    it('has no Book a Turf button', async () => {
       mockGetPlayerProfile.mockResolvedValueOnce(PROFILE);
-      mockGetTurfs.mockResolvedValueOnce({
-        page: 1,
-        page_size: 20,
-        results: [{ turf_id: 'turf-1', turf_name: 'BFAM Ground' }],
-      });
 
-      const { findByTestId } = await render(<PlayerProfileScreen />);
-      await fireEvent.press(await findByTestId('player-profile-book-turf-button'));
+      const { findByText, queryByTestId, queryByText } = await render(<PlayerProfileScreen />);
+      await findByText('Asha Patel');
 
-      await waitFor(() => expect(mockGetTurfs).toHaveBeenCalledWith({}));
-      await waitFor(() =>
-        expect(mockPush).toHaveBeenCalledWith(
-          '/(tabs)/discover/turf/turf-1/availability?turfName=BFAM%20Ground',
-        ),
-      );
+      expect(queryByTestId('player-profile-book-turf-button')).toBeNull();
+      expect(queryByText(/book a turf/i)).toBeNull();
     });
 
-    it('shows an error if there is no turf to book yet', async () => {
-      mockGetPlayerProfile.mockResolvedValueOnce(PROFILE);
-      mockGetTurfs.mockResolvedValueOnce({ page: 1, page_size: 20, results: [] });
+    it('shows playing role, batting style, bowling style and experience in proper case', async () => {
+      mockGetPlayerProfile.mockResolvedValueOnce({
+        ...PROFILE,
+        playing_role: 'ALL_ROUNDER',
+        batting_style: 'RIGHT_HANDED',
+        bowling_style: 'RIGHT_ARM',
+        experience_level: 'BEGINNER',
+      });
 
-      const { findByTestId, findByText } = await render(<PlayerProfileScreen />);
-      await fireEvent.press(await findByTestId('player-profile-book-turf-button'));
-
-      await findByText(/no turf is available/i);
-      expect(mockPush).not.toHaveBeenCalled();
+      const { findByText, queryByText } = await render(<PlayerProfileScreen />);
+      expect(await findByText('All-Rounder')).toBeTruthy();
+      expect(await findByText('Right-Handed')).toBeTruthy();
+      expect(await findByText('Right-Arm')).toBeTruthy();
+      expect(await findByText('Beginner')).toBeTruthy();
+      expect(queryByText('RIGHT_HANDED')).toBeNull();
+      expect(queryByText('ALL_ROUNDER')).toBeNull();
     });
   });
 });

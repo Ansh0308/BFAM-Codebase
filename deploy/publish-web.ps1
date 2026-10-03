@@ -29,6 +29,11 @@ Step "Building the player site against $ApiUrl"
 Push-Location (Join-Path $RepoRoot 'apps\mobile')
 try {
   $env:EXPO_PUBLIC_API_URL = $ApiUrl
+  # An id for this build: baked into the app and written to version.json, so a tab left open
+  # on an older version offers testers a one-tap reload.
+  $sha = (& git -C $RepoRoot rev-parse --short HEAD).Trim()
+  $env:EXPO_PUBLIC_BUILD_ID = ($sha + '-' + (Get-Date -Format 'yyyyMMddHHmmss'))
+  Write-Host ('Build id: ' + $env:EXPO_PUBLIC_BUILD_ID)
   $env:EXPO_NO_TELEMETRY = '1'
   & npm run export:web
   if ($LASTEXITCODE -ne 0) { Write-Host 'expo export failed' -ForegroundColor Red; exit 1 }

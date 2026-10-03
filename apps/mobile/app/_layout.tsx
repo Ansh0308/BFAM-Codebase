@@ -12,6 +12,7 @@ import * as Sentry from '@sentry/react-native';
 import { useAuthStore } from '../src/store/authStore';
 import { SCREEN_TRANSITION } from '../src/theme/navigation';
 import { CrashBoundary, installCrashGuard } from '../src/lib/crashGuard';
+import { UpdateBanner } from '../src/components/UpdateBanner';
 
 installCrashGuard();
 
@@ -60,6 +61,7 @@ function RootLayout() {
   return (
     <>
       <StatusBar style="auto" />
+      <UpdateBanner />
       <CrashBoundary>
         <Stack screenOptions={{ headerShown: false, animation: SCREEN_TRANSITION }} />
       </CrashBoundary>

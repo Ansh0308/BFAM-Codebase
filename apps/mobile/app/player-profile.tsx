@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { BallLoader } from '../src/components/BallLoader';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import type { PublicPlayerProfile } from '@bfam/shared-types';
 import { ScreenContainer } from '../src/components/ScreenContainer';
 import { ScreenHeader } from '../src/components/ScreenHeader';
@@ -10,7 +9,7 @@ import { Avatar } from '../src/components/Avatar';
 import { Button } from '../src/components/Button';
 import { apiClient } from '../src/lib/apiClient';
 import { useAuthStore } from '../src/store/authStore';
-import { DISCOVERY_ENABLED } from '../src/config/featureFlags';
+import { playerFieldLabel } from '../src/lib/playerLabels';
 
 function displayName(p: PublicPlayerProfile): string {
   return p.full_name || p.bfam_id;
@@ -30,7 +29,6 @@ const FIELD_LABELS: { key: keyof PublicPlayerProfile; label: string }[] = [
 // deliberately shows less than the Player's own Profile screen (module
 // 2.2) — see getPublicProfile (backend) for exactly what's excluded.
 export default function PlayerProfileScreen() {
-  const router = useRouter();
   const { playerId } = useLocalSearchParams<{ playerId: string }>();
   const myBfamId = useAuthStore((s) => s.user?.bfam_id);
   const [profile, setProfile] = useState<PublicPlayerProfile | null>(null);
@@ -38,8 +36,6 @@ export default function PlayerProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [followBusy, setFollowBusy] = useState(false);
   const [followError, setFollowError] = useState<string | null>(null);
-  const [bookTurfBusy, setBookTurfBusy] = useState(false);
-  const [bookTurfError, setBookTurfError] = useState<string | null>(null);
 
   useEffect(() => {
     apiClient
@@ -73,35 +69,6 @@ export default function PlayerProfileScreen() {
     } finally {
       setFollowBusy(false);
     }
-  }
-
-  // Backlog B-12 (feedback: a player reached via search should be able to
-  // see "available turf for the booking" from their profile). Mirrors
-  // Home's own bookTurf() exactly — same single-turf fallback while
-  // Discover stays hidden (backlog A-12) — since this screen shouldn't
-  // invent a second turf-picking behavior alongside Home's.
-  async function bookTurf() {
-    if (!DISCOVERY_ENABLED) {
-      setBookTurfBusy(true);
-      setBookTurfError(null);
-      try {
-        const { results } = await apiClient.getTurfs({});
-        const turf = results[0];
-        if (!turf) {
-          setBookTurfError('No turf is available to book yet.');
-          return;
-        }
-        router.push(
-          `/(tabs)/discover/turf/${turf.turf_id}/availability?turfName=${encodeURIComponent(turf.turf_name)}`,
-        );
-      } catch {
-        setBookTurfError('Could not load the turf. Please try again.');
-      } finally {
-        setBookTurfBusy(false);
-      }
-      return;
-    }
-    router.push('/(tabs)/discover');
   }
 
   if (loading) {
@@ -171,22 +138,6 @@ export default function PlayerProfileScreen() {
             {followError}
           </Text>
         )}
-
-        <View className="mt-4" style={{ width: 200 }}>
-          <Button
-            label="Book a Turf"
-            variant="secondary"
-            iconLeft={<Feather name="calendar" size={16} color="#D80000" />}
-            onPress={bookTurf}
-            loading={bookTurfBusy}
-            testID="player-profile-book-turf-button"
-          />
-        </View>
-        {bookTurfError && (
-          <Text className="font-ui text-body text-brand-red-dark mt-2" testID="book-turf-error">
-            {bookTurfError}
-          </Text>
-        )}
       </View>
 
       <View className="flex-row justify-center mb-6" style={{ gap: 24 }}>
@@ -210,7 +161,9 @@ export default function PlayerProfileScreen() {
         return (
           <View key={key} className="flex-row justify-between py-3 border-b border-border-subtle">
             <Text className="font-ui text-body text-text-secondary">{label}</Text>
-            <Text className="font-ui text-body text-text-primary">{String(value)}</Text>
+            <Text className="font-ui text-body text-text-primary">
+              {playerFieldLabel(String(value))}
+            </Text>
           </View>
         );
       })}

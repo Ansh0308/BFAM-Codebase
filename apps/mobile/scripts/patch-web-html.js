@@ -30,3 +30,14 @@ if (!html.includes('rel="manifest"')) {
 html = html.replace(/<title>[^<]*<\/title>/, '<title>BFAM</title>');
 fs.writeFileSync(file, html);
 console.log('patch-web-html: home-screen tags written to ' + file);
+
+// version.json: the id of this build, which the running site compares with its own to
+// offer testers a reload (see src/lib/webUpdate.ts). Needs EXPO_PUBLIC_BUILD_ID to have been
+// set for the export too, so the same id is baked into the code.
+const buildId = process.env.EXPO_PUBLIC_BUILD_ID;
+if (buildId) {
+  fs.writeFileSync(path.join(dist, 'version.json'), JSON.stringify({ id: buildId }) + '\n');
+  console.log('patch-web-html: version.json written for build ' + buildId);
+} else {
+  console.log('patch-web-html: EXPO_PUBLIC_BUILD_ID not set - no version.json (update banner off)');
+}

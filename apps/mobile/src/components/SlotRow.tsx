@@ -30,30 +30,34 @@ export function SlotRow({ slot, onPress }: Props) {
       }`}
       testID={`slot-${slot.start_time}`}
     >
-      <View className="flex-row items-center">
+      {/* Time with the price underneath, status on the right: on a narrow phone the old
+          single line (time + price + status) ran off the edge and cut "AVAILABLE" short. */}
+      <View className="flex-row items-center flex-1" style={{ minWidth: 0 }}>
         <View
           className={`w-2 h-2 rounded-full mr-3 ${isAvailable ? 'bg-brand-red' : 'bg-text-tertiary'}`}
         />
-        <Text
-          className={`font-ui text-button ${isAvailable ? 'text-text-primary' : 'text-text-tertiary'}`}
-        >
-          {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
-        </Text>
-      </View>
-      <View className="flex-row items-center">
-        {slot.price_per_hour !== null && (
+        <View style={{ flexShrink: 1 }}>
           <Text
-            className={`text-body mr-3 ${isAvailable ? 'text-text-secondary' : 'text-text-tertiary'}`}
+            className={`font-ui text-button ${isAvailable ? 'text-text-primary' : 'text-text-tertiary'}`}
           >
-            ₹{slot.price_per_hour}/hr
+            {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
           </Text>
-        )}
-        <Text
-          className={`text-micro uppercase ${isAvailable ? 'text-brand-red' : 'text-text-tertiary'}`}
-        >
-          {isAvailable ? 'Available' : slot.status === 'BLOCKED' ? 'Blocked' : 'Booked'}
-        </Text>
+          {slot.price_per_hour !== null && (
+            <Text
+              className={`text-body ${isAvailable ? 'text-text-secondary' : 'text-text-tertiary'}`}
+              style={{ marginTop: 2 }}
+            >
+              ₹{slot.price_per_hour}/hr
+            </Text>
+          )}
+        </View>
       </View>
+      <Text
+        className={`text-micro uppercase ml-3 ${isAvailable ? 'text-brand-red' : 'text-text-tertiary'}`}
+        style={{ flexShrink: 0 }}
+      >
+        {isAvailable ? 'Available' : slot.status === 'BLOCKED' ? 'Blocked' : 'Booked'}
+      </Text>
     </Pressable>
   );
 }

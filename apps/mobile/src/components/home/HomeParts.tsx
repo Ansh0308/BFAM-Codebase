@@ -7,8 +7,11 @@ import { colors } from '../../theme/tokens';
 import { CountUp } from './CountUp';
 import { CricketBatIcon } from '../CricketBatIcon';
 
-// Tactile press: the card lifts 3px and the icon swells a touch, on a
-// spring with no overshoot to speak of — subtle, not bouncy.
+// The four Home shortcuts, laid out two by two: every card is the same size with the icon
+// beside a one-line name and caption, so nothing wraps or misaligns however narrow the
+// phone (the old four-across row wrapped "Create Team" and "BUILD SQUAD" onto two lines
+// and the cards looked uneven). Tactile press: the card lifts 3px and the icon swells a
+// touch, on a spring with no overshoot to speak of - subtle, not bouncy.
 export function QuickAction({
   icon,
   label,
@@ -29,20 +32,18 @@ export function QuickAction({
     <MotiView
       animate={{ translateY: pressed ? -3 : 0 }}
       transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-      style={{ flex: 1, marginHorizontal: 4 }}
+      style={{ width: '50%', paddingHorizontal: 4, marginBottom: 8 }}
     >
       <Pressable
         onPress={onPress}
         onPressIn={() => setPressed(true)}
         onPressOut={() => setPressed(false)}
         disabled={loading}
-        className="items-center bg-surface border border-border-subtle"
+        className="flex-row items-center bg-surface border border-border-subtle"
         style={{
           borderRadius: 14,
-          paddingVertical: 16,
-          paddingHorizontal: 4,
-          minHeight: 118,
-          justifyContent: 'center',
+          height: 76,
+          paddingHorizontal: 12,
           shadowColor: '#000',
           shadowOpacity: pressed ? 0.1 : 0.04,
           shadowRadius: pressed ? 14 : 8,
@@ -51,32 +52,34 @@ export function QuickAction({
         }}
         testID={testID}
       >
-        {loading ? (
-          <BallLoader size="small" />
-        ) : (
-          <MotiView
-            animate={{ scale: pressed ? 1.1 : 1 }}
-            transition={{ type: 'spring', damping: 18, stiffness: 320 }}
-          >
-            <Feather name={icon} size={28} color={colors.brandRed} />
-          </MotiView>
-        )}
-        {/* Room for two lines so a wrapping label ("Create Team" on a narrow phone) does
-            not push its caption out of line with the other tiles. */}
-        <View style={{ minHeight: 32, justifyContent: 'center', marginTop: 8 }}>
+        <View style={{ width: 34, alignItems: 'center' }}>
+          {loading ? (
+            <BallLoader size="small" />
+          ) : (
+            <MotiView
+              animate={{ scale: pressed ? 1.1 : 1 }}
+              transition={{ type: 'spring', damping: 18, stiffness: 320 }}
+            >
+              <Feather name={icon} size={26} color={colors.brandRed} />
+            </MotiView>
+          )}
+        </View>
+        <View style={{ flex: 1, marginLeft: 10 }}>
           <Text
-            className="font-ui font-bold text-ink-black text-center"
-            style={{ fontSize: 13, lineHeight: 16 }}
+            className="font-ui font-bold text-ink-black"
+            style={{ fontSize: 14 }}
+            numberOfLines={1}
           >
             {label}
           </Text>
+          <Text
+            className="font-ui text-text-tertiary"
+            style={{ fontSize: 9, letterSpacing: 0.8, marginTop: 3 }}
+            numberOfLines={1}
+          >
+            {caption}
+          </Text>
         </View>
-        <Text
-          className="font-ui text-text-tertiary text-center"
-          style={{ fontSize: 9, letterSpacing: 1.1, marginTop: 4 }}
-        >
-          {caption}
-        </Text>
       </Pressable>
     </MotiView>
   );

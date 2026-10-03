@@ -234,7 +234,7 @@ export default function Home() {
 
           <HomeHero onFindMatch={() => router.push('/(tabs)/matches')} />
 
-          <View className="flex-row mt-5" style={{ marginHorizontal: -4 }}>
+          <View className="flex-row mt-5" style={{ marginHorizontal: -4, flexWrap: 'wrap' }}>
             <QuickAction
               icon="calendar"
               label="Book Turf"

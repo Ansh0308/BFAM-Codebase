@@ -26,8 +26,8 @@ import { BackButton } from '../src/components/BackButton';
 import { SkillRatingCard } from '../src/components/profile/ProfileParts';
 
 describe('display formats', () => {
-  it('shows dates as MM-DD-YYYY and times in 12-hour form', () => {
-    expect(formatDateForDisplay('2026-10-07')).toBe('10-07-2026');
+  it('shows dates as DD-MM-YYYY and times in 12-hour form', () => {
+    expect(formatDateForDisplay('2026-10-07')).toBe('07-10-2026');
     expect(formatTimeForDisplay('18:00')).toBe('6:00 PM');
     expect(formatTimeForDisplay('00:15')).toBe('12:15 AM');
     expect(formatTimeForDisplay('12:30')).toBe('12:30 PM');

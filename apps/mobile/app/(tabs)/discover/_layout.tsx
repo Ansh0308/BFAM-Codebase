@@ -36,6 +36,11 @@ export default function DiscoverLayout() {
       <Stack.Screen name="booking/[bookingId]/index" options={{ title: 'Booking Details' }} />
       <Stack.Screen name="booking/[bookingId]/cancel" options={{ title: 'Cancel Booking' }} />
       <Stack.Screen name="payment-history" options={{ title: 'Payment History' }} />
+      <Stack.Screen
+        name="booking/[bookingId]/reschedule"
+        options={{ title: 'Reschedule Booking' }}
+      />
+      <Stack.Screen name="venue/[venueId]" options={{ title: 'Venue' }} />
     </Stack>
   );
 }

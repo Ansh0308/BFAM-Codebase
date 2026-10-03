@@ -272,7 +272,7 @@ export default function RoomLobbyScreen() {
                   />
                 )}
                 <DateField
-                  label="Booking Date (MM-DD-YYYY)"
+                  label="Booking Date (DD-MM-YYYY)"
                   value={bookingDate}
                   onChange={setBookingDate}
                   testID="room-booking-date"
