@@ -1,18 +1,23 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Text, View } from 'react-native';
 import type { Membership, MembershipPlan } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../src/lib/apiClient';
 import { confirmAction } from '../src/lib/confirm';
-import { BallLoader } from '../src/components/BallLoader';
+import {
+  HeroCard,
+  HubCard,
+  HubLoading,
+  HubMessage,
+  HubScreen,
+  IconBadge,
+  PillButton,
+  SectionLabel,
+} from '../src/components/hub/HubParts';
 
 // Memberships (long tail, PRD §12.51): plans bought with coins; buying while
 // active extends from the current expiry.
 export default function MembershipScreen() {
-  const router = useRouter();
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [membership, setMembership] = useState<Membership | null>(null);
   const [coins, setCoins] = useState<number | null>(null);
@@ -68,76 +73,98 @@ export default function MembershipScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
-      <View className="flex-row items-center px-5 pt-4 mb-2">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          testID="membership-back"
-        >
-          <Feather name="arrow-left" size={22} color="#0D0D0D" />
-        </Pressable>
-        <Text className="font-ui font-bold text-title-xl text-ink-black ml-3">Membership</Text>
-      </View>
-
-      <ScrollView className="flex-1 px-5" testID="membership-screen">
-        {coins !== null && (
-          <Text className="font-ui text-body text-text-secondary mb-4" testID="membership-coins">
-            Your balance: {coins} coins
+    <HubScreen
+      title="Membership"
+      subtitle="Pay with coins, save on every booking"
+      backTestID="membership-back"
+      testID="membership-screen"
+    >
+      {membership ? (
+        <HeroCard testID="membership-active">
+          <Text
+            className="font-ui"
+            style={{ fontSize: 11, letterSpacing: 1, color: 'rgba(255,255,255,0.8)' }}
+          >
+            YOUR MEMBERSHIP
           </Text>
-        )}
-        {membership && (
-          <View className="bg-surface-alt rounded-lg p-4 mb-4" testID="membership-active">
-            <Text className="font-ui font-bold text-body text-ink-black">
-              {membership.plan_name} · {membership.discount_percent}% member discount
-            </Text>
-            <Text className="font-ui text-micro text-text-tertiary mt-1">
-              Active until {new Date(membership.expires_at).toLocaleDateString()}
+          <Text
+            className="font-ui font-bold"
+            style={{ fontSize: 22, lineHeight: 28, color: '#FFFFFF', marginTop: 4 }}
+          >
+            {membership.plan_name} · {membership.discount_percent}% member discount
+          </Text>
+          <Text
+            className="font-ui"
+            style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 4 }}
+          >
+            Active until {new Date(membership.expires_at).toLocaleDateString()}
+          </Text>
+        </HeroCard>
+      ) : null}
+
+      {coins !== null && (
+        <HubCard style={{ paddingVertical: 12 }}>
+          <View className="flex-row items-center">
+            <IconBadge icon="trophy" size={34} />
+            <Text
+              className="font-ui font-bold text-ink-black flex-1"
+              style={{ fontSize: 15, marginLeft: 12 }}
+              testID="membership-coins"
+            >
+              Your balance: {coins} coins
             </Text>
           </View>
-        )}
-        {message && <Text className="font-ui text-body text-ink-black mb-3">{message}</Text>}
-        {error && <Text className="font-ui text-body text-brand-red mb-3">{error}</Text>}
-        {loading && <BallLoader testID="membership-loading" />}
+        </HubCard>
+      )}
 
-        {!loading &&
-          plans.map((p) => {
-            const cantAfford = coins !== null && coins < p.coin_cost;
-            return (
-              <View
-                key={p.plan_id}
-                className="bg-surface-alt rounded-lg p-4 mb-3"
-                testID={`plan-${p.plan_id}`}
-              >
-                <Text className="font-ui font-bold text-body text-ink-black">{p.name}</Text>
-                <Text className="font-ui text-micro text-text-tertiary mt-1">
-                  {p.duration_days} days · {p.discount_percent}% discount
-                </Text>
-                <View className="flex-row items-center justify-between mt-3">
-                  <Text className="font-ui font-bold text-body text-brand-red">
-                    {p.coin_cost} coins
+      {message && <HubMessage tone="ok">{message}</HubMessage>}
+      {error && <HubMessage tone="error">{error}</HubMessage>}
+      {loading && <HubLoading testID="membership-loading" />}
+
+      {!loading && plans.length > 0 && <SectionLabel>Plans</SectionLabel>}
+
+      {!loading &&
+        plans.map((p) => {
+          const cantAfford = coins !== null && coins < p.coin_cost;
+          return (
+            <HubCard key={p.plan_id} testID={`plan-${p.plan_id}`}>
+              <View className="flex-row items-start">
+                <IconBadge icon="card-account-details" size={40} />
+                <View className="flex-1" style={{ marginLeft: 12 }}>
+                  <Text className="font-ui font-bold text-ink-black" style={{ fontSize: 16 }}>
+                    {p.name}
                   </Text>
-                  <Pressable
-                    onPress={() => subscribe(p)}
-                    disabled={busyId === p.plan_id || cantAfford}
-                    testID={`subscribe-${p.plan_id}`}
+                  <Text
+                    className="font-ui text-text-tertiary"
+                    style={{ fontSize: 12, marginTop: 2 }}
                   >
-                    <Text
-                      className={`font-ui font-bold text-body uppercase ${
-                        cantAfford ? 'text-text-tertiary' : 'text-brand-red'
-                      }`}
-                    >
-                      {membership ? 'Extend' : 'Join'}
-                    </Text>
-                  </Pressable>
+                    {p.duration_days} days · {p.discount_percent}% discount
+                  </Text>
                 </View>
               </View>
-            );
-          })}
-        <View className="mb-10" />
-      </ScrollView>
-    </SafeAreaView>
+              <View className="flex-row items-center justify-between" style={{ marginTop: 12 }}>
+                <Text className="font-display text-brand-red" style={{ fontSize: 22 }}>
+                  {p.coin_cost} coins
+                </Text>
+                <PillButton
+                  label={membership ? 'Extend' : 'Join'}
+                  onPress={() => subscribe(p)}
+                  disabled={busyId === p.plan_id || cantAfford}
+                  testID={`subscribe-${p.plan_id}`}
+                />
+              </View>
+              {cantAfford && coins !== null && (
+                <Text
+                  className="font-ui text-text-tertiary"
+                  style={{ fontSize: 11.5, marginTop: 8 }}
+                >
+                  You need {p.coin_cost - coins} more coins. Earn them by reviewing matches and
+                  referring friends.
+                </Text>
+              )}
+            </HubCard>
+          );
+        })}
+    </HubScreen>
   );
 }

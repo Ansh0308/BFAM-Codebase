@@ -1,18 +1,27 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { Reward, RewardRedemption } from '@bfam/shared-types';
 import { BFAMApiError } from '@bfam/api-client';
 import { apiClient } from '../src/lib/apiClient';
 import { confirmAction } from '../src/lib/confirm';
-import { BallLoader } from '../src/components/BallLoader';
+import { colors } from '../src/theme/tokens';
+import { CoinsExplainer } from '../src/components/coins/CoinsExplainer';
+import {
+  Chip,
+  HeroCard,
+  HubCard,
+  HubLoading,
+  HubMessage,
+  HubScreen,
+  IconBadge,
+  PillButton,
+  SectionLabel,
+} from '../src/components/hub/HubParts';
 
 // Rewards (long tail, PRD §12.36): a coin-priced catalog. Redeeming spends
 // coins and creates a PENDING redemption a turf/admin fulfils manually.
 export default function RewardsScreen() {
-  const router = useRouter();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
   const [coins, setCoins] = useState<number | null>(null);
@@ -20,6 +29,7 @@ export default function RewardsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [howOpen, setHowOpen] = useState(true);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -62,86 +72,119 @@ export default function RewardsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
-      <View className="flex-row items-center px-5 pt-4 mb-2">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          testID="rewards-back"
-        >
-          <Feather name="arrow-left" size={22} color="#0D0D0D" />
-        </Pressable>
-        <Text className="font-ui font-bold text-title-xl text-ink-black ml-3">Rewards</Text>
-      </View>
-
-      <ScrollView className="flex-1 px-5" testID="rewards-screen">
-        {coins !== null && (
-          <Text className="font-ui text-body text-text-secondary mb-4" testID="rewards-coins">
-            Your balance: {coins} coins
+    <HubScreen
+      title="Rewards"
+      subtitle="Spend your BFAM Coins"
+      backTestID="rewards-back"
+      testID="rewards-screen"
+    >
+      {coins !== null && (
+        <HeroCard>
+          <Text
+            className="font-ui"
+            style={{ fontSize: 11, letterSpacing: 1, color: 'rgba(255,255,255,0.8)' }}
+          >
+            YOUR BALANCE
           </Text>
-        )}
-        {message && <Text className="font-ui text-body text-ink-black mb-3">{message}</Text>}
-        {error && <Text className="font-ui text-body text-brand-red mb-3">{error}</Text>}
-        {loading && <BallLoader testID="rewards-loading" />}
+          <Text
+            className="font-display"
+            style={{ fontSize: 44, lineHeight: 50, color: '#FFFFFF', marginTop: 2 }}
+            testID="rewards-coins"
+          >
+            {coins} coins
+          </Text>
+          <Text className="font-ui" style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>
+            Worth ₹{coins} off your next turf booking
+          </Text>
+        </HeroCard>
+      )}
 
-        {!loading &&
-          rewards.map((r) => {
-            const cantAfford = coins !== null && coins < r.coin_cost;
-            return (
-              <View
-                key={r.reward_id}
-                className="bg-surface-alt rounded-lg p-4 mb-3"
-                testID={`reward-${r.reward_id}`}
-              >
-                <Text className="font-ui font-bold text-body text-ink-black">{r.name}</Text>
-                {r.description && (
-                  <Text className="font-ui text-micro text-text-tertiary mt-1">
-                    {r.description}
+      <Pressable
+        onPress={() => setHowOpen((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: howOpen }}
+        testID="coins-how-toggle"
+        className="flex-row items-center justify-between"
+        style={{ marginBottom: 10 }}
+      >
+        <SectionLabel>How BFAM Coins work</SectionLabel>
+        <Feather name={howOpen ? 'chevron-up' : 'chevron-down'} size={20} color={colors.inkBlack} />
+      </Pressable>
+      {howOpen && <CoinsExplainer testID="coins-explainer" />}
+
+      <SectionLabel>Rewards you can get</SectionLabel>
+
+      {message && <HubMessage tone="ok">{message}</HubMessage>}
+      {error && <HubMessage tone="error">{error}</HubMessage>}
+      {loading && <HubLoading testID="rewards-loading" />}
+
+      {!loading && !error && rewards.length === 0 && (
+        <HubMessage icon="gift-outline">
+          No rewards in the catalog yet — check back soon.
+        </HubMessage>
+      )}
+
+      {!loading &&
+        rewards.map((r) => {
+          const cantAfford = coins !== null && coins < r.coin_cost;
+          return (
+            <HubCard key={r.reward_id} testID={`reward-${r.reward_id}`}>
+              <View className="flex-row items-start">
+                <IconBadge icon="gift" size={40} />
+                <View className="flex-1" style={{ marginLeft: 12 }}>
+                  <Text className="font-ui font-bold text-ink-black" style={{ fontSize: 15 }}>
+                    {r.name}
                   </Text>
-                )}
-                <View className="flex-row items-center justify-between mt-3">
-                  <Text className="font-ui font-bold text-body text-brand-red">
-                    {r.coin_cost} coins
-                  </Text>
-                  <Pressable
-                    onPress={() => redeem(r)}
-                    disabled={busyId === r.reward_id || cantAfford}
-                    testID={`redeem-${r.reward_id}`}
-                  >
+                  {r.description && (
                     <Text
-                      className={`font-ui font-bold text-body uppercase ${
-                        cantAfford ? 'text-text-tertiary' : 'text-brand-red'
-                      }`}
+                      className="font-ui text-text-tertiary"
+                      style={{ fontSize: 12, marginTop: 2 }}
                     >
-                      Redeem
+                      {r.description}
                     </Text>
-                  </Pressable>
+                  )}
                 </View>
               </View>
-            );
-          })}
-
-        {!loading && redemptions.length > 0 && (
-          <>
-            <Text className="font-ui font-bold text-text-secondary text-micro uppercase mt-4 mb-2">
-              My Redemptions
-            </Text>
-            {redemptions.map((x) => (
-              <View
-                key={x.redemption_id}
-                className="flex-row justify-between py-3 border-b border-border-subtle"
-                testID={`redemption-${x.redemption_id}`}
-              >
-                <Text className="font-ui text-body text-text-primary">{x.reward_name}</Text>
-                <Text className="font-ui text-micro uppercase text-text-tertiary">{x.status}</Text>
+              <View className="flex-row items-center justify-between" style={{ marginTop: 12 }}>
+                <Text className="font-display text-brand-red" style={{ fontSize: 22 }}>
+                  {r.coin_cost} coins
+                </Text>
+                <PillButton
+                  label="Redeem"
+                  onPress={() => redeem(r)}
+                  disabled={busyId === r.reward_id || cantAfford}
+                  testID={`redeem-${r.reward_id}`}
+                />
               </View>
-            ))}
-          </>
-        )}
-        <View className="mb-10" />
-      </ScrollView>
-    </SafeAreaView>
+              {cantAfford && coins !== null && (
+                <Text
+                  className="font-ui text-text-tertiary"
+                  style={{ fontSize: 11.5, marginTop: 8 }}
+                >
+                  You need {r.coin_cost - coins} more coins.
+                </Text>
+              )}
+            </HubCard>
+          );
+        })}
+
+      {!loading && redemptions.length > 0 && (
+        <>
+          <SectionLabel>My Redemptions</SectionLabel>
+          {redemptions.map((x) => (
+            <HubCard
+              key={x.redemption_id}
+              style={{ marginBottom: 8, paddingVertical: 12 }}
+              testID={`redemption-${x.redemption_id}`}
+            >
+              <View className="flex-row items-center justify-between">
+                <Text className="font-ui text-body text-text-primary flex-1">{x.reward_name}</Text>
+                <Chip text={x.status} tone={x.status === 'PENDING' ? 'muted' : 'red'} />
+              </View>
+            </HubCard>
+          ))}
+        </>
+      )}
+    </HubScreen>
   );
 }

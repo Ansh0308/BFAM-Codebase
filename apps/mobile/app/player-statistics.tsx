@@ -1,11 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { BallLoader } from '../src/components/BallLoader';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Text, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import type { PlayerStatistics, StatisticsScope } from '@bfam/shared-types';
 import { apiClient } from '../src/lib/apiClient';
+import {
+  HeroCard,
+  HubLoading,
+  HubMessage,
+  HubScreen,
+  PillTabs,
+  StatTile,
+} from '../src/components/hub/HubParts';
 
 const SCOPES: { value: StatisticsScope; label: string }[] = [
   { value: 'lifetime', label: 'Lifetime' },
@@ -17,7 +22,6 @@ const SCOPES: { value: StatisticsScope; label: string }[] = [
 // "me" (the viewer's own stats); a real player_id can be passed to view a
 // teammate's.
 export default function PlayerStatisticsScreen() {
-  const router = useRouter();
   const params = useLocalSearchParams<{ playerId?: string }>();
   const playerId = params.playerId ?? 'me';
 
@@ -41,109 +45,95 @@ export default function PlayerStatisticsScreen() {
   }, [load]);
 
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
-      <View className="flex-row items-center px-5 pt-4 mb-2">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          testID="player-statistics-back"
-        >
-          <Feather name="arrow-left" size={22} color="#0D0D0D" />
-        </Pressable>
-        <Text className="font-ui font-bold text-title-xl text-ink-black ml-3">Statistics</Text>
-      </View>
+    <HubScreen
+      title="Statistics"
+      subtitle="Your match performance"
+      backTestID="player-statistics-back"
+      testID="player-statistics-screen"
+      controls={
+        <PillTabs
+          items={SCOPES}
+          value={scope}
+          onChange={setScope}
+          testIDPrefix="statistics-scope"
+          containerTestID="statistics-scope-toggle"
+        />
+      }
+    >
+      {loading && <HubLoading testID="statistics-loading" />}
 
-      <View className="flex-row px-5 mb-4" testID="statistics-scope-toggle">
-        {SCOPES.map((s) => {
-          const selected = s.value === scope;
-          return (
-            <Pressable
-              key={s.value}
-              onPress={() => setScope(s.value)}
-              className={`flex-1 items-center py-2 mr-2 rounded-md border ${
-                selected ? 'bg-brand-red border-brand-red' : 'bg-surface border-border-strong'
-              }`}
-              testID={`statistics-scope-${s.value}`}
-            >
-              <Text
-                className={`font-ui font-bold text-body ${selected ? 'text-surface' : 'text-text-primary'}`}
-              >
-                {s.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {!loading && error && <HubMessage tone="error">{error}</HubMessage>}
 
-      <ScrollView className="flex-1 px-5" testID="player-statistics-screen">
-        {loading && (
-          <View className="py-10 items-center">
-            <BallLoader testID="statistics-loading" />
-          </View>
-        )}
+      {!loading && !error && stats && (
+        <>
+          {stats.matches_played === 0 ? (
+            <HubMessage icon="chart-line" testID="statistics-empty">
+              {scope === 'season'
+                ? 'No matches played this season yet.'
+                : 'No completed matches yet — stats appear here once you finish one.'}
+            </HubMessage>
+          ) : (
+            <>
+              <HeroCard>
+                <Text
+                  className="font-ui"
+                  style={{ fontSize: 11, letterSpacing: 1, color: 'rgba(255,255,255,0.8)' }}
+                >
+                  {scope === 'season' ? 'RUNS THIS SEASON' : 'CAREER RUNS'}
+                </Text>
+                <Text
+                  className="font-display"
+                  style={{ fontSize: 52, lineHeight: 58, color: '#FFFFFF', marginTop: 2 }}
+                >
+                  {stats.runs}
+                </Text>
+                <Text className="font-ui" style={{ fontSize: 13, color: 'rgba(255,255,255,0.9)' }}>
+                  in {stats.matches_played} match{stats.matches_played === 1 ? '' : 'es'}
+                  {stats.best_score != null ? ` · best ${stats.best_score}` : ''}
+                </Text>
+              </HeroCard>
 
-        {!loading && error && (
-          <Text className="font-ui text-body text-text-secondary text-center mt-6">{error}</Text>
-        )}
-
-        {!loading && !error && stats && (
-          <>
-            {stats.matches_played === 0 ? (
-              <Text
-                className="font-ui text-body text-text-tertiary text-center mt-8"
-                testID="statistics-empty"
-              >
-                {scope === 'season'
-                  ? 'No matches played this season yet.'
-                  : 'No completed matches yet — stats appear here once you finish one.'}
-              </Text>
-            ) : (
-              <View className="flex-row flex-wrap" style={{ marginHorizontal: -6 }}>
-                <StatTile label="Matches" value={String(stats.matches_played)} />
-                <StatTile label="Runs" value={String(stats.runs)} />
-                <StatTile label="Wickets" value={String(stats.wickets)} />
+              <View className="flex-row flex-wrap" style={{ marginHorizontal: -5 }}>
                 <StatTile
+                  icon="calendar-check"
+                  label="Matches"
+                  value={String(stats.matches_played)}
+                />
+                <StatTile icon="run-fast" label="Runs" value={String(stats.runs)} />
+                <StatTile icon="bowling" label="Wickets" value={String(stats.wickets)} />
+                <StatTile
+                  icon="star-circle"
                   label="Best Score"
                   value={stats.best_score != null ? String(stats.best_score) : '—'}
                 />
                 <StatTile
+                  icon="speedometer"
                   label="Strike Rate"
                   value={stats.strike_rate != null ? stats.strike_rate.toFixed(2) : '—'}
                 />
                 <StatTile
+                  icon="chart-line"
                   label="Economy"
                   value={stats.economy != null ? stats.economy.toFixed(2) : '—'}
                 />
-                <StatTile label="Catches" value={String(stats.catches)} />
+                <StatTile icon="hand-back-right" label="Catches" value={String(stats.catches)} />
                 <StatTile
-                  label="Player of the Match"
+                  icon="trophy"
+                  label="Player of Match"
                   value={String(stats.player_of_the_match_count)}
                 />
                 {scope === 'season' && (
-                  <StatTile label="Current Streak" value={String(stats.current_streak ?? 0)} />
+                  <StatTile
+                    icon="fire"
+                    label="Current Streak"
+                    value={String(stats.current_streak ?? 0)}
+                  />
                 )}
               </View>
-            )}
-          </>
-        )}
-
-        <View className="mb-10" />
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function StatTile({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ width: '50%', paddingHorizontal: 6 }} className="mb-3">
-      <View className="bg-surface-alt rounded-md p-4">
-        <Text className="font-ui text-micro uppercase tracking-wide text-text-tertiary">
-          {label}
-        </Text>
-        <Text className="font-ui font-bold text-stat-lg text-ink-black mt-1">{value}</Text>
-      </View>
-    </View>
+            </>
+          )}
+        </>
+      )}
+    </HubScreen>
   );
 }

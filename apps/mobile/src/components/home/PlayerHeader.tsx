@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -6,10 +6,12 @@ import { colors } from '../../theme/tokens';
 import { BrandLogo } from '../BrandLogo';
 import { CountUp } from './CountUp';
 import { NotificationDot } from './HomeParts';
+import { CoinsInfoSheet } from '../coins/CoinsInfoSheet';
 
 // The player-side top bar shared by Home and Matches: BFAM wordmark, BFAM
 // Points, search, notifications (with the unread dot), profile. The points
-// pill is hidden for accounts with no balance (non-player roles).
+// pill is hidden for accounts with no balance (non-player roles); tapping it
+// explains what the coins are, how to earn them and what they are for.
 export function PlayerHeader({
   points,
   unreadCount,
@@ -18,16 +20,20 @@ export function PlayerHeader({
   unreadCount: number;
 }) {
   const router = useRouter();
+  const [coinsInfoOpen, setCoinsInfoOpen] = useState(false);
   return (
     <View className="flex-row items-center justify-between pt-3" testID="player-header">
       <BrandLogo variant="horizontal" height={34} />
 
       <View className="flex-row items-center">
         {points !== null && points !== undefined && (
-          <View
+          <Pressable
+            onPress={() => setCoinsInfoOpen(true)}
             className="flex-row items-center bg-surface-alt rounded-full px-2.5 py-1.5 mr-3"
             testID="home-coin-balance"
+            accessibilityRole="button"
             accessibilityLabel={`${points} BFAM points`}
+            accessibilityHint="Shows what BFAM coins are and how to use them"
           >
             <MaterialCommunityIcons name="trophy" size={16} color={colors.brandRed} />
             <CountUp
@@ -35,7 +41,8 @@ export function PlayerHeader({
               className="font-ui font-bold text-ink-black ml-1.5"
               style={{ fontSize: 15 }}
             />
-          </View>
+            <Feather name="info" size={13} color={colors.textTertiary} style={{ marginLeft: 6 }} />
+          </Pressable>
         )}
         <Pressable
           onPress={() => router.push('/player-search')}
@@ -71,6 +78,11 @@ export function PlayerHeader({
           </View>
         </Pressable>
       </View>
+      <CoinsInfoSheet
+        visible={coinsInfoOpen}
+        balance={points ?? 0}
+        onClose={() => setCoinsInfoOpen(false)}
+      />
     </View>
   );
 }

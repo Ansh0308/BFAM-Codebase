@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { BallLoader } from '../src/components/BallLoader';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Text, View } from 'react-native';
 import type { LeaderboardCategory, LeaderboardEntry } from '@bfam/shared-types';
 import { apiClient } from '../src/lib/apiClient';
+import { colors } from '../src/theme/tokens';
+import {
+  HubCard,
+  HubLoading,
+  HubMessage,
+  HubScreen,
+  PillTabs,
+} from '../src/components/hub/HubParts';
 
 const CATEGORIES: { value: LeaderboardCategory; label: string }[] = [
   { value: 'MOST_RUNS', label: 'Most Runs' },
@@ -18,10 +22,35 @@ const CATEGORIES: { value: LeaderboardCategory; label: string }[] = [
   { value: 'RELIABILITY', label: 'Reliability' },
 ];
 
+// Top three get a filled red / black / grey medal; everyone else a plain rank number.
+const MEDAL = ['#D80000', '#0D0D0D', '#8A8A8A'];
+
+function RankBadge({ rank }: { rank: number }) {
+  const medal = rank >= 1 && rank <= 3 ? MEDAL[rank - 1] : null;
+  return (
+    <View
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: medal ?? '#F1F1F1',
+      }}
+    >
+      <Text
+        className="font-ui font-bold"
+        style={{ fontSize: 14, color: medal ? '#FFFFFF' : colors.textTertiary }}
+      >
+        {rank}
+      </Text>
+    </View>
+  );
+}
+
 // Rankings & Leaderboards (long tail, PRD §12.33) — see leaderboardService.ts
 // for exactly which categories this first cut covers and why.
 export default function LeaderboardsScreen() {
-  const router = useRouter();
   const [category, setCategory] = useState<LeaderboardCategory>('MOST_RUNS');
   const [results, setResults] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,89 +71,55 @@ export default function LeaderboardsScreen() {
   }, [load]);
 
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
-      <View className="flex-row items-center px-5 pt-4 mb-2">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          testID="leaderboards-back"
-        >
-          <Feather name="arrow-left" size={22} color="#0D0D0D" />
-        </Pressable>
-        <Text className="font-ui font-bold text-title-xl text-ink-black ml-3">Leaderboards</Text>
-      </View>
+    <HubScreen
+      title="Leaderboards"
+      subtitle="See who is leading the game"
+      backTestID="leaderboards-back"
+      testID="leaderboards-screen"
+      controls={
+        <PillTabs
+          items={CATEGORIES}
+          value={category}
+          onChange={setCategory}
+          testIDPrefix="leaderboard-category"
+          containerTestID="leaderboard-category-scroll"
+          scroll
+        />
+      }
+    >
+      {loading && <HubLoading testID="leaderboards-loading" />}
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="px-5 mb-4"
-        testID="leaderboard-category-scroll"
-      >
-        {CATEGORIES.map((c) => {
-          const selected = c.value === category;
-          return (
-            <Pressable
-              key={c.value}
-              onPress={() => setCategory(c.value)}
-              className={`items-center py-2 px-4 mr-2 rounded-md border ${
-                selected ? 'bg-brand-red border-brand-red' : 'bg-surface border-border-strong'
-              }`}
-              testID={`leaderboard-category-${c.value}`}
-            >
-              <Text
-                className={`font-ui font-bold text-body ${selected ? 'text-surface' : 'text-text-primary'}`}
-              >
-                {c.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {!loading && error && <HubMessage tone="error">{error}</HubMessage>}
 
-      <ScrollView className="flex-1 px-5" testID="leaderboards-screen">
-        {loading && (
-          <View className="py-10 items-center">
-            <BallLoader testID="leaderboards-loading" />
-          </View>
-        )}
+      {!loading && !error && results.length === 0 && (
+        <HubMessage icon="podium" testID="leaderboards-empty">
+          No qualifying players yet for this leaderboard.
+        </HubMessage>
+      )}
 
-        {!loading && error && (
-          <Text className="font-ui text-body text-text-secondary text-center mt-6">{error}</Text>
-        )}
-
-        {!loading && !error && results.length === 0 && (
-          <Text
-            className="font-ui text-body text-text-tertiary text-center mt-8"
-            testID="leaderboards-empty"
+      {!loading &&
+        !error &&
+        results.map((entry) => (
+          <HubCard
+            key={entry.player_id}
+            style={{ marginBottom: 8, paddingVertical: 10 }}
+            testID={`leaderboard-row-${entry.player_id}`}
           >
-            No qualifying players yet for this leaderboard.
-          </Text>
-        )}
-
-        {!loading &&
-          !error &&
-          results.map((entry) => (
-            <View
-              key={entry.player_id}
-              className="flex-row items-center justify-between py-3 border-b border-border-subtle"
-              testID={`leaderboard-row-${entry.player_id}`}
-            >
-              <View className="flex-row items-center">
-                <Text className="font-ui font-bold text-body text-text-tertiary w-8">
-                  {entry.rank}
-                </Text>
-                <Text className="font-ui text-body text-text-primary">
-                  {entry.full_name || entry.bfam_id}
-                </Text>
-              </View>
-              <Text className="font-ui font-bold text-body text-ink-black">{entry.value}</Text>
+            <View className="flex-row items-center">
+              <RankBadge rank={entry.rank} />
+              <Text
+                className="font-ui font-bold text-ink-black flex-1"
+                style={{ fontSize: 15, marginLeft: 12 }}
+                numberOfLines={1}
+              >
+                {entry.full_name || entry.bfam_id}
+              </Text>
+              <Text className="font-display text-brand-red" style={{ fontSize: 22 }}>
+                {entry.value}
+              </Text>
             </View>
-          ))}
-
-        <View className="mb-10" />
-      </ScrollView>
-    </SafeAreaView>
+          </HubCard>
+        ))}
+    </HubScreen>
   );
 }

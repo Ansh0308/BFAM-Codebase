@@ -1,18 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { BallLoader } from '../src/components/BallLoader';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Text, View } from 'react-native';
 import type { AchievementStatus } from '@bfam/shared-types';
 import { apiClient } from '../src/lib/apiClient';
-import { colors } from '../src/theme/tokens';
+import {
+  Chip,
+  HeroCard,
+  HubCard,
+  HubLoading,
+  HubMessage,
+  HubScreen,
+  IconBadge,
+  ProgressBar,
+} from '../src/components/hub/HubParts';
 
 // Achievements & Badges (long tail, PRD §12.37) — see
 // domain/achievements.ts for exactly which badges this first cut covers
 // and their unlock criteria.
 export default function AchievementsScreen() {
-  const router = useRouter();
   const [achievements, setAchievements] = useState<AchievementStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,68 +36,73 @@ export default function AchievementsScreen() {
   }, [load]);
 
   const earnedCount = achievements.filter((a) => a.earned).length;
+  const percent = achievements.length ? (earnedCount / achievements.length) * 100 : 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
-      <View className="flex-row items-center px-5 pt-4 mb-2">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          testID="achievements-back"
-        >
-          <Feather name="arrow-left" size={22} color="#0D0D0D" />
-        </Pressable>
-        <Text className="font-ui font-bold text-title-xl text-ink-black ml-3">Achievements</Text>
-      </View>
+    <HubScreen
+      title="Achievements"
+      subtitle="Badges you unlock by playing"
+      backTestID="achievements-back"
+      testID="achievements-screen"
+    >
+      {loading && <HubLoading testID="achievements-loading" />}
+
+      {!loading && error && <HubMessage tone="error">{error}</HubMessage>}
 
       {!loading && !error && (
-        <Text
-          className="font-ui text-body text-text-tertiary px-5 mb-4"
-          testID="achievements-count"
-        >
-          {earnedCount} of {achievements.length} earned
-        </Text>
+        <HeroCard>
+          <Text
+            className="font-ui"
+            style={{ fontSize: 11, letterSpacing: 1, color: 'rgba(255,255,255,0.8)' }}
+          >
+            BADGES
+          </Text>
+          <Text
+            className="font-display"
+            style={{ fontSize: 40, lineHeight: 46, color: '#FFFFFF', marginTop: 2 }}
+            testID="achievements-count"
+          >
+            {earnedCount} of {achievements.length} earned
+          </Text>
+          <View style={{ marginTop: 14 }}>
+            <ProgressBar onDark percent={percent} />
+          </View>
+        </HeroCard>
       )}
 
-      <ScrollView className="flex-1 px-5" testID="achievements-screen">
-        {loading && (
-          <View className="py-10 items-center">
-            <BallLoader testID="achievements-loading" />
-          </View>
-        )}
-
-        {!loading && error && (
-          <Text className="font-ui text-body text-text-secondary text-center mt-6">{error}</Text>
-        )}
-
-        {!loading &&
-          !error &&
-          achievements.map((a) => (
-            <View
-              key={a.id}
-              className={`flex-row items-center py-3 border-b border-border-subtle ${
-                a.earned ? '' : 'opacity-40'
-              }`}
-              testID={`achievement-row-${a.id}`}
-            >
-              <Feather
-                name={a.earned ? 'award' : 'lock'}
-                size={22}
-                color={a.earned ? colors.brandRed : colors.textTertiary}
-              />
-              <View className="ml-3 flex-1">
-                <Text className="font-ui font-bold text-body text-ink-black">{a.name}</Text>
-                <Text className="font-ui text-micro text-text-tertiary mt-0.5">
+      {!loading && !error && (
+        <View className="flex-row flex-wrap" style={{ marginHorizontal: -5 }}>
+          {achievements.map((a) => (
+            <View key={a.id} style={{ width: '50%', paddingHorizontal: 5 }}>
+              <HubCard
+                style={{ flex: 1, minHeight: 150, opacity: a.earned ? 1 : 0.7 }}
+                testID={`achievement-row-${a.id}`}
+              >
+                <IconBadge
+                  icon={a.earned ? 'medal' : 'lock'}
+                  size={40}
+                  tone={a.earned ? 'solid' : 'muted'}
+                />
+                <Text
+                  className="font-ui font-bold text-ink-black"
+                  style={{ fontSize: 14, marginTop: 10 }}
+                >
+                  {a.name}
+                </Text>
+                <Text
+                  className="font-ui text-text-tertiary"
+                  style={{ fontSize: 11.5, marginTop: 3, flexGrow: 1 }}
+                >
                   {a.description}
                 </Text>
-              </View>
+                <View className="flex-row" style={{ marginTop: 8 }}>
+                  <Chip text={a.earned ? 'EARNED' : 'LOCKED'} tone={a.earned ? 'red' : 'muted'} />
+                </View>
+              </HubCard>
             </View>
           ))}
-
-        <View className="mb-10" />
-      </ScrollView>
-    </SafeAreaView>
+        </View>
+      )}
+    </HubScreen>
   );
 }
