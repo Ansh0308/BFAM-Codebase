@@ -1132,6 +1132,82 @@ export interface SupportTicket {
   resolved_at: string | null;
 }
 
+// ---- Admin Web console: overview, support queue, audit log, promos, BFAM IDs ----
+
+export interface AdminAuditLog {
+  log_id: string;
+  actor_user_id: string | null;
+  actor_role: string | null;
+  actor_phone: string | null;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  before_data: unknown;
+  after_data: unknown;
+  created_at: string;
+}
+
+export interface AdminOverview {
+  users: { players: number; owners: number; staff: number; new_players_7d: number };
+  turfs: { active: number; total: number };
+  bookings: { today: number; last_7_days: number };
+  revenue: { last_30_days: number };
+  matches: { live: number; upcoming: number };
+  support: { open: number; in_progress: number };
+  bfam_ids: { locked: number };
+  recent_activity: AdminAuditLog[];
+}
+
+export interface AdminTicket extends SupportTicket {
+  raised_by_phone: string | null;
+  raised_by_name: string | null;
+  raised_by_bfam_id: string | null;
+}
+
+export interface AdminTicketList {
+  results: AdminTicket[];
+  /** Totals across every ticket, not just the filtered results. */
+  counts: Record<SupportStatus, number>;
+}
+
+export interface AdminPromoCode {
+  promo_code_id: string;
+  code: string;
+  discount_type: 'PERCENTAGE' | 'FLAT';
+  discount_value: string | number;
+  max_discount_amount: string | number | null;
+  min_booking_amount: string | number;
+  usage_limit_total: number | null;
+  usage_limit_per_player: number | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  is_active: boolean | number;
+  created_at: string;
+}
+
+export interface CreatePromoCodeInput {
+  code: string;
+  discount_type: 'PERCENTAGE' | 'FLAT';
+  discount_value: number;
+  max_discount_amount?: number | null;
+  min_booking_amount?: number;
+  usage_limit_total?: number | null;
+  usage_limit_per_player?: number | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
+}
+
+export interface ReservedBfamId {
+  reservation_id: string;
+  bfam_id: string;
+  status: 'LOCKED' | 'ASSIGNED';
+  locked_by: string;
+  locked_at: string;
+  notes: string | null;
+  assigned_to_user_id: string | null;
+  assigned_at: string | null;
+}
+
 // ---- Admin Web: User management (PRD §9.1) ----
 
 export interface AdminPlayer {

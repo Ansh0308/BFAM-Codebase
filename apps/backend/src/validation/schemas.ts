@@ -37,6 +37,7 @@ import {
   SIDE_LABELS,
   SUPPORT_CATEGORIES,
   SUPPORT_STATUSES,
+  DISPUTE_TYPES,
   TEAM_MEMBER_ROLES,
   TEAM_SKILL_LEVELS,
   TEAM_STATUSES,
@@ -1000,4 +1001,21 @@ export const ownerBookingRangeSchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   turf_id: z.string().uuid().optional(),
+});
+
+// ---- Admin console (overview / tickets / audit log / promo switch) ----
+export const adminTicketQuerySchema = z.object({
+  status: z.enum(SUPPORT_STATUSES).optional(),
+  dispute_type: z.enum(DISPUTE_TYPES).optional(),
+});
+
+export const adminAuditLogQuerySchema = z.object({
+  resource_type: z.string().min(1).max(50).optional(),
+  action: z.string().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export const setPromoCodeActiveSchema = z.object({
+  is_active: z.boolean(),
 });

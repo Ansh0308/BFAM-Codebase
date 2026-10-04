@@ -94,6 +94,14 @@ import {
   StaffAssignment,
   OwnerBooking,
   OwnerBookingRow,
+  DisputeType,
+  SupportStatus,
+  ReservedBfamId,
+  CreatePromoCodeInput,
+  AdminTicketList,
+  AdminPromoCode,
+  AdminOverview,
+  AdminAuditLog,
   OwnerMatch,
   OwnerLiveMatch,
   OwnerPayment,
@@ -1416,6 +1424,76 @@ export class BFAMApiClient {
 
   async getAllPlayers(): Promise<{ results: AdminPlayer[] }> {
     return this.request('/admin/players');
+  }
+
+  // ---- Admin Web console ----
+
+  async getAdminOverview(): Promise<AdminOverview> {
+    return this.request('/admin/overview');
+  }
+
+  async getAdminTickets(
+    filters: { status?: SupportStatus; dispute_type?: DisputeType } = {},
+  ): Promise<AdminTicketList> {
+    return this.request(`/admin/tickets${toQueryString(filters)}`);
+  }
+
+  // Admin-only: advances a ticket along OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED.
+  async updateTicketStatus(ticketId: string, status: SupportStatus): Promise<SupportTicket> {
+    return this.request(`/support/tickets/${ticketId}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getAuditLogs(
+    filters: { resource_type?: string; action?: string; limit?: number; offset?: number } = {},
+  ): Promise<{ results: AdminAuditLog[]; total: number }> {
+    return this.request(`/admin/audit-logs${toQueryString(filters)}`);
+  }
+
+  async getPromoCodes(): Promise<{ results: AdminPromoCode[] }> {
+    return this.request('/admin/promo-codes');
+  }
+
+  async createPromoCode(
+    input: CreatePromoCodeInput,
+  ): Promise<{ promo_code_id: string; code: string }> {
+    return this.request('/admin/promo-codes', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async setPromoCodeActive(
+    promoCodeId: string,
+    isActive: boolean,
+  ): Promise<{ promo_code_id: string; is_active: boolean }> {
+    return this.request(`/admin/promo-codes/${promoCodeId}/active`, {
+      method: 'POST',
+      body: JSON.stringify({ is_active: isActive }),
+    });
+  }
+
+  async getReservedBfamIds(): Promise<ReservedBfamId[]> {
+    return this.request('/admin/bfam-ids');
+  }
+
+  async lockBfamId(bfamId: string, notes?: string): Promise<{ bfam_id: string }> {
+    return this.request('/admin/bfam-ids/lock', {
+      method: 'POST',
+      body: JSON.stringify({ bfam_id: bfamId, notes: notes ?? null }),
+    });
+  }
+
+  async unlockBfamId(bfamId: string): Promise<void> {
+    await this.request(`/admin/bfam-ids/${encodeURIComponent(bfamId)}/unlock`, {
+      method: 'POST',
+    });
+  }
+
+  async assignBfamId(bfamId: string, userId: string): Promise<void> {
+    await this.request(`/admin/bfam-ids/${encodeURIComponent(bfamId)}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId }),
+    });
   }
 
   // ---- Backlog E-3: Turf Management in Admin Web ----

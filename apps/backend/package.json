@@ -14,6 +14,7 @@
     "db:seed:cricketers": "ts-node-dev --exit-child --transpile-only src/seed/cricketersSeed.ts",
     "db:seed:beta": "ts-node-dev --exit-child --transpile-only src/seed/betaSeed.ts",
     "db:seed:demo": "ts-node-dev --exit-child --transpile-only src/seed/demoSeed.ts",
+    "db:create-admin": "ts-node-dev --exit-child --transpile-only src/seed/createAdmin.ts",
     "seed": "npm run db:seed:phase1",
     "db:seed": "npm run db:seed:phase1",
     "test": "jest"

@@ -38,3 +38,25 @@ export function formatRupees(n: number | string): string {
 export function hhmm(time: string): string {
   return time.slice(0, 5);
 }
+
+// "5 min ago", "yesterday", "12 Oct" — for activity feeds and audit logs.
+export function timeAgo(iso: string | Date, now: Date = new Date()): string {
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return '';
+  const sec = Math.round((now.getTime() - then.getTime()) / 1000);
+  if (sec < 45) return 'just now';
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr} hr ago`;
+  const days = Math.round(hr / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  return then.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+// BOOKING_CANCELLED -> "Booking cancelled"
+export function humanize(code: string): string {
+  const s = code.replace(/_/g, ' ').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}

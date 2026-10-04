@@ -4,16 +4,34 @@ import React from 'react';
 import { useRequireRole } from '../../lib/auth';
 import { DashboardShell } from '../../components/DashboardShell';
 import { BallLoader } from '../../components/BallLoader';
-import { BarChart3, ImageIcon, MapPin, Star, Swords, Users, UsersRound } from 'lucide-react';
+import {
+  BarChart3,
+  Hash,
+  ImageIcon,
+  LayoutDashboard,
+  LifeBuoy,
+  MapPin,
+  ScrollText,
+  Star,
+  Swords,
+  Ticket,
+  Users,
+  UsersRound,
+} from 'lucide-react';
 
 const NAV_ITEMS = [
+  { href: '/admin', label: 'Overview', icon: LayoutDashboard },
   { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/admin/support', label: 'Support', icon: LifeBuoy },
   { href: '/admin/players', label: 'Players', icon: Users },
   { href: '/admin/matches', label: 'Matches', icon: Swords },
   { href: '/admin/turfs', label: 'Turfs', icon: MapPin },
   { href: '/admin/teams', label: 'Teams', icon: UsersRound },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
+  { href: '/admin/promos', label: 'Promo Codes', icon: Ticket },
+  { href: '/admin/bfam-ids', label: 'BFAM IDs', icon: Hash },
   { href: '/admin/banners', label: 'Home Banners', icon: ImageIcon },
+  { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
 ];
 
 // Admin Web (PRD §9.1) — web-only, no mobile equivalent (unlike Owner/
