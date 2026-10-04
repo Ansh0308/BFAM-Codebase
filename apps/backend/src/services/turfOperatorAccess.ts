@@ -1,0 +1,31 @@
+import { QueryTypes } from 'sequelize';
+import { sequelize } from '../config/sequelize';
+
+// Web live scoring (Owner / Staff console): for a match whose scoring mode is
+// TURF_STAFF_MANAGED, the turf's own owner and its approved, active staff may
+// run the toss and record balls — not only a pre-assigned scorer. Matches that
+// players score themselves stay with the organizer / assigned scorer.
+//
+// Callers only reach for this after their own organizer / scorer check has
+// failed, so the extra query costs nothing on the common path.
+export async function isTurfOperatorForMatch(matchId: string, userId: string): Promise<boolean> {
+  const rows = await sequelize.query<{ match_id: string }>(
+    `SELECT m.match_id
+     FROM matches m
+     JOIN bookings b ON b.booking_id = m.booking_id
+     JOIN turfs t ON t.turf_id = b.turf_id
+     WHERE m.match_id = :matchId
+       AND m.scoring_mode = 'TURF_STAFF_MANAGED'
+       AND (
+         t.owner_id = :userId
+         OR EXISTS (
+           SELECT 1 FROM turf_staff_assignments a
+           WHERE a.turf_id = t.turf_id AND a.staff_user_id = :userId
+             AND a.status = 'ACTIVE' AND a.verification_status = 'APPROVED'
+         )
+       )
+     LIMIT 1`,
+    { type: QueryTypes.SELECT, replacements: { matchId, userId } },
+  );
+  return rows.length > 0;
+}

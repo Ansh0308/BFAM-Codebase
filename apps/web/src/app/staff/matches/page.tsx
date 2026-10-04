@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { ChevronRight, ClipboardCheck, MapPin, Swords, Trophy } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronRight, ClipboardCheck, MapPin, Radio, Swords, Trophy } from 'lucide-react';
 import type { MatchPlayer, MatchStatus, OwnerMatch } from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { PageHeader } from '../../../components/DashboardShell';
@@ -10,6 +11,7 @@ import { RosterPanel } from '../../../components/staff/RosterPanel';
 import { Drawer } from '../../../components/ui/Drawer';
 import { EASE_OUT } from '../../../components/ui/motion';
 import {
+  Button,
   EmptyState,
   SegmentedControl,
   SkeletonRows,
@@ -188,7 +190,20 @@ export default function StaffMatchesPage() {
           (rosterLoading ? (
             <SkeletonRows rows={4} />
           ) : (
-            <RosterPanel matchId={open.match_id} players={players} onChange={setPlayers} />
+            <>
+              {open.scoring_mode === 'TURF_STAFF_MANAGED' &&
+                open.match_status !== 'COMPLETED' &&
+                open.match_status !== 'CANCELLED' && (
+                  <div className="mb-5">
+                    <Link href={`/staff/scoring/${open.match_id}`}>
+                      <Button icon={Radio} testID="open-scoring">
+                        Score this match
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              <RosterPanel matchId={open.match_id} players={players} onChange={setPlayers} />
+            </>
           ))}
       </Drawer>
     </div>

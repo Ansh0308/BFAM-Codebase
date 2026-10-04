@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
-import { ChevronRight, MapPin, MonitorPlay, Swords, Trophy, Users } from 'lucide-react';
+import { ChevronRight, MapPin, MonitorPlay, Radio, Swords, Trophy, Users } from 'lucide-react';
 import type { MatchPlayer, MatchStatus, OwnerMatch } from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { PageHeader } from '../../../components/DashboardShell';
@@ -240,6 +240,17 @@ export default function OwnerMatchesPage() {
                 </div>
               ))}
             </dl>
+            {open.scoring_mode === 'TURF_STAFF_MANAGED' &&
+              open.match_status !== 'COMPLETED' &&
+              open.match_status !== 'CANCELLED' && (
+                <div className="mb-4">
+                  <Link href={`/owner/scoring/${open.match_id}`}>
+                    <Button icon={Radio} testID="open-scoring">
+                      Score this match
+                    </Button>
+                  </Link>
+                </div>
+              )}
             {open.match_status === 'IN_PROGRESS' && (
               <div className="mb-6">
                 <Link href={`/owner/scoreboard/${open.match_id}`} target="_blank">

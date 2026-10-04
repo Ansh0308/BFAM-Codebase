@@ -84,7 +84,7 @@
 | OW-8  | **Offers**                                                                                                      | §22.1              | Partial       | Generic promo codes exist; no owner-scoped offers.                                                         |
 | OW-9  | **Maintenance tracker** (tasks with status, not just a block reason)                                            | §22.1              | Needs backend | Maintenance is only a reason on an availability block.                                                     |
 | OW-10 | **Staff permissions + staff activity**                                                                          | §22.2, §30.9       | Needs backend | UI can assign / remove staff and review verification; no permissions or activity log.                      |
-| OW-11 | **Web live-scoring console**                                                                                    | §9.2 / §9.3        | Ready         | Scoring endpoints exist (used by mobile). Only the display page exists on web.                             |
+| OW-11 | ✅ **DONE (Phase 4)** — **Web live-scoring console**                                                            | §9.2 / §9.3        | Ready         | Scoring endpoints exist (used by mobile). Only the display page exists on web.                             |
 | OW-12 | ✅ **DONE (Phase 2)** — **Match Management actions** (players, teams, status, scoring)                          | §30.9              | Partial       | Page is a list.                                                                                            |
 
 ### 2.3 Turf Staff Web (PRD §9.3, §22.2–22.3)
@@ -93,7 +93,7 @@
 | ---- | ------------------------------------------------------------------------------------------------------- | ----------- | ------------- | ---------------------------------------------------------------------------------------------------- |
 | SW-1 | ✅ **DONE (Phase 1)** — **Desk check-in** — mark Checked in / Late / No-show per booking and per player | §9.3, §22.3 | Ready         | Attendance logic exists in the backend (used by Staff Mobile). Staff Web has no actions.             |
 | SW-2 | ✅ **DONE (Phase 1)** — **Cash collection** at the desk                                                 | §9.3 / §17  | Ready         | `POST /payments/cash`.                                                                               |
-| SW-3 | **Match management + turf-managed live scoring**                                                        | §9.3        | Ready         | Match Operations is a table; no scoring console. Shares work with OW-11.                             |
+| SW-3 | ✅ **DONE (Phase 4)** — **Match management + turf-managed live scoring**                                | §9.3        | Ready         | Match Operations is a table; no scoring console. Shares work with OW-11.                             |
 | SW-4 | ✅ **DONE (Phase 1)** — **Booking verification** (QR / confirmation lookup)                             | §22.3       | Partial       | Verification page is for the staff member's own ID document, not for verifying a customer's booking. |
 | SW-5 | **Turf status** (open / closed for the day)                                                             | §22.2       | Needs backend |                                                                                                      |
 | SW-6 | **Customer assistance**                                                                                 | §22.2       | Needs backend |                                                                                                      |
@@ -198,3 +198,15 @@ AW-1 is only partly done as an item: the overview has no tournament figures (tou
 - **Data Explorer:** browse, add, edit and delete rows in any table. Password hashes, tokens and OTPs are hidden and not editable; `audit_logs` and `payment_events` are read-only; only single-column primary keys can be written; every change is audit-logged.
 
 **Known limits:** a suspended user's already-issued token works until it expires (about 1 hour); the Data Explorer edits values as plain text, so it is a power tool rather than a form-by-form UI.
+
+---
+
+## 8. Update — Phase 4: web live-scoring console
+
+**Done (not yet committed):**
+
+- **One console for Owner and Staff:** `/owner/scoring/[matchId]` and `/staff/scoring/[matchId]`, opened from **Score this match** in each Matches page's drawer (turf-managed matches that are not finished).
+- **Flow:** begin match, toss, who bats, start innings, then ball by ball (runs 0–6, wide / no-ball / bye / leg-bye, wickets including the run-out choice, undo, swap strike). It prompts for openers, new batter and next bowler, then end innings / start the chase / finish match. Keyboard shortcuts: 0–6, W, U, X. Same crease and strike-rotation rules as the mobile scorer.
+- **Permissions (backend):** for `TURF_STAFF_MANAGED` matches the turf's owner and its approved, active staff may now run the toss / setup and record balls, not only a pre-assigned scorer (`turfOperatorAccess.ts`). Player-managed matches are unchanged. Admins can use it through **Manage as**.
+
+**Known limits:** every player must already have a side (Match Setup); the legacy "assign sides while scoring" fallback is not on web. The fielder on a catch and the Player-of-the-Match override are not captured (the result is auto-computed).

@@ -25,6 +25,7 @@ import {
   wicketsToEndInnings,
   type PotmCandidate,
 } from '../domain/matchOutcome';
+import { isTurfOperatorForMatch } from './turfOperatorAccess';
 import {
   ForbiddenActionError,
   InningsNotFoundError,
@@ -96,10 +97,10 @@ async function fetchMatch(matchId: string): Promise<MatchRow | null> {
 // don't yet have a dedicated in-match role for).
 async function assertCanScore(match: MatchRow, actorUserId: string) {
   if (match.scoring_mode === 'TURF_STAFF_MANAGED') {
-    if (match.assigned_scorer_id !== actorUserId) {
-      throw new ForbiddenActionError('Only the assigned scorer can record balls for this match.');
-    }
-    return;
+    if (match.assigned_scorer_id === actorUserId) return;
+    // The turf's own owner and approved staff can score its turf-managed matches.
+    if (await isTurfOperatorForMatch(match.match_id, actorUserId)) return;
+    throw new ForbiddenActionError('Only the assigned scorer can record balls for this match.');
   }
   if (match.organizer_id !== actorUserId && match.assigned_scorer_id !== actorUserId) {
     throw new ForbiddenActionError('Only the match organizer or assigned scorer can record balls.');

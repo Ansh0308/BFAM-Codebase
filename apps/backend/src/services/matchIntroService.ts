@@ -4,6 +4,7 @@ import { sequelize } from '../config/sequelize';
 import { getIo, matchRoom } from '../realtime/io';
 import { sendNotificationToMany } from './notificationService';
 import { notifyFollowersOfMatchStart } from './followService';
+import { isTurfOperatorForMatch } from './turfOperatorAccess';
 import {
   ForbiddenActionError,
   InvalidMatchStateError,
@@ -51,6 +52,8 @@ async function fetchMatch(matchId: string): Promise<MatchRow | null> {
 
 async function assertCanManage(match: MatchRow, actorUserId: string) {
   if (match.organizer_id === actorUserId || match.assigned_scorer_id === actorUserId) return;
+  // Turf-managed matches can also be run by the turf's owner / approved staff.
+  if (await isTurfOperatorForMatch(match.match_id, actorUserId)) return;
   throw new ForbiddenActionError('Only the match organizer or assigned scorer can do that.');
 }
 

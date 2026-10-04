@@ -55,6 +55,7 @@ interface MatchPlayerRow {
   invitation_status: string;
 }
 
+const turfOperatorIds = new Set<string>();
 let matches: MatchRow[] = [];
 let innings: InningsRow[] = [];
 let scoreEvents: ScoreEventRow[] = [];
@@ -88,6 +89,11 @@ jest.mock('../config/sequelize', () => {
       ) => {
         const r = options.replacements ?? {};
 
+        // Turf owner / approved staff may also score turf-managed matches; nobody
+        // in this fixture is one.
+        if (sql.includes("m.scoring_mode = 'TURF_STAFF_MANAGED'")) {
+          return turfOperatorIds.has(String(r.userId)) ? [{ match_id: r.matchId }] : [];
+        }
         if (sql.includes('FROM matches WHERE match_id')) {
           const m = matches.find((x) => x.match_id === r.matchId);
           return m ? [m] : [];
@@ -310,6 +316,26 @@ describe('Live Scoring transaction atomicity under concurrency (module 2.8)', ()
     matches[0].assigned_scorer_id = 'the-real-scorer';
 
     await expect(recordBall(INNINGS_ID, ORGANIZER_USER, normalBall(4))).rejects.toThrow(
+      'Only the assigned scorer can record balls for this match.',
+    );
+  });
+});
+
+describe('turf owner / approved staff scoring (web console)', () => {
+  beforeEach(() => {
+    turfOperatorIds.clear();
+    matches[0].scoring_mode = 'TURF_STAFF_MANAGED';
+    matches[0].assigned_scorer_id = 'the-real-scorer';
+  });
+  afterEach(() => turfOperatorIds.clear());
+
+  it('lets the turf’s owner / approved staff record a ball without being the assigned scorer', async () => {
+    turfOperatorIds.add('turf-operator');
+    await expect(recordBall(INNINGS_ID, 'turf-operator', normalBall(4))).resolves.toBeDefined();
+  });
+
+  it('still refuses someone with no connection to the turf', async () => {
+    await expect(recordBall(INNINGS_ID, 'stranger', normalBall(4))).rejects.toThrow(
       'Only the assigned scorer can record balls for this match.',
     );
   });
