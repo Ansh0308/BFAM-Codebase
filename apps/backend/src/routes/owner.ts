@@ -1,8 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { authenticateJwt, requireRoles } from '../middleware/auth';
+import { allowAdminActAs, authenticateJwt, requireRoles } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import {
   assignStaffSchema,
+  createStaffAccountSchema,
   assignTurfToVenueSchema,
   ownerBookingRangeSchema,
   copyTurfDetailsSchema,
@@ -42,8 +43,10 @@ import {
   updateTurf,
   updateVenue,
 } from '../services/ownerService';
+import { AdminUserError } from '../services/adminUserManagement';
 import {
   assignStaff,
+  createStaffForTurf,
   listStaffForTurf,
   removeStaff,
   reviewVerification,
@@ -76,7 +79,7 @@ function handleOwnerError(error: unknown, res: Response) {
 }
 
 // Every route in this file is TURF_OWNER-only (module 2.12, PRD §8.3/§9.2).
-router.use(authenticateJwt, requireRoles('TURF_OWNER'));
+router.use(authenticateJwt, allowAdminActAs, requireRoles('TURF_OWNER'));
 
 // GET /owner/turfs — Owner Dashboard's turf list.
 router.get(
@@ -464,6 +467,38 @@ router.post(
       );
       return res.status(201).json(assignment);
     } catch (error) {
+      const handled = handleOwnerError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// POST /owner/turfs/:turfId/staff/new — register a brand-new staff member
+// (creates their login and assigns them to this turf in one step). Staff can
+// no longer sign themselves up, so this is how they get an account.
+router.post(
+  '/turfs/:turfId/staff/new',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = createStaffAccountSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          message:
+            'A phone number (7–15 digits) and a password of at least 8 characters are required.',
+          status: 400,
+        },
+      });
+    }
+    try {
+      const assignment = await createStaffForTurf(req.params.turfId, req.auth!.sub, parsed.data);
+      return res.status(201).json(assignment);
+    } catch (error) {
+      if (error instanceof AdminUserError) {
+        return res
+          .status(error.status)
+          .json({ error: { message: error.message, status: error.status } });
+      }
       const handled = handleOwnerError(error, res);
       if (handled) return handled;
       throw error;

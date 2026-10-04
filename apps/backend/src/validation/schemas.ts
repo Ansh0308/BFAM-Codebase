@@ -159,8 +159,9 @@ export const appleAuthSchema = z.object({
   name: z.string().max(150).nullable().optional(),
 });
 
-// Self-service signup roles only — ADMIN is never a self-service signup.
-export const SELF_SERVICE_ROLES = USER_ROLES.filter((role) => role !== 'ADMIN');
+// Self-service signup is for players only. Turf Owner / Turf Staff / Admin
+// accounts are created by an admin (or, for staff, by their turf owner).
+export const SELF_SERVICE_ROLES = USER_ROLES.filter((role) => role === 'PLAYER');
 
 export const socialCompleteSchema = z.object({
   social_ticket: z.string().min(1),
@@ -1018,4 +1019,71 @@ export const adminAuditLogQuerySchema = z.object({
 
 export const setPromoCodeActiveSchema = z.object({
   is_active: z.boolean(),
+});
+
+// ---- Account creation & admin data management ----
+const phoneField = z.string().trim().min(7).max(15);
+
+// Owner creates a staff login and assigns it to their turf.
+export const createStaffAccountSchema = z.object({
+  phone_number: phoneField,
+  password: z.string().min(8).max(72),
+  email: z.string().email().max(255).nullable().optional(),
+  verified: z.boolean().optional(),
+});
+
+export const adminCreateUserSchema = z.object({
+  role: z.enum(['TURF_OWNER', 'TURF_STAFF', 'ADMIN']),
+  phone_number: phoneField,
+  email: z.string().email().max(255).nullable().optional(),
+  password: z.string().min(8).max(72),
+  city: z.string().max(100).nullable().optional(),
+});
+
+export const adminUpdateUserSchema = z.object({
+  phone_number: phoneField.optional(),
+  email: z.string().email().max(255).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  account_status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
+  full_name: z.string().max(100).nullable().optional(),
+});
+
+export const adminResetPasswordSchema = z.object({
+  password: z.string().min(8).max(72),
+});
+
+export const adminUserQuerySchema = z.object({
+  role: z.enum(USER_ROLES).optional(),
+  status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
+});
+
+export const adminBookingsQuerySchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  turf_id: z.string().uuid().optional(),
+});
+
+export const adminBookingStatusSchema = z.object({
+  status: z.enum(['PENDING', 'CONFIRMED', 'COMPLETED']),
+});
+
+export const adminUpdatePromoSchema = z.object({
+  discount_type: z.enum(['PERCENTAGE', 'FLAT']).optional(),
+  discount_value: z.number().positive().optional(),
+  max_discount_amount: z.number().positive().nullable().optional(),
+  min_booking_amount: z.number().min(0).optional(),
+  usage_limit_total: z.number().int().positive().nullable().optional(),
+  usage_limit_per_player: z.number().int().positive().nullable().optional(),
+  valid_from: z.string().datetime().nullable().optional(),
+  valid_until: z.string().datetime().nullable().optional(),
+});
+
+export const explorerRowsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+  search: z.string().max(100).optional(),
+});
+
+export const explorerValuesSchema = z.object({
+  values: z.record(z.string(), z.unknown()),
 });

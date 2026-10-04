@@ -267,7 +267,7 @@ export default function Signup() {
       </Reveal>
 
       <Reveal delay={340}>
-        <View className="flex-row justify-center mt-8 mb-10">
+        <View className="flex-row justify-center mt-8 mb-3">
           <Text className="font-ui text-body text-text-secondary">Already have an account? </Text>
           <Text
             className="font-ui text-body font-bold text-brand-red"
@@ -276,6 +276,13 @@ export default function Signup() {
             Log in
           </Text>
         </View>
+        <Text
+          className="font-ui text-micro text-text-tertiary text-center mb-10 px-6"
+          testID="owner-staff-signup-note"
+        >
+          Turf owner or turf staff? Your account is set up for you by BFAM or your turf owner — just
+          log in.
+        </Text>
       </Reveal>
     </AuthScreenBackground>
   );

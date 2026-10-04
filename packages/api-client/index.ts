@@ -101,6 +101,14 @@ import {
   AdminTicketList,
   AdminPromoCode,
   AdminOverview,
+  AdminUserRow,
+  AdminBookingRow,
+  CreateManagedUserInput,
+  UpdateManagedUserInput,
+  CreateStaffAccountInput,
+  UpdatePromoCodeInput,
+  ExplorerTable,
+  ExplorerRows,
   AdminAuditLog,
   OwnerMatch,
   OwnerLiveMatch,
@@ -246,6 +254,9 @@ export class BFAMApiClient {
   // in, since this class is shared with the mobile app, which has its own
   // session-expiry handling and doesn't need this hook.
   private onUnauthorized: (() => void) | null = null;
+  // Admin "manage as": when set, every request carries X-Act-As-User so the
+  // owner/staff endpoints treat the admin as that user.
+  private actAsUserId: string | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -257,6 +268,11 @@ export class BFAMApiClient {
 
   clearToken() {
     this.token = null;
+    this.actAsUserId = null;
+  }
+
+  setActAsUser(userId: string | null) {
+    this.actAsUserId = userId;
   }
 
   setUnauthorizedHandler(handler: (() => void) | null) {
@@ -269,6 +285,7 @@ export class BFAMApiClient {
       headers.set('Authorization', `Bearer ${this.token}`);
     }
     headers.set('Content-Type', 'application/json');
+    if (this.actAsUserId) headers.set('X-Act-As-User', this.actAsUserId);
 
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...options,
@@ -1424,6 +1441,112 @@ export class BFAMApiClient {
 
   async getAllPlayers(): Promise<{ results: AdminPlayer[] }> {
     return this.request('/admin/players');
+  }
+
+  // ---- Admin full control: users, bookings, promos, turfs, data explorer ----
+
+  async getAdminUsers(
+    filters: { role?: string; status?: string } = {},
+  ): Promise<{ results: AdminUserRow[] }> {
+    return this.request(`/admin/users${toQueryString(filters)}`);
+  }
+
+  async createManagedUser(input: CreateManagedUserInput): Promise<AdminUserRow> {
+    return this.request('/admin/users', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async updateManagedUser(userId: string, input: UpdateManagedUserInput): Promise<AdminUserRow> {
+    return this.request(`/admin/users/${userId}`, { method: 'PATCH', body: JSON.stringify(input) });
+  }
+
+  async resetManagedUserPassword(userId: string, password: string): Promise<void> {
+    await this.request(`/admin/users/${userId}/password`, {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  async deleteManagedUser(userId: string): Promise<void> {
+    await this.request(`/admin/users/${userId}`, { method: 'DELETE' });
+  }
+
+  async getAdminBookings(filters: {
+    from: string;
+    to: string;
+    turf_id?: string;
+  }): Promise<{ results: AdminBookingRow[] }> {
+    return this.request(`/admin/bookings${toQueryString(filters)}`);
+  }
+
+  async setAdminBookingStatus(
+    bookingId: string,
+    status: 'PENDING' | 'CONFIRMED' | 'COMPLETED',
+  ): Promise<AdminBookingRow> {
+    return this.request(`/admin/bookings/${bookingId}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async updatePromoCode(promoCodeId: string, input: UpdatePromoCodeInput): Promise<AdminPromoCode> {
+    return this.request(`/admin/promo-codes/${promoCodeId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deletePromoCode(promoCodeId: string): Promise<void> {
+    await this.request(`/admin/promo-codes/${promoCodeId}`, { method: 'DELETE' });
+  }
+
+  async deleteTurfAdmin(turfId: string): Promise<void> {
+    await this.request(`/admin/turfs/${turfId}`, { method: 'DELETE' });
+  }
+
+  async getExplorerTables(): Promise<{ results: ExplorerTable[] }> {
+    return this.request('/admin/data/tables');
+  }
+
+  async getExplorerRows(
+    table: string,
+    opts: { limit?: number; offset?: number; search?: string } = {},
+  ): Promise<ExplorerRows> {
+    return this.request(`/admin/data/${encodeURIComponent(table)}${toQueryString(opts)}`);
+  }
+
+  async insertExplorerRow(table: string, values: Record<string, unknown>): Promise<unknown> {
+    return this.request(`/admin/data/${encodeURIComponent(table)}`, {
+      method: 'POST',
+      body: JSON.stringify({ values }),
+    });
+  }
+
+  async updateExplorerRow(
+    table: string,
+    id: string,
+    values: Record<string, unknown>,
+  ): Promise<unknown> {
+    return this.request(`/admin/data/${encodeURIComponent(table)}/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ values }),
+    });
+  }
+
+  async deleteExplorerRow(table: string, id: string): Promise<void> {
+    await this.request(`/admin/data/${encodeURIComponent(table)}/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Owner: register a brand-new staff login and assign it to a turf.
+  async createStaffAccount(
+    turfId: string,
+    input: CreateStaffAccountInput,
+  ): Promise<StaffAssignment> {
+    return this.request(`/owner/turfs/${turfId}/staff/new`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   }
 
   // ---- Admin Web console ----

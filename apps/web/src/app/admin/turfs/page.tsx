@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { AdminTurf } from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
+import { BFAMApiError, useAuth } from '../../../lib/auth';
 import {
   DataTable,
   PageHeader,
@@ -10,6 +12,8 @@ import {
   TextInput,
 } from '../../../components/DashboardShell';
 import { BallLoader } from '../../../components/BallLoader';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { useToast } from '../../../components/ui/Toast';
 
 // Backlog E-3 — Turf Management in Admin Web (PRD §9.1): a cross-owner
 // directory of every turf, plus moderation (suspend/reactivate). Owner
@@ -23,6 +27,11 @@ export default function AdminTurfsPage() {
   const [loadError, setLoadError] = useState(false);
   const [query, setQuery] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<AdminTurf | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const router = useRouter();
+  const { startActingAs } = useAuth();
+  const toast = useToast();
 
   function load() {
     setLoading(true);
@@ -42,6 +51,33 @@ export default function AdminTurfsPage() {
       load();
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  // Opens the owner's own portal as that owner — the full turf editor
+  // (pricing, hours, availability, venues, staff) without a second copy of it.
+  function manageAsOwner(turf: AdminTurf) {
+    startActingAs({
+      user_id: turf.owner_id,
+      role: 'TURF_OWNER',
+      label: turf.owner_name ?? turf.owner_phone,
+    });
+    router.push('/owner');
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try {
+      await apiClient.deleteTurfAdmin(deleting.turf_id);
+      toast.success(`${deleting.turf_name} was deleted`);
+      setDeleting(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof BFAMApiError ? err.message : 'Could not delete that turf.');
+      setDeleting(null);
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -96,7 +132,10 @@ export default function AdminTurfsPage() {
               key: 'turf_id',
               label: 'Actions',
               render: (r) => (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <SecondaryButton onClick={() => manageAsOwner(r)}>
+                    Manage as owner
+                  </SecondaryButton>
                   {r.turf_status !== 'SUSPENDED' && (
                     <SecondaryButton
                       onClick={() => setStatus(r, 'SUSPENDED')}
@@ -113,12 +152,27 @@ export default function AdminTurfsPage() {
                       Reactivate
                     </SecondaryButton>
                   )}
+                  <SecondaryButton onClick={() => setDeleting(r)}>Delete</SecondaryButton>
                 </div>
               ),
             },
           ]}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting !== null}
+        title="Delete this turf?"
+        message={
+          deleting
+            ? `${deleting.turf_name} will disappear from the app. A turf with upcoming bookings can’t be deleted.`
+            : ''
+        }
+        confirmLabel="Delete turf"
+        busy={deleteBusy}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
+      />
     </div>
   );
 }

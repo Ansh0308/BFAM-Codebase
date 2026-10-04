@@ -174,6 +174,21 @@ describe('POST /auth/register', () => {
     expect(usersTable).toHaveLength(0);
   });
 
+  // Owner and staff accounts are provisioned by an admin (or the turf
+  // owner), so a raw API call cannot self-register one either.
+  it.each(['TURF_OWNER', 'TURF_STAFF'])('rejects self-registration with role %s', async (role) => {
+    const response = await request(app).post('/auth/register').send({
+      phone_number: '+919876500001',
+      password: 'SuperSecret123',
+      role,
+      waiver_accepted: true,
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.message).toMatch(/created by BFAM/);
+    expect(usersTable).toHaveLength(0);
+  });
+
   // Backlog G-22: the minimum-age gate (PRD §32.7) must block registration
   // itself when a date of birth is supplied, not only a later profile edit.
   it('rejects registration when the supplied date of birth is under the minimum age', async () => {

@@ -2,12 +2,17 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Plus, RefreshCw, Ticket } from 'lucide-react';
+import { Pencil, Plus, RefreshCw, Ticket, Trash2 } from 'lucide-react';
 import { BFAMApiError } from '@bfam/api-client';
-import type { AdminPromoCode, CreatePromoCodeInput } from '@bfam/shared-types';
+import type {
+  AdminPromoCode,
+  CreatePromoCodeInput,
+  UpdatePromoCodeInput,
+} from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { formatRupees } from '../../../lib/dates';
 import { PageHeader } from '../../../components/DashboardShell';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { Drawer } from '../../../components/ui/Drawer';
 import { EASE_OUT } from '../../../components/ui/motion';
 import { Toggle } from '../../../components/ui/Toggle';
@@ -63,6 +68,9 @@ export default function AdminPromosPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<AdminPromoCode | null>(null);
+  const [deleting, setDeleting] = useState<AdminPromoCode | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -111,6 +119,22 @@ export default function AdminPromosPage() {
       toast.error(err instanceof BFAMApiError ? err.message : 'Could not change that code.');
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try {
+      await apiClient.deletePromoCode(deleting.promo_code_id);
+      toast.success(`${deleting.code} was deleted`);
+      setDeleting(null);
+      await load(true);
+    } catch (err) {
+      toast.error(err instanceof BFAMApiError ? err.message : 'Could not delete that code.');
+      setDeleting(null);
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -232,6 +256,26 @@ export default function AdminPromosPage() {
                     </span>
                   )}
                 </div>
+                <div className="relative mt-4 flex gap-2 border-t border-border-subtle pt-3">
+                  <Button
+                    size="sm"
+                    variant="soft"
+                    icon={Pencil}
+                    onClick={() => setEditing(p)}
+                    testID={`edit-${p.code}`}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon={Trash2}
+                    onClick={() => setDeleting(p)}
+                    testID={`delete-${p.code}`}
+                  >
+                    Delete
+                  </Button>
+                </div>
               </motion.li>
             );
           })}
@@ -255,7 +299,197 @@ export default function AdminPromosPage() {
           />
         )}
       </Drawer>
+
+      <Drawer
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={editing ? `Edit ${editing.code}` : 'Edit code'}
+        subtitle="The code itself cannot change. Switch it off and create a new one for that."
+        testID="promo-edit-drawer"
+      >
+        {editing && (
+          <EditPromoForm
+            promo={editing}
+            onSaved={async () => {
+              toast.success(`${editing.code} updated`);
+              setEditing(null);
+              await load(true);
+            }}
+          />
+        )}
+      </Drawer>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        title="Delete this promo code?"
+        message={
+          deleting
+            ? `${deleting.code} will be removed. A code players have already used cannot be deleted. Switch it off instead.`
+            : ''
+        }
+        confirmLabel="Delete code"
+        busy={deleteBusy}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
+        testID="promo-delete-dialog"
+      />
     </div>
+  );
+}
+
+function EditPromoForm({ promo, onSaved }: { promo: AdminPromoCode; onSaved: () => void }) {
+  const [value, setValue] = useState(String(Number(promo.discount_value)));
+  const [maxDiscount, setMaxDiscount] = useState(
+    promo.max_discount_amount != null ? String(Number(promo.max_discount_amount)) : '',
+  );
+  const [minBooking, setMinBooking] = useState(String(Number(promo.min_booking_amount)));
+  const [totalLimit, setTotalLimit] = useState(
+    promo.usage_limit_total != null ? String(promo.usage_limit_total) : '',
+  );
+  const [perPlayer, setPerPlayer] = useState(
+    promo.usage_limit_per_player != null ? String(promo.usage_limit_per_player) : '',
+  );
+  const [from, setFrom] = useState(promo.valid_from ? promo.valid_from.slice(0, 10) : '');
+  const [until, setUntil] = useState(promo.valid_until ? promo.valid_until.slice(0, 10) : '');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    const v = Number(value);
+    if (!(v > 0)) return setError('Enter a discount greater than 0.');
+    if (promo.discount_type === 'PERCENTAGE' && v > 100)
+      return setError('A percentage discount cannot be more than 100.');
+    if (from && until && until < from)
+      return setError('The end date must be after the start date.');
+    setError(null);
+    setSaving(true);
+    const input: UpdatePromoCodeInput = {
+      discount_value: v,
+      max_discount_amount:
+        promo.discount_type === 'PERCENTAGE' && maxDiscount ? Number(maxDiscount) : null,
+      min_booking_amount: Number(minBooking || 0),
+      usage_limit_total: totalLimit ? Number(totalLimit) : null,
+      usage_limit_per_player: perPlayer ? Number(perPlayer) : null,
+      valid_from: from ? new Date(`${from}T00:00:00`).toISOString() : null,
+      valid_until: until ? new Date(`${until}T23:59:59`).toISOString() : null,
+    };
+    try {
+      await apiClient.updatePromoCode(promo.promo_code_id, input);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof BFAMApiError ? err.message : 'Could not save the changes.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const field =
+    'mt-1 w-full rounded-md border border-border-strong bg-surface px-3 h-[42px] font-ui text-body text-text-primary transition-all hover:border-text-tertiary focus:border-brand-red focus:outline-none focus:shadow-[0_0_0_4px_rgba(216,0,0,0.1)]';
+  const label = 'font-ui text-micro uppercase tracking-wide text-text-secondary';
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+      data-testid="promo-edit-form"
+    >
+      <div className="mb-4 grid grid-cols-2 gap-4">
+        <label className="block">
+          <span className={label}>
+            {promo.discount_type === 'PERCENTAGE' ? 'Percent off' : 'Amount off (₹)'}
+          </span>
+          <input
+            type="number"
+            min="0"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            data-testid="edit-promo-value"
+            className={field}
+          />
+        </label>
+        {promo.discount_type === 'PERCENTAGE' && (
+          <label className="block">
+            <span className={label}>Max discount (₹)</span>
+            <input
+              type="number"
+              min="0"
+              value={maxDiscount}
+              onChange={(e) => setMaxDiscount(e.target.value)}
+              data-testid="edit-promo-max"
+              className={field}
+            />
+          </label>
+        )}
+      </div>
+      <div className="mb-4 grid grid-cols-3 gap-4">
+        <label className="block">
+          <span className={label}>Min booking (₹)</span>
+          <input
+            type="number"
+            min="0"
+            value={minBooking}
+            onChange={(e) => setMinBooking(e.target.value)}
+            className={field}
+          />
+        </label>
+        <label className="block">
+          <span className={label}>Total uses</span>
+          <input
+            type="number"
+            min="1"
+            value={totalLimit}
+            onChange={(e) => setTotalLimit(e.target.value)}
+            placeholder="∞"
+            className={field}
+          />
+        </label>
+        <label className="block">
+          <span className={label}>Per player</span>
+          <input
+            type="number"
+            min="1"
+            value={perPlayer}
+            onChange={(e) => setPerPlayer(e.target.value)}
+            placeholder="∞"
+            className={field}
+          />
+        </label>
+      </div>
+      <div className="mb-5 grid grid-cols-2 gap-4">
+        <label className="block">
+          <span className={label}>Valid from</span>
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className={field}
+          />
+        </label>
+        <label className="block">
+          <span className={label}>Valid until</span>
+          <input
+            type="date"
+            value={until}
+            onChange={(e) => setUntil(e.target.value)}
+            className={field}
+          />
+        </label>
+      </div>
+      {error && (
+        <p
+          role="alert"
+          data-testid="promo-edit-error"
+          className="mb-4 rounded-md bg-status-danger-bg px-3 py-2 font-ui text-body text-status-danger"
+        >
+          {error}
+        </p>
+      )}
+      <Button type="submit" size="lg" loading={saving} testID="promo-edit-submit">
+        Save changes
+      </Button>
+    </form>
   );
 }
 

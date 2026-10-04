@@ -181,3 +181,20 @@ AW-1 is only partly done as an item: the overview has no tournament figures (tou
 - **Mostly missing:** actions (check-in, cash, cancel, reconcile), analytics, and tournaments.
 - **Ready to build now (backend exists):** SW-1, SW-2, SW-3, SW-4, OW-2, OW-4, OW-11, AW-3, AW-4, AW-5.
 - **Needs new backend first:** analytics, customer management, tournaments, payment / refund oversight, user management beyond players, permissions, maintenance, platform settings.
+
+---
+
+## 7. Update — Admin full control and account provisioning
+
+**Done (not yet committed):**
+
+- **Sign-up is player-only.** `/auth/register` and social sign-up refuse Turf Owner / Turf Staff (HTTP 403 / 400). The mobile role-selection screen no longer offers them; owners and staff sign in with the credentials they were given.
+- **Admin creates owners, staff and admins** (Admin → Users → New account). **Owners create their own staff** (Owner → Staff Management → Create a staff account).
+- **Admin → Users:** every account, filter by role, search, edit, suspend / reactivate, reset password, delete (soft). Suspension is now enforced at login (password, OTP, Google, Apple).
+- **"Manage as":** the admin opens an owner's or staff member's own portal as that user (turf create / edit, pricing, hours, availability, venues, staff, bookings). A banner shows while active; writes are audit-logged under the admin.
+- **Admin → Bookings:** all turfs, date range, correct a booking's status.
+- **Promo codes:** edit and delete (a code already redeemed cannot be deleted — switch it off).
+- **Turfs:** delete (blocked while upcoming bookings exist) and "Manage as owner".
+- **Data Explorer:** browse, add, edit and delete rows in any table. Password hashes, tokens and OTPs are hidden and not editable; `audit_logs` and `payment_events` are read-only; only single-column primary keys can be written; every change is audit-logged.
+
+**Known limits:** a suspended user's already-issued token works until it expires (about 1 hour); the Data Explorer edits values as plain text, so it is a power tool rather than a form-by-form UI.

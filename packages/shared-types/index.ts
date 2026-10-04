@@ -1510,3 +1510,94 @@ export interface ConvertRoomResult {
   match_id: string;
   booking_id: string;
 }
+
+// ---- Admin full-control (users, bookings, data explorer) ----
+
+export type ManagedUserRole = 'PLAYER' | 'TURF_OWNER' | 'TURF_STAFF' | 'ADMIN';
+
+export interface AdminUserRow {
+  user_id: string;
+  role: ManagedUserRole;
+  phone_number: string;
+  email: string | null;
+  city: string | null;
+  account_status: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
+  bfam_id: string | null;
+  full_name: string | null;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+export interface CreateManagedUserInput {
+  role: 'TURF_OWNER' | 'TURF_STAFF' | 'ADMIN';
+  phone_number: string;
+  password: string;
+  email?: string | null;
+  city?: string | null;
+}
+
+export interface UpdateManagedUserInput {
+  phone_number?: string;
+  email?: string | null;
+  city?: string | null;
+  account_status?: 'ACTIVE' | 'SUSPENDED';
+  full_name?: string | null;
+}
+
+export interface CreateStaffAccountInput {
+  phone_number: string;
+  password: string;
+  email?: string | null;
+  verified?: boolean;
+}
+
+export interface AdminBookingRow {
+  booking_id: string;
+  turf_id: string;
+  turf_name: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  total_amount?: string | number;
+  customer_name: string | null;
+  customer_phone: string | null;
+  owner_phone: string | null;
+  amount_due: string | number;
+  amount_paid: string | number;
+  [key: string]: unknown;
+}
+
+export interface UpdatePromoCodeInput {
+  discount_type?: 'PERCENTAGE' | 'FLAT';
+  discount_value?: number;
+  max_discount_amount?: number | null;
+  min_booking_amount?: number;
+  usage_limit_total?: number | null;
+  usage_limit_per_player?: number | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
+}
+
+export interface ExplorerTable {
+  name: string;
+  rows: number;
+  read_only: boolean;
+}
+
+export interface ExplorerColumn {
+  name: string;
+  type: string;
+  nullable: boolean;
+  primary: boolean;
+  masked: boolean;
+}
+
+export interface ExplorerRows {
+  table: string;
+  read_only: boolean;
+  primary_key: string | null;
+  columns: ExplorerColumn[];
+  rows: Record<string, unknown>[];
+  total: number;
+}

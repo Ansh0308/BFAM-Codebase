@@ -6,8 +6,17 @@ jest.mock('../src/lib/apiClient', () => ({
   apiClient: {
     getAllTurfsAdmin: jest.fn(),
     setTurfStatusAdmin: jest.fn(),
+    deleteTurfAdmin: jest.fn(),
   },
 }));
+
+const mockPush = jest.fn();
+const mockStartActingAs = jest.fn();
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush, replace: jest.fn() }) }));
+jest.mock('../src/lib/auth', () => {
+  const { BFAMApiError } = jest.requireActual('@bfam/api-client');
+  return { useAuth: () => ({ startActingAs: mockStartActingAs }), BFAMApiError };
+});
 
 import { apiClient } from '../src/lib/apiClient';
 import AdminTurfsPage from '../src/app/admin/turfs/page';
@@ -109,5 +118,29 @@ describe('Admin Turfs page (backlog E-3)', () => {
     fireEvent.click(screen.getByText('Reactivate'));
 
     await waitFor(() => expect(mockSetTurfStatusAdmin).toHaveBeenCalledWith('t1', 'ACTIVE'));
+  });
+  it('opens the owner portal as that owner', async () => {
+    mockGetAllTurfsAdmin.mockResolvedValueOnce({ results: [TURF] });
+    render(<AdminTurfsPage />);
+    await screen.findByText('Green Park Box Cricket');
+    fireEvent.click(screen.getByText('Manage as owner'));
+    expect(mockStartActingAs).toHaveBeenCalledWith({
+      user_id: 'owner-1',
+      role: 'TURF_OWNER',
+      label: 'Ravi Owner',
+    });
+    expect(mockPush).toHaveBeenCalledWith('/owner');
+  });
+
+  it('deletes a turf only after confirmation', async () => {
+    const mockDelete = apiClient.deleteTurfAdmin as jest.Mock;
+    mockGetAllTurfsAdmin.mockResolvedValue({ results: [TURF] });
+    mockDelete.mockResolvedValueOnce(undefined);
+    render(<AdminTurfsPage />);
+    await screen.findByText('Green Park Box Cricket');
+    fireEvent.click(screen.getByText('Delete'));
+    expect(mockDelete).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByTestId('confirm-ok'));
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('t1'));
   });
 });

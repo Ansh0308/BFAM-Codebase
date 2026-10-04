@@ -6,6 +6,8 @@ import { DashboardShell } from '../../components/DashboardShell';
 import { BallLoader } from '../../components/BallLoader';
 import {
   BarChart3,
+  CalendarCheck,
+  Database,
   Hash,
   ImageIcon,
   LayoutDashboard,
@@ -16,6 +18,7 @@ import {
   Swords,
   Ticket,
   Users,
+  UserCog,
   UsersRound,
 } from 'lucide-react';
 
@@ -23,7 +26,9 @@ const NAV_ITEMS = [
   { href: '/admin', label: 'Overview', icon: LayoutDashboard },
   { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
   { href: '/admin/support', label: 'Support', icon: LifeBuoy },
+  { href: '/admin/users', label: 'Users', icon: UserCog },
   { href: '/admin/players', label: 'Players', icon: Users },
+  { href: '/admin/bookings', label: 'Bookings', icon: CalendarCheck },
   { href: '/admin/matches', label: 'Matches', icon: Swords },
   { href: '/admin/turfs', label: 'Turfs', icon: MapPin },
   { href: '/admin/teams', label: 'Teams', icon: UsersRound },
@@ -31,6 +36,7 @@ const NAV_ITEMS = [
   { href: '/admin/promos', label: 'Promo Codes', icon: Ticket },
   { href: '/admin/bfam-ids', label: 'BFAM IDs', icon: Hash },
   { href: '/admin/banners', label: 'Home Banners', icon: ImageIcon },
+  { href: '/admin/data', label: 'Data Explorer', icon: Database },
   { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
 ];
 

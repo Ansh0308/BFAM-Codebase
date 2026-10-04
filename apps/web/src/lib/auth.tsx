@@ -7,15 +7,27 @@ import { apiClient } from './apiClient';
 
 const TOKEN_KEY = 'bfam_web_token';
 const USER_KEY = 'bfam_web_user';
+const ACT_AS_KEY = 'bfam_web_act_as';
 
 export interface WebAuthUser {
   user_id: string;
   role: 'TURF_OWNER' | 'TURF_STAFF' | 'ADMIN' | 'PLAYER';
 }
 
+// An admin "managing as" an owner or staff member: every API call carries
+// X-Act-As-User, and the owner/staff screens open for the admin.
+export interface ActingAs {
+  user_id: string;
+  role: 'TURF_OWNER' | 'TURF_STAFF';
+  label: string;
+}
+
 interface AuthContextValue {
   user: WebAuthUser | null;
   loading: boolean;
+  actingAs: ActingAs | null;
+  startActingAs: (target: ActingAs) => void;
+  stopActingAs: () => void;
   login: (identifier: string, password: string) => Promise<WebAuthUser>;
   logout: () => void;
 }
@@ -30,21 +42,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<WebAuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actingAs, setActingAs] = useState<ActingAs | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
     const userJson = localStorage.getItem(USER_KEY);
     if (token && userJson) {
       apiClient.setToken(token);
-      setUser(JSON.parse(userJson) as WebAuthUser);
+      const stored = JSON.parse(userJson) as WebAuthUser;
+      setUser(stored);
+      // "Managing as" survives a refresh (per tab) but never a new login.
+      try {
+        const actJson = sessionStorage.getItem(ACT_AS_KEY);
+        if (actJson && stored.role === 'ADMIN') {
+          const target = JSON.parse(actJson) as ActingAs;
+          apiClient.setActAsUser(target.user_id);
+          setActingAs(target);
+        }
+      } catch {
+        // sessionStorage unavailable — just start as the admin.
+      }
     }
     setLoading(false);
+  }, []);
+
+  const startActingAs = useCallback((target: ActingAs) => {
+    apiClient.setActAsUser(target.user_id);
+    try {
+      sessionStorage.setItem(ACT_AS_KEY, JSON.stringify(target));
+    } catch {
+      // not persisted — still works until the tab is refreshed
+    }
+    setActingAs(target);
+  }, []);
+
+  const stopActingAs = useCallback(() => {
+    apiClient.setActAsUser(null);
+    try {
+      sessionStorage.removeItem(ACT_AS_KEY);
+    } catch {
+      // nothing stored
+    }
+    setActingAs(null);
   }, []);
 
   const logout = useCallback(() => {
     apiClient.clearToken();
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    try {
+      sessionStorage.removeItem(ACT_AS_KEY);
+    } catch {
+      // nothing stored
+    }
+    setActingAs(null);
     setUser(null);
   }, []);
 
@@ -73,7 +124,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider
+      value={{ user, loading, actingAs, startActingAs, stopActingAs, login, logout }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
 }
 
@@ -94,7 +149,7 @@ function dashboardPathFor(role: WebAuthUser['role']): string {
 // the logged-in role doesn't match this section (Owner Web vs Staff Web vs
 // Admin Web — Admin is web-only, there's no mobile equivalent).
 export function useRequireRole(role: 'TURF_OWNER' | 'TURF_STAFF' | 'ADMIN') {
-  const { user, loading } = useAuth();
+  const { user, loading, actingAs } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -103,10 +158,13 @@ export function useRequireRole(role: 'TURF_OWNER' | 'TURF_STAFF' | 'ADMIN') {
       router.replace('/login');
       return;
     }
-    if (user.role !== role) {
+    // An admin who is "managing as" an owner/staff member may use that
+    // portal; otherwise the admin belongs in the admin console.
+    const adminActingAsThisRole = user.role === 'ADMIN' && actingAs?.role === role;
+    if (user.role !== role && !adminActingAsThisRole) {
       router.replace(dashboardPathFor(user.role));
     }
-  }, [loading, user, role, router]);
+  }, [loading, user, role, router, actingAs]);
 
   return { user, loading };
 }

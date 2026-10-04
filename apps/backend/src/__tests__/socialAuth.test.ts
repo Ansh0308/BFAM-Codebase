@@ -182,18 +182,34 @@ describe('Social auth (Google / Apple)', () => {
     const completeResponse = await request(app).post('/auth/social/complete').send({
       social_ticket: appleResponse.body.social_ticket,
       phone_number: '+919876500012',
-      role: 'TURF_OWNER',
+      role: 'PLAYER',
       waiver_accepted: true,
     });
     expect(completeResponse.status).toBe(201);
     expect(usersTable[0].apple_id).toBe('apple-uid-1');
     expect(usersTable[0].email).toBeNull();
-    // TURF_OWNER never gets a players row.
-    expect(playersTable).toHaveLength(0);
-    // ...but every role, PLAYER or not, still gets a TERMS consent row.
     expect(userConsents).toHaveLength(1);
     expect(userConsents[0]).toMatchObject({ consent_type: 'TERMS' });
   });
+
+  // Turf Owner / Turf Staff accounts are created by an admin (or the turf
+  // owner), never through public sign-up — including the social path.
+  it.each(['TURF_OWNER', 'TURF_STAFF'])(
+    'refuses to complete a social sign-up as %s',
+    async (role) => {
+      appleVerifyResult = { sub: 'apple-uid-9' };
+      const appleResponse = await request(app).post('/auth/apple').send({ identity_token: 'fake' });
+
+      const completeResponse = await request(app).post('/auth/social/complete').send({
+        social_ticket: appleResponse.body.social_ticket,
+        phone_number: '+919876500013',
+        role,
+        waiver_accepted: true,
+      });
+      expect(completeResponse.status).toBe(400);
+      expect(usersTable).toHaveLength(0);
+    },
+  );
 
   // Backlog G-22: the minimum-age gate must also apply to the social signup
   // completion path, not just phone/password registration.

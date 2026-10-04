@@ -123,11 +123,20 @@ interface UserRow {
   bfam_id: string | null;
   google_id: string | null;
   apple_id: string | null;
+  account_status?: string;
 }
+
+// A suspended account (set from Admin Web) can't sign in. Rows from older
+// fixtures without the column are treated as active.
+function isSuspended(user: { account_status?: string }): boolean {
+  return Boolean(user.account_status) && user.account_status !== 'ACTIVE';
+}
+
+const SUSPENDED_MESSAGE = 'This account has been suspended. Please contact BFAM.';
 
 async function findUserByIdentifier(identifier: string): Promise<UserRow | null> {
   const rows = await sequelize.query<UserRow>(
-    'SELECT user_id, phone_number, email, password_hash, role, bfam_id, google_id, apple_id FROM users WHERE (phone_number = :identifier OR email = :identifier) AND deleted_at IS NULL LIMIT 1',
+    'SELECT user_id, phone_number, email, password_hash, role, bfam_id, google_id, apple_id, account_status FROM users WHERE (phone_number = :identifier OR email = :identifier) AND deleted_at IS NULL LIMIT 1',
     { replacements: { identifier }, type: QueryTypes.SELECT },
   );
   return rows[0] ?? null;
@@ -138,7 +147,7 @@ async function findUserBySocialId(
   providerId: string,
 ): Promise<UserRow | null> {
   const rows = await sequelize.query<UserRow>(
-    `SELECT user_id, phone_number, email, password_hash, role, bfam_id, google_id, apple_id FROM users WHERE ${column} = :providerId AND deleted_at IS NULL LIMIT 1`,
+    `SELECT user_id, phone_number, email, password_hash, role, bfam_id, google_id, apple_id, account_status FROM users WHERE ${column} = :providerId AND deleted_at IS NULL LIMIT 1`,
     { replacements: { providerId }, type: QueryTypes.SELECT },
   );
   return rows[0] ?? null;
@@ -296,6 +305,18 @@ app.post('/auth/register', async (req: Request, res: Response) => {
       .status(403)
       .json({ error: { message: 'Admin accounts cannot be self-registered.', status: 403 } });
   }
+  // Only players sign themselves up. Turf Owner and Turf Staff accounts are
+  // created by a BFAM admin (Admin Web) or, for staff, by the turf owner from
+  // their portal — never through the public sign-up.
+  if (parsed.data.role !== 'PLAYER') {
+    return res.status(403).json({
+      error: {
+        message:
+          'Turf Owner and Turf Staff accounts are created by BFAM — ask your admin or turf owner.',
+        status: 403,
+      },
+    });
+  }
 
   const { password, signup_token, ...profile } = parsed.data;
 
@@ -452,6 +473,9 @@ app.post('/auth/otp/verify', async (req: Request, res: Response) => {
         .status(404)
         .json({ error: { message: 'No account found for this identifier', status: 404 } });
     }
+    if (isSuspended(user)) {
+      return res.status(403).json({ error: { message: SUSPENDED_MESSAGE, status: 403 } });
+    }
     await touchLastLogin(user.user_id);
     const token = issueJwt({ userId: user.user_id, role: user.role, bfamId: user.bfam_id });
     return res
@@ -488,6 +512,9 @@ app.post('/auth/login', async (req: Request, res: Response) => {
     const passwordMatches = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatches) {
       return genericFailure();
+    }
+    if (isSuspended(user)) {
+      return res.status(403).json({ error: { message: SUSPENDED_MESSAGE, status: 403 } });
     }
 
     await touchLastLogin(user.user_id);
@@ -592,6 +619,9 @@ app.post('/auth/google', async (req: Request, res: Response) => {
     const existingUser = await findUserBySocialId('google_id', identity.providerId);
 
     if (existingUser) {
+      if (isSuspended(existingUser)) {
+        return res.status(403).json({ error: { message: SUSPENDED_MESSAGE, status: 403 } });
+      }
       await touchLastLogin(existingUser.user_id);
       const token = issueJwt({
         userId: existingUser.user_id,
@@ -641,6 +671,9 @@ app.post('/auth/apple', async (req: Request, res: Response) => {
     const existingUser = await findUserBySocialId('apple_id', identity.providerId);
 
     if (existingUser) {
+      if (isSuspended(existingUser)) {
+        return res.status(403).json({ error: { message: SUSPENDED_MESSAGE, status: 403 } });
+      }
       await touchLastLogin(existingUser.user_id);
       const token = issueJwt({
         userId: existingUser.user_id,

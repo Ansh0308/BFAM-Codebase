@@ -2,9 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'motion/react';
-import { LogOut, type LucideIcon } from 'lucide-react';
+import { LogOut, ShieldAlert, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { Button } from './ui/kit';
 import { EASE_OUT } from './ui/motion';
@@ -36,7 +36,8 @@ export function DashboardShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, actingAs, stopActingAs } = useAuth();
+  const router = useRouter();
   const reduce = useReducedMotion();
   const today = new Date().toLocaleDateString('en-IN', {
     weekday: 'long',
@@ -130,7 +131,33 @@ export function DashboardShell({
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col bfam-canvas">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-border-subtle bg-surface/85 px-6 lg:px-10 h-[64px] backdrop-blur-md">
+        {actingAs && (
+          <div
+            data-testid="acting-as-banner"
+            className="sticky top-0 z-40 flex items-center justify-between gap-4 bg-ink-black px-6 lg:px-10 h-[44px] text-white"
+          >
+            <p className="flex items-center gap-2 font-ui text-body min-w-0">
+              <ShieldAlert className="h-[16px] w-[16px] shrink-0 text-brand-red" />
+              <span className="truncate">
+                Admin mode — managing as <strong>{actingAs.label}</strong>. Changes are saved to
+                their account and recorded in the audit log.
+              </span>
+            </p>
+            <button
+              onClick={() => {
+                stopActingAs();
+                router.push('/admin/users');
+              }}
+              data-testid="acting-as-exit"
+              className="shrink-0 rounded-md bg-brand-red px-3 h-[28px] font-ui text-[12px] font-bold uppercase tracking-wide cursor-pointer hover:bg-[#e10600]"
+            >
+              Exit
+            </button>
+          </div>
+        )}
+        <header
+          className={`sticky ${actingAs ? 'top-[44px]' : 'top-0'} z-30 flex items-center justify-between gap-4 border-b border-border-subtle bg-surface/85 px-6 lg:px-10 h-[64px] backdrop-blur-md`}
+        >
           <div className="min-w-0">
             <p className="font-ui text-micro uppercase tracking-[0.16em] text-text-tertiary">
               {title}

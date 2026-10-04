@@ -2,17 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { SelfServiceUserRole } from '@bfam/shared-types';
 import { AuthScreenBackground } from '../src/components/AuthScreenBackground';
-import { RoleCard } from '../src/components/RoleCard';
 import { Button } from '../src/components/Button';
 import { TextField } from '../src/components/TextField';
 import { useSignupStore } from '../src/store/signupStore';
-import { useAuthStore } from '../src/store/authStore';
-import { completeAccountCreation } from '../src/services/completeAccountCreation';
 import { BrandLogo } from '../src/components/BrandLogo';
-
-const SELF_SERVICE_ROLES: SelfServiceUserRole[] = ['PLAYER', 'TURF_OWNER', 'TURF_STAFF'];
 
 // Placeholder liability-waiver copy (PRD §32.9) — standard assumption-of-
 // risk language for a sports-booking app, NOT reviewed by legal counsel.
@@ -23,71 +17,28 @@ const SELF_SERVICE_ROLES: SelfServiceUserRole[] = ['PLAYER', 'TURF_OWNER', 'TURF
 const WAIVER_TEXT =
   'I understand that cricket and other sports involve inherent risks of injury, and I voluntarily assume those risks for myself while using BFAM to book turfs and play matches. I release BFAM and participating turf venues from liability for injuries sustained during play, except where caused by their gross negligence.';
 
-// Offers Player / Turf Owner / Turf Staff only — never Admin (self-service
-// signups can't create an admin account). Only PLAYER continues to
-// Favorite Cricketer Search; Owner/Staff create the account immediately.
+// Sign-up is for players only: Turf Owner / Turf Staff accounts are created
+// by a BFAM admin (or, for staff, the turf owner) and those people simply log
+// in — so there is no role to choose. This step now just collects the
+// liability waiver (and an optional referral code) before Favorite Cricketer.
 export default function RoleSelection() {
   const router = useRouter();
   const setRole = useSignupStore((s) => s.setRole);
-  const identifier = useSignupStore((s) => s.identifier);
-  const password = useSignupStore((s) => s.password);
-  const signupToken = useSignupStore((s) => s.signupToken);
-  const socialTicket = useSignupStore((s) => s.socialTicket);
-  const setSession = useAuthStore((s) => s.setSession);
   const waiverAccepted = useSignupStore((s) => s.waiverAccepted);
   const setWaiverAccepted = useSignupStore((s) => s.setWaiverAccepted);
   const referralCode = useSignupStore((s) => s.referralCode);
   const setReferralCode = useSignupStore((s) => s.setReferralCode);
 
-  const [selected, setSelected] = useState<SelfServiceUserRole | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleContinue() {
-    if (!selected) {
-      setError('Choose a role to continue.');
-      return;
-    }
+  function handleContinue() {
     if (!waiverAccepted) {
       setError('You must accept the liability waiver to continue.');
       return;
     }
     setError(null);
-    setRole(selected);
-
-    if (selected === 'PLAYER') {
-      router.push('/favorite-cricketer');
-      return;
-    }
-
-    // Turf Owner / Turf Staff go straight from Role Selection to account
-    // creation (no Favorite Cricketer step).
-    setLoading(true);
-    try {
-      const result = await completeAccountCreation({
-        role: selected,
-        identifier: identifier ?? '',
-        password: password ?? '',
-        signupToken,
-        socialTicket,
-        favoriteCricketerName: null,
-        favoriteCricketerExternalId: null,
-        waiverAccepted: true,
-      });
-      await setSession(result.token, {
-        user_id: result.user_id,
-        bfam_id: result.bfam_id,
-        role: selected,
-      });
-      // Turf Owner/Staff never get a BFAM ID (PRD §12.59, updated — players
-      // only), so there's nothing to show on BFAM ID Confirmation — go
-      // straight to Profile Setup (Module 2.2), same as the PLAYER path.
-      router.replace('/profile-setup');
-    } catch {
-      setError('Could not create your account. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    setRole('PLAYER');
+    router.push('/favorite-cricketer');
   }
 
   return (
@@ -103,34 +54,22 @@ export default function RoleSelection() {
       <View className="flex-row items-center justify-center mb-3">
         <View className="h-px w-8 bg-brand-red" />
         <Text className="font-ui font-bold text-section-header text-ink-black uppercase tracking-wide mx-3 text-center">
-          Choose Your Role
+          Almost There
         </Text>
         <View className="h-px w-8 bg-brand-red" />
       </View>
       <Text className="font-ui text-body text-text-secondary text-center mb-8">
-        Select how you want to use BFAM and get started.
+        Create your player account — book turfs, build teams and play matches.
       </Text>
 
-      {SELF_SERVICE_ROLES.map((role) => (
-        <RoleCard
-          key={role}
-          role={role}
-          selected={selected === role}
-          onPress={() => setSelected(role)}
-          testID={`role-card-${role}`}
-        />
-      ))}
-
-      {selected === 'PLAYER' && (
-        <TextField
-          label="Referral Code (optional)"
-          value={referralCode}
-          onChangeText={setReferralCode}
-          placeholder="A friend's BFAM ID, e.g. BF1001"
-          autoCapitalize="characters"
-          testID="referral-code-input"
-        />
-      )}
+      <TextField
+        label="Referral Code (optional)"
+        value={referralCode}
+        onChangeText={setReferralCode}
+        placeholder="A friend's BFAM ID, e.g. BF1001"
+        autoCapitalize="characters"
+        testID="referral-code-input"
+      />
 
       <Pressable
         onPress={() => setWaiverAccepted(!waiverAccepted)}
@@ -165,7 +104,6 @@ export default function RoleSelection() {
         <Button
           label="Continue"
           onPress={handleContinue}
-          loading={loading}
           testID="role-selection-continue"
           iconRight={<Feather name="arrow-right" size={18} color="#FFFFFF" />}
         />

@@ -10,6 +10,8 @@ import {
 } from '../domain/errors';
 import { sendNotification } from './notificationService';
 import { resolveDocumentUrl } from './uploadService';
+import { createStaffOwnerOrAdminAccount } from './adminUserManagement';
+import { writeAuditLog } from './auditLogService';
 
 interface TurfRow {
   turf_id: string;
@@ -99,6 +101,67 @@ export async function assignStaff(turfId: string, ownerUserId: string, staffUser
       created_at: new Date(),
     },
   ]);
+  return fetchAssignment(assignmentId);
+}
+
+export interface CreateStaffForTurfInput {
+  phone_number: string;
+  password: string;
+  email?: string | null;
+  /** The owner vouches for this person now, so they can check in / take cash straight away. */
+  verified?: boolean;
+}
+
+// Staff Management (PRD §8.3): the owner registers a new staff member from
+// their portal — creates the TURF_STAFF login and assigns it to this turf in
+// one step. (Staff can no longer sign themselves up.) Verification starts
+// PENDING unless the owner marks the person verified.
+export async function createStaffForTurf(
+  turfId: string,
+  ownerUserId: string,
+  input: CreateStaffForTurfInput,
+) {
+  const turf = await fetchTurfOrThrow(turfId);
+  await assertIsOwner(turf, ownerUserId);
+
+  const staffUserId = await createStaffOwnerOrAdminAccount({
+    role: 'TURF_STAFF',
+    phone_number: input.phone_number,
+    email: input.email,
+    password: input.password,
+  });
+
+  const assignmentId = randomUUID();
+  const now = new Date();
+  await sequelize.getQueryInterface().bulkInsert('turf_staff_assignments', [
+    {
+      assignment_id: assignmentId,
+      turf_id: turfId,
+      staff_user_id: staffUserId,
+      permissions: JSON.stringify({}),
+      assigned_by: ownerUserId,
+      status: 'ACTIVE',
+      verification_status: input.verified ? 'APPROVED' : 'PENDING',
+      verification_document_url: null,
+      verified_by: input.verified ? ownerUserId : null,
+      verified_at: input.verified ? now : null,
+      rejection_reason: null,
+      created_at: now,
+    },
+  ]);
+
+  await writeAuditLog({
+    actorUserId: ownerUserId,
+    actorRole: 'TURF_OWNER',
+    action: 'STAFF_ACCOUNT_CREATED',
+    resourceType: 'user',
+    resourceId: staffUserId,
+    afterData: {
+      turf_id: turfId,
+      phone_number: input.phone_number,
+      verified: Boolean(input.verified),
+    },
+  });
   return fetchAssignment(assignmentId);
 }
 

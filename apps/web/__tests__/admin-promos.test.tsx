@@ -7,6 +7,8 @@ jest.mock('../src/lib/apiClient', () => ({
     getPromoCodes: jest.fn(),
     createPromoCode: jest.fn(),
     setPromoCodeActive: jest.fn(),
+    updatePromoCode: jest.fn(),
+    deletePromoCode: jest.fn(),
   },
 }));
 
@@ -139,5 +141,33 @@ describe('Admin Web — Promo codes (PRD §9.1)', () => {
     expect(await screen.findByTestId('promo-error')).toHaveTextContent(
       'That promo code already exists.',
     );
+  });
+  it('edits a code’s rules', async () => {
+    api.getPromoCodes.mockResolvedValue({ results: [promo('WELCOME20')] });
+    api.updatePromoCode.mockResolvedValue({});
+    render(<AdminPromosPage />);
+    fireEvent.click(await screen.findByTestId('edit-WELCOME20'));
+    fireEvent.change(await screen.findByTestId('edit-promo-value'), { target: { value: '25' } });
+    fireEvent.click(screen.getByTestId('promo-edit-submit'));
+    await waitFor(() =>
+      expect(api.updatePromoCode).toHaveBeenCalledWith(
+        'id-WELCOME20',
+        expect.objectContaining({
+          discount_value: 25,
+          max_discount_amount: 300,
+          min_booking_amount: 500,
+        }),
+      ),
+    );
+  });
+
+  it('deletes a code after confirmation', async () => {
+    api.getPromoCodes.mockResolvedValue({ results: [promo('WELCOME20')] });
+    api.deletePromoCode.mockResolvedValue(undefined);
+    render(<AdminPromosPage />);
+    fireEvent.click(await screen.findByTestId('delete-WELCOME20'));
+    expect(api.deletePromoCode).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByTestId('confirm-ok'));
+    await waitFor(() => expect(api.deletePromoCode).toHaveBeenCalledWith('id-WELCOME20'));
   });
 });

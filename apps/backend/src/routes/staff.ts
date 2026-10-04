@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { authenticateJwt, requireRoles } from '../middleware/auth';
+import { allowAdminActAs, authenticateJwt, requireRoles } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import {
   getMyAssignments,
@@ -18,7 +18,7 @@ import { StaffAssignmentNotFoundError } from '../domain/errors';
 const router = Router();
 
 // Every route in this file is TURF_STAFF-only (module 2.12, PRD §8.4/§9.3).
-router.use(authenticateJwt, requireRoles('TURF_STAFF'));
+router.use(authenticateJwt, allowAdminActAs, requireRoles('TURF_STAFF'));
 
 // GET /staff/bookings/today — Today's Bookings.
 router.get(
