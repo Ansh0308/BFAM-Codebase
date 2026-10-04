@@ -205,8 +205,23 @@ async function fetchBooking(bookingId: string): Promise<BookingRecord | null> {
 export async function getBookingById(bookingId: string, actor: { userId: string; role: string }) {
   const booking = await fetchBooking(bookingId);
   if (!booking) throw new BookingNotFoundError(bookingId);
+  // Read-only: staff assigned to the turf may look a booking up (desk
+  // verification, PRD §22.3). Cancelling still goes through
+  // assertCanViewOrManage, which does not include staff.
+  if (actor.role === 'TURF_STAFF' && (await isActiveStaffAtTurf(actor.userId, booking.turf_id))) {
+    return booking;
+  }
   await assertCanViewOrManage(booking, actor);
   return booking;
+}
+
+async function isActiveStaffAtTurf(staffUserId: string, turfId: string): Promise<boolean> {
+  const rows = await sequelize.query<{ assignment_id: string }>(
+    `SELECT assignment_id FROM turf_staff_assignments
+     WHERE staff_user_id = :staffUserId AND turf_id = :turfId AND status = 'ACTIVE'`,
+    { type: QueryTypes.SELECT, replacements: { staffUserId, turfId } },
+  );
+  return rows.length > 0;
 }
 
 async function assertCanViewOrManage(

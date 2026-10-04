@@ -1095,6 +1095,20 @@ export interface OwnerLiveMatch extends OwnerMatch {
 
 export interface OwnerPayment extends Payment {
   turf_name: string;
+  /** The (earliest) booking this payment settled, and its date. */
+  booking_id?: string | null;
+  booking_date?: string | null;
+  /** Phone number of whoever collected a cash payment (staff or captain). */
+  collector_phone?: string | null;
+}
+
+// GET /owner/bookings — Booking Management: a booking plus its customer and
+// how much of it has been paid.
+export interface OwnerBookingRow extends OwnerBooking {
+  customer_phone: string | null;
+  customer_name: string | null;
+  amount_due: number | string;
+  amount_paid: number | string;
 }
 
 // ---- Module 2.13: Support ----

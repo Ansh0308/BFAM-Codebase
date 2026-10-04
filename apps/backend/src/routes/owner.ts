@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import {
   assignStaffSchema,
   assignTurfToVenueSchema,
+  ownerBookingRangeSchema,
   copyTurfDetailsSchema,
   createAvailabilityBlockSchema,
   createTurfSchema,
@@ -22,6 +23,8 @@ import {
   createTurf,
   createVenue,
   getTodaysBookings,
+  listBookingsForOwner,
+  InvalidBookingRangeError,
   getTurfForOwner,
   getVenueForOwner,
   listAvailabilityBlocks,
@@ -372,6 +375,33 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const bookings = await getTodaysBookings(req.auth!.sub);
     return res.status(200).json({ results: bookings });
+  }),
+);
+
+// GET /owner/bookings?from=YYYY-MM-DD&to=YYYY-MM-DD[&turf_id=] — Booking
+// Management across a date range (max 62 days), with customer + payment totals.
+router.get(
+  '/bookings',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = ownerBookingRangeSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: { message: 'from and to (YYYY-MM-DD) are required', status: 400 },
+      });
+    }
+    try {
+      const bookings = await listBookingsForOwner(req.auth!.sub, {
+        from: parsed.data.from,
+        to: parsed.data.to,
+        turfId: parsed.data.turf_id,
+      });
+      return res.status(200).json({ results: bookings });
+    } catch (error) {
+      if (error instanceof InvalidBookingRangeError) {
+        return res.status(400).json({ error: { message: error.message, status: 400 } });
+      }
+      throw error;
+    }
   }),
 );
 

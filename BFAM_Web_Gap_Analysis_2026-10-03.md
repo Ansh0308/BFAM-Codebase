@@ -72,20 +72,20 @@
 
 ### 2.2 Turf Owner Web (PRD §9.2, §22.1, §30.9)
 
-| ID    | Item                                                                                                      | PRD ref            | Backend       | Notes                                                                                                      |
-| ----- | --------------------------------------------------------------------------------------------------------- | ------------------ | ------------- | ---------------------------------------------------------------------------------------------------------- |
-| OW-1  | **Revenue & booking dashboard** — revenue, bookings, occupancy, peak hours, cancellation, customer growth | §9.2, §23.1, §30.9 | Needs backend | Dashboard today is a venue / turf list. No owner analytics endpoint.                                       |
-| OW-2  | **Cash payment reconciliation** alongside digital payments                                                | §9.2               | Ready         | `POST /payments/cash` exists; the Payments page is a read-only list.                                       |
-| OW-3  | **Booking actions & detail** — view customer + payment status, cancel, upcoming vs past                   | §30.9              | Partial       | Cancel exists on the player side; owner-facing detail / cancel needs checking. Today's Bookings is a list. |
-| OW-4  | **Availability calendar view** (slots, blocks, maintenance, holiday schedule)                             | §30.9              | Ready         | Block create / list / remove are in the turf editor; no calendar view.                                     |
-| OW-5  | **Customer management**                                                                                   | §9.2               | Needs backend | No customer endpoint.                                                                                      |
-| OW-6  | **Occupancy & analytics dashboards**                                                                      | §9.2               | Needs backend | Same dependency as OW-1.                                                                                   |
-| OW-7  | **Tournament management for their turf**                                                                  | §9.2               | Needs backend | Depends on AW-9.                                                                                           |
-| OW-8  | **Offers**                                                                                                | §22.1              | Partial       | Generic promo codes exist; no owner-scoped offers.                                                         |
-| OW-9  | **Maintenance tracker** (tasks with status, not just a block reason)                                      | §22.1              | Needs backend | Maintenance is only a reason on an availability block.                                                     |
-| OW-10 | **Staff permissions + staff activity**                                                                    | §22.2, §30.9       | Needs backend | UI can assign / remove staff and review verification; no permissions or activity log.                      |
-| OW-11 | **Web live-scoring console**                                                                              | §9.2 / §9.3        | Ready         | Scoring endpoints exist (used by mobile). Only the display page exists on web.                             |
-| OW-12 | **Match Management actions** (players, teams, status, scoring)                                            | §30.9              | Partial       | Page is a list.                                                                                            |
+| ID    | Item                                                                                                            | PRD ref            | Backend       | Notes                                                                                                      |
+| ----- | --------------------------------------------------------------------------------------------------------------- | ------------------ | ------------- | ---------------------------------------------------------------------------------------------------------- |
+| OW-1  | **Revenue & booking dashboard** — revenue, bookings, occupancy, peak hours, cancellation, customer growth       | §9.2, §23.1, §30.9 | Needs backend | Dashboard today is a venue / turf list. No owner analytics endpoint.                                       |
+| OW-2  | ✅ **DONE (Phase 2)** — **Cash payment reconciliation** alongside digital payments                              | §9.2               | Ready         | `POST /payments/cash` exists; the Payments page is a read-only list.                                       |
+| OW-3  | ✅ **DONE (Phase 2)** — **Booking actions & detail** — view customer + payment status, cancel, upcoming vs past | §30.9              | Partial       | Cancel exists on the player side; owner-facing detail / cancel needs checking. Today's Bookings is a list. |
+| OW-4  | ✅ **DONE (Phase 2)** — **Availability calendar view** (slots, blocks, maintenance, holiday schedule)           | §30.9              | Ready         | Block create / list / remove are in the turf editor; no calendar view.                                     |
+| OW-5  | **Customer management**                                                                                         | §9.2               | Needs backend | No customer endpoint.                                                                                      |
+| OW-6  | **Occupancy & analytics dashboards**                                                                            | §9.2               | Needs backend | Same dependency as OW-1.                                                                                   |
+| OW-7  | **Tournament management for their turf**                                                                        | §9.2               | Needs backend | Depends on AW-9.                                                                                           |
+| OW-8  | **Offers**                                                                                                      | §22.1              | Partial       | Generic promo codes exist; no owner-scoped offers.                                                         |
+| OW-9  | **Maintenance tracker** (tasks with status, not just a block reason)                                            | §22.1              | Needs backend | Maintenance is only a reason on an availability block.                                                     |
+| OW-10 | **Staff permissions + staff activity**                                                                          | §22.2, §30.9       | Needs backend | UI can assign / remove staff and review verification; no permissions or activity log.                      |
+| OW-11 | **Web live-scoring console**                                                                                    | §9.2 / §9.3        | Ready         | Scoring endpoints exist (used by mobile). Only the display page exists on web.                             |
+| OW-12 | ✅ **DONE (Phase 2)** — **Match Management actions** (players, teams, status, scoring)                          | §30.9              | Partial       | Page is a list.                                                                                            |
 
 ### 2.3 Turf Staff Web (PRD §9.3, §22.2–22.3)
 
@@ -116,6 +116,20 @@
 ## 3.1 Phase 1 status (2026-10-03)
 
 Phase 1 (Staff Web desk operations) is built: Today's Desk with live stats, timeline and booking lookup; per-booking drawer with roster check-in / running late / no-show (single and bulk), cash collection with reference, payment history and booking details; Match Operations with filters and a per-match roster. The shared shell (sidebar with animated active indicator, top bar, page transitions), tables, buttons and inputs were rebuilt with the `motion` and `lucide-react` packages already in the web app. Web tests: 11 new/updated for the staff pages.
+
+---
+
+## 3.2 Phase 2 status (2026-10-03)
+
+Phase 2 (Owner reconciliation & booking actions) is built:
+
+- **Bookings** (replaces Today's Bookings): Today / Tomorrow / Next 7 days / Last 7 days, turf filter, status filter, search by customer / phone / turf / ID; stat tiles (bookings, booked value, collected, outstanding); a detail drawer with customer, payment shares, payments, matches in the slot and **cancel booking** (with reason).
+- **Payments & Cash**: all payments with 7 / 30 day / all-time windows, plus a **cash reconciliation** view grouped by day and by collector, a "counted" checklist (kept in the browser only — not stored on the server) and CSV export.
+- **Availability**: day-by-day slot calendar per pitch (open / booked-by-whom / blocked), multi-select blocking with a reason, and one-click unblock.
+- **Match Management**: filters, live/upcoming/finished tiles, match details, read-only roster, scoreboard shortcut for live matches.
+- **Backend additions:** `GET /owner/bookings` (date range, max 62 days, customer + paid/due), `GET /owner/payments` now returns the collector's phone and the booking, and staff assigned to a turf can look up a booking (read-only) — this also fixes the Staff Web booking-ID lookup, which the server would previously have refused.
+
+Not part of the original plan but noted: a persistent "reconciled" state for cash (stored server-side) would need a new table; today's checklist is a counting aid only.
 
 ---
 

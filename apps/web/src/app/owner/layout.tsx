@@ -5,14 +5,23 @@ import { usePathname } from 'next/navigation';
 import { useRequireRole } from '../../lib/auth';
 import { DashboardShell } from '../../components/DashboardShell';
 import { BallLoader } from '../../components/BallLoader';
-import { CalendarCheck, CreditCard, LayoutDashboard, Swords, Tv, UserCog } from 'lucide-react';
+import {
+  CalendarCheck,
+  CalendarRange,
+  CreditCard,
+  LayoutDashboard,
+  Swords,
+  Tv,
+  UserCog,
+} from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/owner', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/owner/bookings', label: "Today's Bookings", icon: CalendarCheck },
+  { href: '/owner/bookings', label: 'Bookings', icon: CalendarCheck },
+  { href: '/owner/availability', label: 'Availability', icon: CalendarRange },
   { href: '/owner/matches', label: 'Match Management', icon: Swords },
   { href: '/owner/staff', label: 'Staff Management', icon: UserCog },
-  { href: '/owner/payments', label: 'Payments', icon: CreditCard },
+  { href: '/owner/payments', label: 'Payments & Cash', icon: CreditCard },
   { href: '/owner/scoreboard', label: 'Scoreboard', icon: Tv },
 ];
 

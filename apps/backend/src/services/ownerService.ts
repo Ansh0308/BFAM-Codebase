@@ -657,14 +657,76 @@ export async function listLiveMatchesForOwner(ownerUserId: string) {
 // Payments incl. Cash Reconciliation (module 2.12, PRD §8.3/§9.2) — every
 // payment against a booking at any turf this owner runs, across all modes.
 export async function listPaymentsForOwner(ownerUserId: string) {
+  // One row per payment even when it settles several obligations. The
+  // booking date/id come from the earliest allocated booking, and the
+  // collector's phone number identifies whichever staff member (or captain)
+  // took a cash payment, so cash can be reconciled per person.
   return sequelize.query(
-    `SELECT DISTINCT p.*, t.turf_name FROM payments p
+    `SELECT p.*, t.turf_name,
+            MIN(b.booking_date) AS booking_date,
+            MIN(b.booking_id) AS booking_id,
+            c.phone_number AS collector_phone
+     FROM payments p
      JOIN payment_allocations pa ON pa.payment_id = p.payment_id
      JOIN payment_obligations o ON o.obligation_id = pa.obligation_id
      JOIN bookings b ON b.booking_id = o.booking_id
      JOIN turfs t ON t.turf_id = b.turf_id
+     LEFT JOIN users c ON c.user_id = p.collected_by
      WHERE t.owner_id = :ownerUserId
+     GROUP BY p.payment_id, t.turf_name, c.phone_number
      ORDER BY p.initiated_at DESC`,
     { type: QueryTypes.SELECT, replacements: { ownerUserId } },
+  );
+}
+
+// Bookings management (PRD §30.9): every booking at this owner's turfs in a
+// date range, with the customer and how much of it has been paid. Capped so
+// one request can't pull the whole history.
+const MAX_BOOKING_RANGE_DAYS = 62;
+
+export interface OwnerBookingFilters {
+  from: string;
+  to: string;
+  turfId?: string;
+}
+
+export class InvalidBookingRangeError extends Error {
+  constructor(maxDays: number) {
+    super(`Choose a date range of at most ${maxDays} days.`);
+    this.name = 'InvalidBookingRangeError';
+  }
+}
+
+export async function listBookingsForOwner(ownerUserId: string, filters: OwnerBookingFilters) {
+  const spanDays =
+    (new Date(`${filters.to}T00:00:00Z`).getTime() -
+      new Date(`${filters.from}T00:00:00Z`).getTime()) /
+    86_400_000;
+  if (Number.isNaN(spanDays) || spanDays < 0 || spanDays > MAX_BOOKING_RANGE_DAYS) {
+    throw new InvalidBookingRangeError(MAX_BOOKING_RANGE_DAYS);
+  }
+  return sequelize.query(
+    `SELECT b.*, t.turf_name, u.phone_number AS customer_phone, pl.full_name AS customer_name,
+            COALESCE((SELECT SUM(o.amount_due) FROM payment_obligations o
+                      WHERE o.booking_id = b.booking_id AND o.due_status <> 'CANCELLED'), 0) AS amount_due,
+            COALESCE((SELECT SUM(o.amount_due) FROM payment_obligations o
+                      WHERE o.booking_id = b.booking_id AND o.due_status = 'PAID'), 0) AS amount_paid
+     FROM bookings b
+     JOIN turfs t ON t.turf_id = b.turf_id
+     LEFT JOIN users u ON u.user_id = b.booked_by
+     LEFT JOIN players pl ON pl.user_id = b.booked_by
+     WHERE t.owner_id = :ownerUserId
+       AND b.booking_date BETWEEN :from AND :to
+       ${filters.turfId ? 'AND b.turf_id = :turfId' : ''}
+     ORDER BY b.booking_date ASC, b.start_time ASC`,
+    {
+      type: QueryTypes.SELECT,
+      replacements: {
+        ownerUserId,
+        from: filters.from,
+        to: filters.to,
+        ...(filters.turfId ? { turfId: filters.turfId } : {}),
+      },
+    },
   );
 }

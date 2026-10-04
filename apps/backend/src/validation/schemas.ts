@@ -994,3 +994,10 @@ export const convertRoomSchema = z.object({
   duration_minutes: z.number().int().min(30).max(480),
   payment_mode: z.enum(PAYMENT_MODES),
 });
+
+// GET /owner/bookings — a date range (the service caps its length) and an optional turf.
+export const ownerBookingRangeSchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  turf_id: z.string().uuid().optional(),
+});

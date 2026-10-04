@@ -93,6 +93,7 @@ import {
   AvailabilityBlockReason,
   StaffAssignment,
   OwnerBooking,
+  OwnerBookingRow,
   OwnerMatch,
   OwnerLiveMatch,
   OwnerPayment,
@@ -1314,6 +1315,16 @@ export class BFAMApiClient {
 
   async getOwnerTodaysBookings(): Promise<{ results: OwnerBooking[] }> {
     return this.request('/owner/bookings/today');
+  }
+
+  // Booking Management: every booking at the owner's turfs between two dates
+  // (inclusive, max 62 days), with customer + payment totals.
+  async getOwnerBookings(params: {
+    from: string;
+    to: string;
+    turf_id?: string;
+  }): Promise<{ results: OwnerBookingRow[] }> {
+    return this.request(`/owner/bookings${toQueryString(params)}`);
   }
 
   async getOwnerMatches(): Promise<{ results: OwnerMatch[] }> {
