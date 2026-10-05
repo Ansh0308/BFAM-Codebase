@@ -14,6 +14,12 @@ import {
   uploadStaffVerificationDocument,
 } from '../services/uploadService';
 import { StaffAssignmentNotFoundError } from '../domain/errors';
+import { setTurfClosedSchema } from '../validation/schemas';
+import {
+  TurfDayError,
+  listTurfDayStatus,
+  setTurfClosedToday,
+} from '../services/turfDayStatusService';
 
 const router = Router();
 
@@ -40,6 +46,45 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const matches = await listMatchesForStaff(req.auth!.sub);
     return res.status(200).json({ results: matches });
+  }),
+);
+
+// GET /staff/turf-status — today's open / closed state of the turf(s) this
+// staff member works at (SW-5).
+router.get(
+  '/turf-status',
+  asyncHandler(async (req: Request, res: Response) => {
+    const results = await listTurfDayStatus({ userId: req.auth!.sub, role: 'TURF_STAFF' });
+    return res.status(200).json({ results });
+  }),
+);
+
+// POST /staff/turfs/:turfId/closed — close or reopen the turf for today. Needs
+// an approved assignment and the owner's "close the turf" permission.
+router.post(
+  '/turfs/:turfId/closed',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = setTurfClosedSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'closed (true / false) is required', status: 400 } });
+    }
+    try {
+      const status = await setTurfClosedToday(
+        { userId: req.auth!.sub, role: 'TURF_STAFF' },
+        req.params.turfId,
+        parsed.data.closed,
+      );
+      return res.status(200).json(status);
+    } catch (error) {
+      if (error instanceof TurfDayError) {
+        return res
+          .status(error.status)
+          .json({ error: { message: error.message, status: error.status } });
+      }
+      throw error;
+    }
   }),
 );
 

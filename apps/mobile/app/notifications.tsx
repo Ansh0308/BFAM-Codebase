@@ -61,6 +61,11 @@ export default function NotificationsScreen() {
     }
     if (notification.related_entity_type === 'match' && notification.related_entity_id) {
       router.push(`/(tabs)/matches/${notification.related_entity_id}`);
+    } else if (
+      notification.related_entity_type === 'tournament' &&
+      notification.related_entity_id
+    ) {
+      router.push(`/tournament/${notification.related_entity_id}`);
     } else if (notification.related_entity_type === 'team' && notification.related_entity_id) {
       router.push(`/(tabs)/teams/${notification.related_entity_id}`);
     } else if (notification.related_entity_type === 'booking' && notification.related_entity_id) {

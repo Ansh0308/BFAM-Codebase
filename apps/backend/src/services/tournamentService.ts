@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import {
@@ -12,7 +12,10 @@ import {
   roundName,
   type FixtureSeed,
 } from '../domain/tournamentEngine';
+import { istToday } from '../domain/time';
 import { writeAuditLog } from './auditLogService';
+import { createRazorpayOrder } from './razorpayService';
+import { sendNotificationToMany } from './notificationService';
 
 // Tournaments (PRD §9.1 / §9.2). Organisers (admin, or a turf owner for their
 // own turf) create an event, teams enter (captain applies, or the organiser
@@ -70,6 +73,7 @@ interface EntryRow {
   payment_status: 'NOT_REQUIRED' | 'UNPAID' | 'PAID';
   payment_reference: string | null;
   paid_at: Date | null;
+  payment_id?: string | null;
   seed: number | null;
   registered_at: Date;
 }
@@ -98,10 +102,64 @@ interface FixtureRow {
   match_id: string | null;
 }
 
+interface MatchLink {
+  match_id: string;
+  match_status: string;
+}
+
 const q = <T extends object>(sql: string, replacements: Record<string, unknown> = {}) =>
   sequelize.query<T>(sql, { type: QueryTypes.SELECT, replacements });
 
 const isAdmin = (a: Actor) => a.role === 'ADMIN';
+
+// ---- notifications --------------------------------------------------------------
+
+// Tell the people behind some entries (the captain of each team and whoever
+// registered it) what just happened. Best effort: a failed notification must
+// never fail the action that caused it.
+async function notifyEntries(tournamentId: string, entryIds: string[], update: string) {
+  try {
+    if (entryIds.length === 0) return;
+    const [t] = await q<{ name: string }>(
+      'SELECT name FROM tournaments WHERE tournament_id = :tournamentId',
+      { tournamentId },
+    );
+    const recipients = await q<{ user_id: string }>(
+      `SELECT e.registered_by AS user_id FROM tournament_teams e
+        WHERE e.entry_id IN (:entryIds) AND e.registered_by IS NOT NULL
+       UNION
+       SELECT p.user_id FROM tournament_teams e
+         JOIN team_members tm ON tm.team_id = e.team_id
+          AND tm.role_in_team = 'CAPTAIN' AND tm.membership_status = 'ACTIVE'
+         JOIN players p ON p.player_id = tm.player_id
+        WHERE e.entry_id IN (:entryIds)`,
+      { entryIds },
+    );
+    await sendNotificationToMany(
+      recipients.map((r) => r.user_id),
+      'TOURNAMENT_UPDATE',
+      { tournamentName: t?.name ?? 'Your tournament', update },
+      'tournament',
+      tournamentId,
+    );
+  } catch (error) {
+    console.error('[tournamentService] notification failed:', error);
+  }
+}
+
+async function notifyHost(t: TournamentRow, update: string) {
+  try {
+    await sendNotificationToMany(
+      [t.organiser_id],
+      'TOURNAMENT_UPDATE',
+      { tournamentName: t.name, update },
+      'tournament',
+      t.tournament_id,
+    );
+  } catch (error) {
+    console.error('[tournamentService] notification failed:', error);
+  }
+}
 
 // ---- loading & permissions --------------------------------------------------
 
@@ -432,6 +490,11 @@ export async function reviewEntry(
     resourceId: t.tournament_id,
     afterData: { entry_id: entryId },
   });
+  await notifyEntries(
+    t.tournament_id,
+    [entryId],
+    decision === 'APPROVED' ? 'Your team has been accepted.' : 'Your team entry was not accepted.',
+  );
   return loadEntry(entryId);
 }
 
@@ -444,6 +507,12 @@ export async function removeEntry(actor: Actor, entryId: string) {
   }
   if (t.status !== 'DRAFT' && t.status !== 'REGISTRATION_OPEN') {
     throw new TournamentError('A team can’t leave once the tournament has started.', 409);
+  }
+  if (entry.payment_status === 'PAID' && entry.payment_id) {
+    throw new TournamentError(
+      'This team paid online. Refund them first, then mark the payment as unpaid before removing the team.',
+      409,
+    );
   }
   await sequelize
     .getQueryInterface()
@@ -476,7 +545,7 @@ export async function markEntryPaid(
       'tournament_teams',
       paid
         ? { payment_status: 'PAID', payment_reference: reference, paid_at: new Date() }
-        : { payment_status: 'UNPAID', payment_reference: null, paid_at: null },
+        : { payment_status: 'UNPAID', payment_reference: null, paid_at: null, payment_id: null },
       { entry_id: entryId },
     );
   await writeAuditLog({
@@ -585,18 +654,16 @@ async function resolveByes(tournamentId: string) {
       })
     ) {
       const winner = f.team_a_entry_id ?? f.team_b_entry_id;
-      await sequelize
-        .getQueryInterface()
-        .bulkUpdate(
-          'tournament_fixtures',
-          {
-            status: 'COMPLETED',
-            result_type: 'WIN',
-            winner_entry_id: winner,
-            updated_at: new Date(),
-          },
-          { fixture_id: f.fixture_id },
-        );
+      await sequelize.getQueryInterface().bulkUpdate(
+        'tournament_fixtures',
+        {
+          status: 'COMPLETED',
+          result_type: 'WIN',
+          winner_entry_id: winner,
+          updated_at: new Date(),
+        },
+        { fixture_id: f.fixture_id },
+      );
       await advanceWinner(tournamentId, f, winner);
     }
   }
@@ -635,6 +702,7 @@ export async function startTournament(actor: Actor, id: string) {
     resourceId: id,
     afterData: { teams: ids.length, fixtures: seeds.length },
   });
+  await notifyEntries(id, ids, 'The tournament has started - fixtures are out.');
   return loadTournament(id);
 }
 
@@ -666,6 +734,7 @@ export async function startKnockout(actor: Actor, id: string) {
     resourceId: id,
     afterData: { qualifiers: take },
   });
+  await notifyEntries(id, qualifiers, 'You are through to the knockout!');
   return loadTournament(id);
 }
 
@@ -681,17 +750,15 @@ export async function scheduleFixture(
   );
   if (!fixture) throw new TournamentError('Fixture not found.', 404);
   assertCanManage(await loadTournament(fixture.tournament_id), actor);
-  await sequelize
-    .getQueryInterface()
-    .bulkUpdate(
-      'tournament_fixtures',
-      {
-        scheduled_at: scheduledAt ? new Date(scheduledAt) : null,
-        venue_note: venueNote,
-        updated_at: new Date(),
-      },
-      { fixture_id: fixtureId },
-    );
+  await sequelize.getQueryInterface().bulkUpdate(
+    'tournament_fixtures',
+    {
+      scheduled_at: scheduledAt ? new Date(scheduledAt) : null,
+      venue_note: venueNote,
+      updated_at: new Date(),
+    },
+    { fixture_id: fixtureId },
+  );
 }
 
 export interface ResultInput {
@@ -729,6 +796,15 @@ export async function recordResult(actor: Actor, fixtureId: string, input: Resul
   }
   if (fixture.status === 'COMPLETED') {
     throw new TournamentError('A result is already recorded. Reopen the match to change it.', 409);
+  }
+  // A fixture with a live match takes its result from that match when it is
+  // finished, so a result typed in now would be overwritten.
+  const link = await linkedMatch(fixture);
+  if (link && link.match_status !== 'COMPLETED' && link.match_status !== 'CANCELLED') {
+    throw new TournamentError(
+      'This match is being scored live. Finish it in the scoring console and the result is recorded automatically.',
+      409,
+    );
   }
 
   const knockout = fixture.stage === 'KNOCKOUT';
@@ -777,30 +853,51 @@ export async function recordResult(actor: Actor, fixtureId: string, input: Resul
     scores[`team_${s}_balls`] = balls;
   }
 
+  await commitResult(actor, t, fixture, input.result_type, winner, scores);
+}
+
+async function commitResult(
+  actor: Actor | null,
+  t: TournamentRow,
+  fixture: FixtureRow,
+  resultType: 'WIN' | 'TIE' | 'NO_RESULT',
+  winner: string | null,
+  scores: Record<string, number | null>,
+) {
   await sequelize.getQueryInterface().bulkUpdate(
     'tournament_fixtures',
     {
       status: 'COMPLETED',
-      result_type: input.result_type,
+      result_type: resultType,
       winner_entry_id: winner,
       ...scores,
       updated_at: new Date(),
     },
-    { fixture_id: fixtureId },
+    { fixture_id: fixture.fixture_id },
   );
 
-  if (knockout) {
+  if (fixture.stage === 'KNOCKOUT') {
     await advanceWinner(t.tournament_id, fixture, winner);
   }
   await settleTournament(t);
   await writeAuditLog({
-    actorUserId: actor.userId,
-    actorRole: actor.role,
-    action: 'TOURNAMENT_RESULT_RECORDED',
+    actorUserId: actor?.userId ?? t.organiser_id,
+    actorRole: actor?.role ?? 'ADMIN',
+    action: actor ? 'TOURNAMENT_RESULT_RECORDED' : 'TOURNAMENT_RESULT_FROM_LIVE_MATCH',
     resourceType: 'tournament',
     resourceId: t.tournament_id,
-    afterData: { fixture_id: fixtureId, result_type: input.result_type, winner },
+    afterData: { fixture_id: fixture.fixture_id, result_type: resultType, winner },
   });
+  const teams = [fixture.team_a_entry_id, fixture.team_b_entry_id].filter(Boolean) as string[];
+  await notifyEntries(
+    t.tournament_id,
+    teams,
+    resultType === 'WIN'
+      ? 'Match result is in — check the table.'
+      : resultType === 'TIE'
+        ? 'Your match ended in a tie.'
+        : 'Your match ended with no result.',
+  );
 }
 
 // Champion & completion after a result: the final decides a knockout; a pure
@@ -948,6 +1045,16 @@ export async function getTournament(actor: Actor, id: string) {
     }),
   ]);
   const { table } = await buildTable(t, fixtures);
+  const linkedIds = fixtures.map((f) => f.match_id).filter(Boolean) as string[];
+  const matchStatus = new Map<string, string>();
+  if (linkedIds.length > 0) {
+    for (const m of await q<MatchLink>(
+      'SELECT match_id, match_status FROM matches WHERE match_id IN (:ids)',
+      { ids: linkedIds },
+    )) {
+      matchStatus.set(m.match_id, m.match_status);
+    }
+  }
   const nameOf = new Map(entries.map((e) => [e.entry_id, e.team_name]));
   const knockoutRounds = Math.max(
     0,
@@ -972,6 +1079,7 @@ export async function getTournament(actor: Actor, id: string) {
       champion_name: t.champion_entry_id ? (nameOf.get(t.champion_entry_id) ?? null) : null,
     },
     can_manage: isManager,
+    is_host: t.organiser_id === actor.userId,
     can_start_knockout:
       isManager &&
       t.format === 'LEAGUE_KNOCKOUT' &&
@@ -992,6 +1100,7 @@ export async function getTournament(actor: Actor, id: string) {
       team_a_name: f.team_a_entry_id ? (nameOf.get(f.team_a_entry_id) ?? null) : null,
       team_b_name: f.team_b_entry_id ? (nameOf.get(f.team_b_entry_id) ?? null) : null,
       winner_name: f.winner_entry_id ? (nameOf.get(f.winner_entry_id) ?? null) : null,
+      match_status: f.match_id ? (matchStatus.get(f.match_id) ?? null) : null,
       team_a_overs: f.team_a_balls != null ? oversFromBalls(f.team_a_balls) : null,
       team_b_overs: f.team_b_balls != null ? oversFromBalls(f.team_b_balls) : null,
     })),
@@ -1001,4 +1110,513 @@ export async function getTournament(actor: Actor, id: string) {
       overs_against: oversFromBalls(r.balls_against),
     })),
   };
+}
+
+// ---- Online entry-fee payment -----------------------------------------------------
+//
+// The same Razorpay order + Checkout + webhook flow turf bookings use (UPI or
+// the payment gateway). The order carries `tournament_entry_id` in its notes;
+// when the webhook confirms the payment the entry flips to PAID. Cash is
+// recorded by the host (markEntryPaid) exactly like cash at the turf desk.
+
+export interface EntryPaymentInitiation {
+  payment_id: string;
+  order_id: string;
+  amount: number;
+  currency: string;
+  key_id: string;
+  entry_id: string;
+}
+
+export async function initiateEntryPayment(
+  actor: Actor,
+  entryId: string,
+  paymentMethod: 'UPI' | 'RAZORPAY',
+): Promise<EntryPaymentInitiation> {
+  const entry = await loadEntry(entryId);
+  const t = await loadTournament(entry.tournament_id);
+  if (t.status !== 'DRAFT' && t.status !== 'REGISTRATION_OPEN') {
+    throw new TournamentError('Entry fees can only be paid before the tournament starts.', 409);
+  }
+  if (entry.status === 'REJECTED' || entry.status === 'WITHDRAWN') {
+    throw new TournamentError('This entry is no longer active.', 409);
+  }
+  if (entry.payment_status === 'NOT_REQUIRED') {
+    throw new TournamentError('This tournament has no entry fee.', 409);
+  }
+  if (entry.payment_status === 'PAID') {
+    throw new TournamentError('This entry is already paid.', 409);
+  }
+  const captain = await q<{ team_id: string }>(
+    `SELECT tm.team_id FROM team_members tm JOIN players p ON p.player_id = tm.player_id
+     WHERE tm.team_id = :teamId AND p.user_id = :userId
+       AND tm.role_in_team = 'CAPTAIN' AND tm.membership_status = 'ACTIVE'`,
+    { teamId: entry.team_id, userId: actor.userId },
+  );
+  if (captain.length === 0 && entry.registered_by !== actor.userId) {
+    throw new TournamentError('Only the team’s captain can pay its entry fee.', 403);
+  }
+
+  const amount = Number(t.entry_fee);
+  const paymentId = randomUUID();
+  const order = await createRazorpayOrder(amount, paymentId, {
+    bfam_payment_id: paymentId,
+    tournament_entry_id: entryId,
+    obligation_ids: '[]',
+  });
+  await sequelize.getQueryInterface().bulkInsert('payments', [
+    {
+      payment_id: paymentId,
+      payer_id: actor.userId,
+      amount,
+      currency: 'INR',
+      payment_method: paymentMethod,
+      gateway: 'RAZORPAY',
+      gateway_order_id: order.order_id,
+      gateway_payment_id: null,
+      collected_by: null,
+      cash_reference: null,
+      payment_status: 'PENDING',
+      initiated_at: new Date(),
+      completed_at: null,
+    },
+  ]);
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate('tournament_teams', { payment_id: paymentId }, { entry_id: entryId });
+
+  return {
+    payment_id: paymentId,
+    order_id: order.order_id,
+    amount,
+    currency: 'INR',
+    key_id: order.key_id,
+    entry_id: entryId,
+  };
+}
+
+// Called by the Razorpay webhook once a tournament-entry payment is captured.
+// Idempotent: a retried webhook finds the entry already paid and does nothing.
+export async function markEntryPaidByGateway(
+  entryId: string,
+  paymentId: string,
+  gatewayPaymentId: string,
+): Promise<void> {
+  const entry = await loadEntry(entryId);
+  if (entry.payment_status === 'PAID') return;
+  await sequelize.getQueryInterface().bulkUpdate(
+    'tournament_teams',
+    {
+      payment_status: 'PAID',
+      payment_id: paymentId,
+      payment_reference: gatewayPaymentId,
+      paid_at: new Date(),
+    },
+    { entry_id: entryId },
+  );
+  const t = await loadTournament(entry.tournament_id);
+  await writeAuditLog({
+    actorUserId: entry.registered_by ?? t.organiser_id,
+    actorRole: 'PLAYER',
+    action: 'TOURNAMENT_ENTRY_PAID_ONLINE',
+    resourceType: 'tournament',
+    resourceId: t.tournament_id,
+    afterData: { entry_id: entryId, payment_id: paymentId },
+  });
+  await notifyEntries(t.tournament_id, [entryId], 'Your entry fee has been received.');
+  await notifyHost(t, 'An entry fee was paid online.');
+}
+
+// ---- Live matches for fixtures ------------------------------------------------------
+//
+// A fixture can be played as a real BFAM match: it gets a booking at the turf,
+// two match sides built from the two teams' squads, and the live-scoring
+// engine. Only the tournament's host can run it (see assertTournamentHost), and
+// when it is finished its result is copied into the fixture automatically.
+
+async function linkedMatch(fixture: FixtureRow): Promise<MatchLink | null> {
+  if (!fixture.match_id) return null;
+  const [row] = await q<MatchLink>(
+    'SELECT match_id, match_status FROM matches WHERE match_id = :matchId',
+    { matchId: fixture.match_id },
+  );
+  return row ?? null;
+}
+
+const SLOT_MINUTES = 60;
+
+function istParts(when: Date) {
+  const ist = new Date(when.getTime() + 330 * 60_000).toISOString();
+  return {
+    date: ist.slice(0, 10),
+    time: `${ist.slice(11, 16)}:00`,
+    minutes: Number(ist.slice(11, 13)) * 60 + Number(ist.slice(14, 16)),
+  };
+}
+
+function addMinutes(time: string, add: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = (h * 60 + m + add) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}:00`;
+}
+
+export async function createFixtureMatch(
+  actor: Actor,
+  fixtureId: string,
+  input: { scheduled_at?: string | null; turf_id?: string | null } = {},
+) {
+  const [fixture] = await q<FixtureRow>(
+    'SELECT * FROM tournament_fixtures WHERE fixture_id = :fixtureId',
+    { fixtureId },
+  );
+  if (!fixture) throw new TournamentError('Fixture not found.', 404);
+  const t = await loadTournament(fixture.tournament_id);
+  // The host alone — not "any admin" — runs a tournament's matches.
+  if (t.organiser_id !== actor.userId) {
+    throw new TournamentError('Only the tournament host can run its matches.', 403);
+  }
+  if (t.status !== 'IN_PROGRESS') {
+    throw new TournamentError(
+      'Matches can only be started while the tournament is in progress.',
+      409,
+    );
+  }
+  if (!fixture.team_a_entry_id || !fixture.team_b_entry_id) {
+    throw new TournamentError('This match is still waiting for its teams.', 409);
+  }
+  if (fixture.status === 'COMPLETED')
+    throw new TournamentError('This match has already been played.', 409);
+  if (fixture.match_id)
+    throw new TournamentError('A live match is already set up for this fixture.', 409);
+
+  const turfId = t.turf_id ?? input.turf_id ?? null;
+  if (!turfId) throw new TournamentError('Choose which turf this match is played at.', 400);
+  const [turf] = await q<{ turf_id: string }>(
+    "SELECT turf_id FROM turfs WHERE turf_id = :turfId AND deleted_at IS NULL AND turf_status = 'ACTIVE'",
+    { turfId },
+  );
+  if (!turf) throw new TournamentError('That turf is not available.', 404);
+
+  const when = input.scheduled_at
+    ? new Date(input.scheduled_at)
+    : fixture.scheduled_at
+      ? new Date(fixture.scheduled_at)
+      : new Date();
+  if (Number.isNaN(when.getTime()))
+    throw new TournamentError('That date and time are not valid.', 400);
+  const { date, time } = istParts(when);
+  const endTime = addMinutes(time, SLOT_MINUTES);
+
+  const entries = await q<{ entry_id: string; team_id: string; team_name: string }>(
+    `SELECT e.entry_id, e.team_id, tm.team_name FROM tournament_teams e JOIN teams tm ON tm.team_id = e.team_id
+     WHERE e.entry_id IN (:ids)`,
+    { ids: [fixture.team_a_entry_id, fixture.team_b_entry_id] },
+  );
+  const a = entries.find((e) => e.entry_id === fixture.team_a_entry_id);
+  const b = entries.find((e) => e.entry_id === fixture.team_b_entry_id);
+  if (!a || !b) throw new TournamentError('A team in this match could not be found.', 404);
+
+  const [hostPlayer] = await q<{ player_id: string }>(
+    'SELECT player_id FROM players WHERE user_id = :userId',
+    { userId: actor.userId },
+  );
+
+  const matchId = randomUUID();
+  const sideA = randomUUID();
+  const sideB = randomUUID();
+  const now = new Date();
+  const koRounds = Math.max(
+    0,
+    ...(await loadFixtures(t.tournament_id))
+      .filter((f) => f.stage === 'KNOCKOUT')
+      .map((f) => f.round_number),
+  );
+  const label =
+    fixture.stage === 'KNOCKOUT'
+      ? roundName(fixture.round_number, koRounds)
+      : `Match ${fixture.match_number}`;
+
+  try {
+    await sequelize.transaction(async (transaction) => {
+      // The match needs a booking at the turf. Reuse the host's own booking of
+      // that exact slot (two fixtures can share a slot); refuse if someone
+      // else holds it.
+      const [own] = await sequelize.query<{ booking_id: string }>(
+        `SELECT booking_id FROM bookings WHERE turf_id = :turfId AND booking_date = :date
+           AND start_time = :time AND booked_by = :userId AND booking_status = 'CONFIRMED'`,
+        {
+          type: QueryTypes.SELECT,
+          replacements: { turfId, date, time, userId: actor.userId },
+          transaction,
+        },
+      );
+      let bookingId = own?.booking_id;
+      if (!bookingId) {
+        const taken = await sequelize.query<{ booking_id: string }>(
+          `SELECT booking_id FROM bookings WHERE turf_id = :turfId AND booking_date = :date
+             AND start_time = :time AND booking_status IN ('PENDING', 'CONFIRMED')`,
+          { type: QueryTypes.SELECT, replacements: { turfId, date, time }, transaction },
+        );
+        if (taken.length > 0) {
+          throw new TournamentError(
+            'That time slot is already booked at this turf. Pick another time.',
+            409,
+          );
+        }
+        bookingId = randomUUID();
+        await sequelize.getQueryInterface().bulkInsert(
+          'bookings',
+          [
+            {
+              booking_id: bookingId,
+              turf_id: turfId,
+              booked_by: actor.userId,
+              booking_date: date,
+              start_time: time,
+              end_time: endTime,
+              duration_minutes: SLOT_MINUTES,
+              booking_amount: 0,
+              booking_status: 'CONFIRMED',
+              payment_mode: 'CASH',
+              cancellation_reason: null,
+              cancelled_at: null,
+              cancelled_by: null,
+              created_at: now,
+              updated_at: now,
+            },
+          ],
+          { transaction },
+        );
+      }
+
+      await sequelize.getQueryInterface().bulkInsert(
+        'matches',
+        [
+          {
+            match_id: matchId,
+            booking_id: bookingId,
+            tournament_id: t.tournament_id,
+            match_name: `${t.name} · ${label}`,
+            organizer_id: actor.userId,
+            match_type: 'TOURNAMENT',
+            ball_type: 'TENNIS',
+            overs_per_innings: t.overs_per_innings,
+            scoring_mode: 'TURF_STAFF_MANAGED',
+            assigned_scorer_id: actor.userId,
+            no_non_striker: true,
+            match_status: 'OPEN',
+            visibility: 'PUBLIC',
+            scheduled_start_time: when,
+            actual_start_time: null,
+            actual_end_time: null,
+            check_in_code: String(randomInt(0, 1_000_000)).padStart(6, '0'),
+            created_at: now,
+            updated_at: now,
+          },
+        ],
+        { transaction },
+      );
+      await sequelize.getQueryInterface().bulkInsert(
+        'match_teams',
+        [
+          {
+            match_team_id: sideA,
+            match_id: matchId,
+            team_id: a.team_id,
+            team_name: a.team_name,
+            side_label: 'TEAM_A',
+            created_at: now,
+          },
+          {
+            match_team_id: sideB,
+            match_id: matchId,
+            team_id: b.team_id,
+            team_name: b.team_name,
+            side_label: 'TEAM_B',
+            created_at: now,
+          },
+        ],
+        { transaction },
+      );
+
+      // Both squads go straight onto the roster, already on their side, so the
+      // scoring console can pick batters and bowlers immediately.
+      const members = await sequelize.query<{
+        player_id: string;
+        team_id: string;
+        role_in_team: string;
+      }>(
+        `SELECT player_id, team_id, role_in_team FROM team_members
+         WHERE team_id IN (:teamIds) AND membership_status = 'ACTIVE'`,
+        { type: QueryTypes.SELECT, replacements: { teamIds: [a.team_id, b.team_id] }, transaction },
+      );
+      const seen = new Set<string>();
+      const roster = members
+        .filter((m) => (seen.has(m.player_id) ? false : (seen.add(m.player_id), true)))
+        .map((m) => ({
+          match_player_id: randomUUID(),
+          match_id: matchId,
+          player_id: m.player_id,
+          match_team_id: m.team_id === a.team_id ? sideA : sideB,
+          participant_role: m.role_in_team === 'CAPTAIN' ? 'CAPTAIN' : 'PLAYER',
+          invitation_status: 'CONFIRMED',
+          attendance_status: 'PENDING',
+          checked_in_at: null,
+          added_at: now,
+        }));
+      if (roster.length > 0) {
+        await sequelize.getQueryInterface().bulkInsert('match_players', roster, { transaction });
+      }
+      void hostPlayer;
+
+      await sequelize
+        .getQueryInterface()
+        .bulkUpdate(
+          'tournament_fixtures',
+          { match_id: matchId, scheduled_at: when, updated_at: now },
+          { fixture_id: fixtureId },
+          { transaction },
+        );
+    });
+  } catch (error) {
+    if (error instanceof TournamentError) throw error;
+    throw new TournamentError(
+      error instanceof Error
+        ? `Could not set up the match: ${error.message}`
+        : 'Could not set up the match.',
+      409,
+    );
+  }
+
+  await writeAuditLog({
+    actorUserId: actor.userId,
+    actorRole: actor.role,
+    action: 'TOURNAMENT_MATCH_CREATED',
+    resourceType: 'tournament',
+    resourceId: t.tournament_id,
+    afterData: { fixture_id: fixtureId, match_id: matchId },
+  });
+  await notifyEntries(
+    t.tournament_id,
+    [a.entry_id, b.entry_id],
+    `${a.team_name} v ${b.team_name} is set for ${when.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.`,
+  );
+  return {
+    match_id: matchId,
+    fixture_id: fixtureId,
+    booking_date: date,
+    start_time: time,
+    today: istToday(),
+  };
+}
+
+// Copies a finished live match's result into its fixture: the winner, and each
+// side's runs, wickets and balls faced (a side that was all out is charged its
+// full overs, the usual net-run-rate rule). A knockout tie has no winner to
+// advance, so it is left for the host to settle by hand.
+export async function syncFixtureFromMatch(
+  matchId: string,
+  settle?: { winnerEntryId: string; actor: Actor },
+): Promise<void> {
+  const [fixture] = await q<FixtureRow>(
+    'SELECT * FROM tournament_fixtures WHERE match_id = :matchId',
+    { matchId },
+  );
+  if (!fixture || fixture.status === 'COMPLETED') return;
+  const t = await loadTournament(fixture.tournament_id);
+
+  const [result] = await q<{
+    winning_match_team_id: string | null;
+    result_type: 'WIN' | 'TIE' | 'NO_RESULT';
+  }>('SELECT winning_match_team_id, result_type FROM match_results WHERE match_id = :matchId', {
+    matchId,
+  });
+  if (!result) return;
+
+  const sides = await q<{
+    match_team_id: string;
+    team_id: string | null;
+    entry_id: string | null;
+    players: number | string;
+  }>(
+    `SELECT mt.match_team_id, mt.team_id, e.entry_id,
+            (SELECT COUNT(*) FROM match_players mp WHERE mp.match_team_id = mt.match_team_id
+               AND mp.invitation_status <> 'CANT_PLAY') AS players
+     FROM match_teams mt
+     LEFT JOIN tournament_teams e ON e.team_id = mt.team_id AND e.tournament_id = :tid
+     WHERE mt.match_id = :matchId`,
+    { matchId, tid: t.tournament_id },
+  );
+  const innings = await q<{
+    batting_match_team_id: string;
+    total_runs: number;
+    total_wickets: number;
+    overs_completed: number | string;
+  }>(
+    'SELECT batting_match_team_id, total_runs, total_wickets, overs_completed FROM innings WHERE match_id = :matchId',
+    { matchId },
+  );
+
+  const entryOf = (matchTeamId: string | null) =>
+    sides.find((x) => x.match_team_id === matchTeamId)?.entry_id ?? null;
+  const winner = result.result_type === 'WIN' ? entryOf(result.winning_match_team_id) : null;
+
+  let resultType = result.result_type;
+  let winnerEntry = settle ? settle.winnerEntryId : winner;
+  if (fixture.stage === 'KNOCKOUT' && !winnerEntry) {
+    // A tied knockout match has nobody to advance: the host decides (e.g. after
+    // a super over) from the fixture, and is told so here.
+    await notifyHost(t, 'A knockout match ended level. Choose who goes through.');
+    return;
+  }
+  if (resultType === 'WIN' && !winnerEntry) resultType = 'NO_RESULT';
+
+  const scores: Record<string, number | null> = {
+    team_a_runs: null,
+    team_a_wickets: null,
+    team_a_balls: null,
+    team_b_runs: null,
+    team_b_wickets: null,
+    team_b_balls: null,
+  };
+  for (const [slot, entryId] of [
+    ['a', fixture.team_a_entry_id],
+    ['b', fixture.team_b_entry_id],
+  ] as const) {
+    const side = sides.find((x) => x.entry_id === entryId);
+    const inn = innings.find((i) => i.batting_match_team_id === side?.match_team_id);
+    if (!inn) continue;
+    const squad = Number(side?.players ?? 0);
+    const allOut = squad > 1 && inn.total_wickets >= squad - 1;
+    scores[`team_${slot}_runs`] = inn.total_runs;
+    scores[`team_${slot}_wickets`] = inn.total_wickets;
+    scores[`team_${slot}_balls`] = allOut
+      ? t.overs_per_innings * 6
+      : ballsFromOvers(Number(inn.overs_completed));
+  }
+  if (
+    winnerEntry &&
+    winnerEntry !== fixture.team_a_entry_id &&
+    winnerEntry !== fixture.team_b_entry_id
+  )
+    winnerEntry = null;
+
+  await commitResult(settle?.actor ?? null, t, fixture, resultType, winnerEntry, scores);
+}
+
+// Host settles a knockout match that finished level: picks who goes through. The
+// finished match's own runs, wickets and overs are kept on the fixture.
+export async function settleKnockoutTie(actor: Actor, fixtureId: string, winnerEntryId: string) {
+  const { fixture } = await loadEditableFixture(actor, fixtureId);
+  if (fixture.stage !== 'KNOCKOUT' || fixture.status === 'COMPLETED' || !fixture.match_id) {
+    throw new TournamentError('This match has no tied result to settle.', 409);
+  }
+  const link = await linkedMatch(fixture);
+  if (!link || link.match_status !== 'COMPLETED') {
+    throw new TournamentError('Finish the live match first.', 409);
+  }
+  if (winnerEntryId !== fixture.team_a_entry_id && winnerEntryId !== fixture.team_b_entry_id) {
+    throw new TournamentError('Choose one of the two teams in this match.', 400);
+  }
+  await syncFixtureFromMatch(fixture.match_id, { winnerEntryId, actor });
 }

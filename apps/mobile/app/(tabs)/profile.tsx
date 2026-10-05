@@ -411,6 +411,14 @@ export default function Profile() {
                   />
                   <HubCard
                     index={2}
+                    icon="flag"
+                    title="Tournaments"
+                    description="Enter your team, pay the fee, follow fixtures"
+                    onPress={() => router.push('/tournaments')}
+                    testID="tournaments-section"
+                  />
+                  <HubCard
+                    index={2}
                     icon="star"
                     title="Level & XP"
                     description="Your progression and XP history"

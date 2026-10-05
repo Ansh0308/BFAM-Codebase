@@ -407,16 +407,19 @@ describe('staff permissions', () => {
       check_in: true,
       collect_cash: true,
       score_matches: true,
+      close_turf: true,
     });
     expect(normalizePermissions(null)).toEqual({
       check_in: true,
       collect_cash: true,
       score_matches: true,
+      close_turf: true,
     });
     expect(normalizePermissions('{"collect_cash":false}')).toEqual({
       check_in: true,
       collect_cash: false,
       score_matches: true,
+      close_turf: true,
     });
     expect(normalizePermissions('not json').check_in).toBe(true);
   });
@@ -464,6 +467,7 @@ describe('staff permissions', () => {
       check_in: true,
       collect_cash: false,
       score_matches: true,
+      close_turf: true,
     });
     expect(inserts.find((i) => i.table === 'audit_logs')?.rows[0]).toMatchObject({
       action: 'STAFF_PERMISSIONS_CHANGED',

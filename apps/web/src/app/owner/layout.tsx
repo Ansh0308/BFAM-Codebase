@@ -12,6 +12,7 @@ import {
   CreditCard,
   LayoutDashboard,
   Swords,
+  Tag,
   Trophy,
   Users,
   Wrench,
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: '/owner/customers', label: 'Customers', icon: Users },
   { href: '/owner/maintenance', label: 'Maintenance', icon: Wrench },
   { href: '/owner/staff', label: 'Staff Management', icon: UserCog },
+  { href: '/owner/offers', label: 'Offers', icon: Tag },
   { href: '/owner/payments', label: 'Payments & Cash', icon: CreditCard },
   { href: '/owner/scoreboard', label: 'Scoreboard', icon: Tv },
 ];

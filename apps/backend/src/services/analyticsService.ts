@@ -75,6 +75,13 @@ const addDays = (isoDate: string, n: number) =>
 const num = (v: unknown) => Number(v ?? 0);
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+// A tournament match is booked at the turf as a zero-amount booking so the live
+// scoring engine has a slot. It still occupies the turf (occupancy counts it)
+// but is not a customer booking: it is left out of booking counts, revenue,
+// averages, customers and the charts.
+const NOT_TOURNAMENT = ` AND NOT EXISTS (
+    SELECT 1 FROM matches tmx WHERE tmx.booking_id = b.booking_id AND tmx.tournament_id IS NOT NULL)`;
+
 function whereFor(scope: AnalyticsScope, alias = 't') {
   const clauses: string[] = [];
   const replacements: Record<string, unknown> = {};
@@ -138,16 +145,22 @@ async function summarize(
     bookings: number | string;
     cancelled: number | string;
     revenue: number | string | null;
-    minutes: number | string | null;
     customers: number | string;
   }>(
     `SELECT COUNT(*) AS bookings,
             SUM(b.booking_status = 'CANCELLED') AS cancelled,
             SUM(CASE WHEN b.booking_status <> 'CANCELLED' THEN b.booking_amount ELSE 0 END) AS revenue,
-            SUM(CASE WHEN b.booking_status <> 'CANCELLED' THEN b.duration_minutes ELSE 0 END) AS minutes,
             COUNT(DISTINCT b.booked_by) AS customers
      FROM bookings b JOIN turfs t ON t.turf_id = b.turf_id
-     WHERE b.booking_date BETWEEN :from AND :to${w.sql}`,
+     WHERE b.booking_date BETWEEN :from AND :to${w.sql}${NOT_TOURNAMENT}`,
+    { type: QueryTypes.SELECT, replacements: base },
+  );
+
+  // Booked time for occupancy — tournament matches included.
+  const [booked] = await sequelize.query<{ minutes: number | string | null }>(
+    `SELECT SUM(b.duration_minutes) AS minutes
+     FROM bookings b JOIN turfs t ON t.turf_id = b.turf_id
+     WHERE b.booking_status <> 'CANCELLED' AND b.booking_date BETWEEN :from AND :to${w.sql}`,
     { type: QueryTypes.SELECT, replacements: base },
   );
 
@@ -166,7 +179,7 @@ async function summarize(
     `SELECT COUNT(*) AS n FROM (
        SELECT b.booked_by, MIN(b.booking_date) AS first_date
        FROM bookings b JOIN turfs t ON t.turf_id = b.turf_id
-       WHERE b.booking_status <> 'CANCELLED'${w.sql}
+       WHERE b.booking_status <> 'CANCELLED'${w.sql}${NOT_TOURNAMENT}
        GROUP BY b.booked_by
      ) f WHERE f.first_date BETWEEN :from AND :to`,
     { type: QueryTypes.SELECT, replacements: base },
@@ -203,7 +216,7 @@ async function summarize(
     unique_customers: num(totals?.customers),
     new_customers: num(fresh?.n),
     occupancy_pct:
-      openTotal > 0 ? Math.min(100, round2((num(totals?.minutes) / openTotal) * 100)) : 0,
+      openTotal > 0 ? Math.min(100, round2((num(booked?.minutes) / openTotal) * 100)) : 0,
     no_shows: num(noShow?.n),
   };
 }
@@ -237,14 +250,14 @@ export async function getAnalytics(
       `SELECT b.booking_date AS d, COUNT(*) AS bookings,
               SUM(CASE WHEN b.booking_status <> 'CANCELLED' THEN b.booking_amount ELSE 0 END) AS revenue
        FROM bookings b JOIN turfs t ON t.turf_id = b.turf_id
-       WHERE b.booking_status <> 'CANCELLED' AND b.booking_date BETWEEN :from AND :to${w.sql}
+       WHERE b.booking_status <> 'CANCELLED' AND b.booking_date BETWEEN :from AND :to${w.sql}${NOT_TOURNAMENT}
        GROUP BY b.booking_date`,
       { type: QueryTypes.SELECT, replacements: base },
     ),
     sequelize.query<{ h: number | string; bookings: number | string }>(
       `SELECT HOUR(b.start_time) AS h, COUNT(*) AS bookings
        FROM bookings b JOIN turfs t ON t.turf_id = b.turf_id
-       WHERE b.booking_status <> 'CANCELLED' AND b.booking_date BETWEEN :from AND :to${w.sql}
+       WHERE b.booking_status <> 'CANCELLED' AND b.booking_date BETWEEN :from AND :to${w.sql}${NOT_TOURNAMENT}
        GROUP BY HOUR(b.start_time)`,
       { type: QueryTypes.SELECT, replacements: base },
     ),
@@ -256,7 +269,7 @@ export async function getAnalytics(
       `SELECT DAYOFWEEK(b.booking_date) - 1 AS dow, COUNT(*) AS bookings,
               SUM(b.booking_amount) AS revenue
        FROM bookings b JOIN turfs t ON t.turf_id = b.turf_id
-       WHERE b.booking_status <> 'CANCELLED' AND b.booking_date BETWEEN :from AND :to${w.sql}
+       WHERE b.booking_status <> 'CANCELLED' AND b.booking_date BETWEEN :from AND :to${w.sql}${NOT_TOURNAMENT}
        GROUP BY dow`,
       { type: QueryTypes.SELECT, replacements: base },
     ),
@@ -267,8 +280,14 @@ export async function getAnalytics(
       revenue: number | string | null;
       minutes: number | string | null;
     }>(
-      `SELECT t.turf_id, t.turf_name, COUNT(b.booking_id) AS bookings,
-              SUM(b.booking_amount) AS revenue, SUM(b.duration_minutes) AS minutes
+      `SELECT t.turf_id, t.turf_name,
+              SUM(CASE WHEN b.booking_id IS NULL OR EXISTS (
+                    SELECT 1 FROM matches tmx WHERE tmx.booking_id = b.booking_id AND tmx.tournament_id IS NOT NULL
+                  ) THEN 0 ELSE 1 END) AS bookings,
+              SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM matches tmx WHERE tmx.booking_id = b.booking_id AND tmx.tournament_id IS NOT NULL
+                  ) THEN 0 ELSE b.booking_amount END) AS revenue,
+              SUM(b.duration_minutes) AS minutes
        FROM turfs t
        LEFT JOIN bookings b ON b.turf_id = t.turf_id AND b.booking_status <> 'CANCELLED'
             AND b.booking_date BETWEEN :from AND :to
@@ -281,7 +300,7 @@ export async function getAnalytics(
     sequelize.query<{ mode: string; bookings: number | string }>(
       `SELECT b.payment_mode AS mode, COUNT(*) AS bookings
        FROM bookings b JOIN turfs t ON t.turf_id = b.turf_id
-       WHERE b.booking_status <> 'CANCELLED' AND b.booking_date BETWEEN :from AND :to${w.sql}
+       WHERE b.booking_status <> 'CANCELLED' AND b.booking_date BETWEEN :from AND :to${w.sql}${NOT_TOURNAMENT}
        GROUP BY b.payment_mode ORDER BY bookings DESC`,
       { type: QueryTypes.SELECT, replacements: base },
     ),

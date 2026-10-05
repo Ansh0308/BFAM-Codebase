@@ -15,6 +15,7 @@ jest.mock('../src/lib/apiClient', () => ({
     getTournaments: jest.fn(),
     getTournament: jest.fn(),
     createTournament: jest.fn(),
+    createTournamentFixtureMatch: jest.fn(),
     updateTournament: jest.fn(),
     deleteTournament: jest.fn(),
     openTournamentRegistration: jest.fn(),
@@ -201,11 +202,14 @@ const fixture = (n: number, over: Record<string, unknown> = {}) => ({
   team_b_wickets: null,
   team_b_overs: null,
   next_match_number: null,
+  match_id: null,
+  match_status: null,
   ...over,
 });
 const detail = (over: Record<string, unknown> = {}) => ({
   tournament: tournament(),
   can_manage: true,
+  is_host: true,
   can_start_knockout: false,
   entries: [entry('ea', 'Alpha'), entry('eb', 'Bravo', { status: 'PENDING' })],
   fixtures: [],
@@ -220,7 +224,13 @@ describe('TournamentView — registration', () => {
 
   it('shows teams with approval and payment status', async () => {
     api.getTournament.mockResolvedValue(detail());
-    render(<TournamentView tournamentId="t1" backHref="/admin/tournaments" />);
+    render(
+      <TournamentView
+        tournamentId="t1"
+        backHref="/admin/tournaments"
+        scoringBase="/owner/scoring"
+      />,
+    );
     expect(await screen.findByTestId('entry-ea')).toHaveTextContent('Alpha');
     expect(screen.getByTestId('entry-ea')).toHaveTextContent('Unpaid');
     expect(screen.getByTestId('entry-eb')).toHaveTextContent('PENDING');
@@ -230,7 +240,7 @@ describe('TournamentView — registration', () => {
   it('approves a pending team', async () => {
     api.getTournament.mockResolvedValue(detail());
     api.reviewTournamentEntry.mockResolvedValue({});
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.click(await screen.findByTestId('approve-eb'));
     await waitFor(() => expect(api.reviewTournamentEntry).toHaveBeenCalledWith('eb', 'APPROVED'));
   });
@@ -238,7 +248,7 @@ describe('TournamentView — registration', () => {
   it('records an entry fee as paid with a reference', async () => {
     api.getTournament.mockResolvedValue(detail());
     api.setTournamentEntryPaid.mockResolvedValue({});
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.click(await screen.findByTestId('pay-ea'));
     fireEvent.change(await screen.findByTestId('pay-reference'), { target: { value: 'UPI-77' } });
     fireEvent.click(screen.getByTestId('pay-confirm'));
@@ -253,7 +263,7 @@ describe('TournamentView — registration', () => {
       results: [{ team_id: 'tm9', team_name: 'Zeta Kings', home_city: 'Rajkot' }],
     });
     api.addTournamentTeam.mockResolvedValue({});
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.change(await screen.findByTestId('team-search'), { target: { value: 'Zeta' } });
     fireEvent.click(screen.getByTestId('team-search-go'));
     fireEvent.click(await screen.findByTestId('add-tm9'));
@@ -264,7 +274,7 @@ describe('TournamentView — registration', () => {
     api.getTournament.mockResolvedValue(detail({ tournament: tournament({ status: 'DRAFT' }) }));
     api.openTournamentRegistration.mockResolvedValue({});
     api.startTournament.mockResolvedValue({});
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.click(await screen.findByTestId('open-registration'));
     await waitFor(() => expect(api.openTournamentRegistration).toHaveBeenCalledWith('t1'));
 
@@ -276,7 +286,7 @@ describe('TournamentView — registration', () => {
 
   it('gives a visitor a read-only view', async () => {
     api.getTournament.mockResolvedValue(detail({ can_manage: false }));
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     await screen.findByTestId('entry-ea');
     for (const id of ['start-tournament', 'edit-tournament', 'approve-eb', 'add-team']) {
       expect(screen.queryByTestId(id)).toBeNull();
@@ -286,7 +296,7 @@ describe('TournamentView — registration', () => {
   it('explains when the tournament cannot be opened', async () => {
     const { BFAMApiError } = jest.requireActual('@bfam/api-client');
     api.getTournament.mockRejectedValue(new BFAMApiError('Tournament not found.', 404));
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     expect(await screen.findByTestId('tournament-error')).toHaveTextContent(
       'Tournament not found.',
     );
@@ -317,7 +327,7 @@ describe('TournamentView — running it', () => {
   it('opens on the fixtures and enters a league result with scores', async () => {
     api.getTournament.mockResolvedValue(live());
     api.recordTournamentResult.mockResolvedValue(undefined);
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.click(await screen.findByTestId('enter-result-1'));
 
     fireEvent.click(await screen.findByTestId('winner-a'));
@@ -344,7 +354,7 @@ describe('TournamentView — running it', () => {
 
   it('asks for a winner and for scores before saving a league result', async () => {
     api.getTournament.mockResolvedValue(live());
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.click(await screen.findByTestId('enter-result-1'));
     fireEvent.click(await screen.findByTestId('result-submit'));
     expect(await screen.findByTestId('result-error')).toHaveTextContent(/which team won/i);
@@ -357,7 +367,7 @@ describe('TournamentView — running it', () => {
 
   it('refuses more overs than the innings allows or a bad ball count', async () => {
     api.getTournament.mockResolvedValue(live());
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.click(await screen.findByTestId('enter-result-1'));
     fireEvent.click(await screen.findByTestId('winner-a'));
     for (const [id, v] of [
@@ -379,7 +389,7 @@ describe('TournamentView — running it', () => {
   it('a no-result needs neither winner nor scores', async () => {
     api.getTournament.mockResolvedValue(live());
     api.recordTournamentResult.mockResolvedValue(undefined);
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.click(await screen.findByTestId('enter-result-1'));
     fireEvent.click(await screen.findByTestId('result-type-NO_RESULT'));
     fireEvent.click(screen.getByTestId('result-submit'));
@@ -395,7 +405,7 @@ describe('TournamentView — running it', () => {
     api.getTournament.mockResolvedValue(
       live({ fixtures: [fixture(5, { stage: 'KNOCKOUT', stage_label: 'Semi-final' })] }),
     );
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.click(await screen.findByTestId('enter-result-5'));
     fireEvent.click(await screen.findByTestId('result-type-TIE'));
     fireEvent.click(screen.getByTestId('result-submit'));
@@ -421,7 +431,7 @@ describe('TournamentView — running it', () => {
       }),
     );
     api.reopenTournamentFixture.mockResolvedValue(undefined);
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     expect(await screen.findByTestId('result-1')).toHaveTextContent('Alpha won');
     expect(screen.getByTestId('fixture-1')).toHaveTextContent('60/3 (5.3)');
     fireEvent.click(screen.getByTestId('reopen-1'));
@@ -457,7 +467,7 @@ describe('TournamentView — running it', () => {
         ],
       }),
     );
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.click(await screen.findByTestId('tournament-tab-table'));
     const table = await screen.findByTestId('points-table');
     expect(within(table).getByTestId('row-1')).toHaveTextContent('Team A');
@@ -470,7 +480,7 @@ describe('TournamentView — running it', () => {
   it('offers the knockout once the league is done', async () => {
     api.getTournament.mockResolvedValue(live({ can_start_knockout: true }));
     api.startTournamentKnockout.mockResolvedValue({});
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     fireEvent.click(await screen.findByTestId('start-knockout'));
     fireEvent.click(await screen.findByTestId('confirm-ok'));
     await waitFor(() => expect(api.startTournamentKnockout).toHaveBeenCalledWith('t1'));
@@ -496,12 +506,138 @@ describe('TournamentView — running it', () => {
         ],
       }),
     );
-    render(<TournamentView tournamentId="t1" backHref="/b" />);
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
     expect(await screen.findByTestId('champion-banner')).toHaveTextContent('Alpha');
     fireEvent.click(screen.getByTestId('tournament-tab-bracket'));
     const bracket = await screen.findByTestId('bracket');
     expect(bracket).toHaveTextContent('Semi-final');
     expect(bracket).toHaveTextContent('Final');
     expect(bracket).toHaveTextContent('To be decided');
+  });
+});
+
+describe('TournamentView — live matches (host only)', () => {
+  const running = (over: Record<string, unknown> = {}, fx: Record<string, unknown> = {}) =>
+    detail({
+      tournament: tournament({ status: 'IN_PROGRESS' }),
+      entries: [entry('ea', 'Alpha'), entry('eb', 'Bravo')],
+      fixtures: [fixture(1, fx)],
+      ...over,
+    });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('the host can set a fixture up as a live match', async () => {
+    api.getTournament.mockResolvedValue(running());
+    api.createTournamentFixtureMatch.mockResolvedValue({ match_id: 'm1', fixture_id: 'f1' });
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
+    fireEvent.click(await screen.findByTestId('start-match-1'));
+    fireEvent.change(await screen.findByTestId('match-start'), {
+      target: { value: '2026-11-02T16:00' },
+    });
+    fireEvent.click(screen.getByTestId('start-match-submit'));
+    await waitFor(() =>
+      expect(api.createTournamentFixtureMatch).toHaveBeenCalledWith(
+        'f1',
+        expect.objectContaining({ scheduled_at: expect.stringMatching(/^2026-11-0[12]T/) }),
+      ),
+    );
+    // the tournament has a home turf, so none is asked for
+    expect(api.createTournamentFixtureMatch.mock.calls[0][1].turf_id).toBeUndefined();
+  });
+
+  it('asks for a start time before creating the match', async () => {
+    api.getTournament.mockResolvedValue(running());
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
+    fireEvent.click(await screen.findByTestId('start-match-1'));
+    fireEvent.click(await screen.findByTestId('start-match-submit'));
+    expect(await screen.findByTestId('start-match-error')).toHaveTextContent(
+      /when the match starts/i,
+    );
+    expect(api.createTournamentFixtureMatch).not.toHaveBeenCalled();
+  });
+
+  it('an event with no home turf asks where the match is played', async () => {
+    api.getTournament.mockResolvedValue(
+      running({
+        tournament: tournament({ status: 'IN_PROGRESS', turf_id: null, turf_name: null }),
+      }),
+    );
+    api.createTournamentFixtureMatch.mockResolvedValue({ match_id: 'm1', fixture_id: 'f1' });
+    const loadTurfs = jest.fn().mockResolvedValue([{ turf_id: 'tf9', turf_name: 'Redline Arena' }]);
+    render(
+      <TournamentView
+        tournamentId="t1"
+        backHref="/b"
+        scoringBase="/admin/scoring"
+        loadTurfs={loadTurfs}
+      />,
+    );
+    fireEvent.click(await screen.findByTestId('start-match-1'));
+    fireEvent.change(await screen.findByTestId('match-start'), {
+      target: { value: '2026-11-02T16:00' },
+    });
+    await screen.findByText('Redline Arena');
+    fireEvent.click(screen.getByTestId('start-match-submit'));
+    await waitFor(() =>
+      expect(api.createTournamentFixtureMatch).toHaveBeenCalledWith(
+        'f1',
+        expect.objectContaining({ turf_id: 'tf9' }),
+      ),
+    );
+  });
+
+  it('a live match links the host to the scoring console and hides manual entry', async () => {
+    api.getTournament.mockResolvedValue(
+      running({}, { match_id: 'm1', match_status: 'IN_PROGRESS' }),
+    );
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
+    const open = await screen.findByTestId('score-1');
+    expect(open.closest('a')).toHaveAttribute('href', '/owner/scoring/m1');
+    expect(screen.getByTestId('fixture-1')).toHaveTextContent('Live');
+    expect(screen.queryByTestId('enter-result-1')).toBeNull();
+    expect(screen.queryByTestId('start-match-1')).toBeNull();
+  });
+
+  it('someone running the event who is not the host cannot start or score it', async () => {
+    api.getTournament.mockResolvedValue(
+      running({ is_host: false }, { match_id: 'm1', match_status: 'IN_PROGRESS' }),
+    );
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/admin/scoring" />);
+    expect(await screen.findByTestId('host-only-1')).toHaveTextContent(/host/i);
+    expect(screen.queryByTestId('score-1')).toBeNull();
+  });
+
+  it('and cannot start a match for a fixture that has none', async () => {
+    api.getTournament.mockResolvedValue(running({ is_host: false }));
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/admin/scoring" />);
+    await screen.findByTestId('fixture-1');
+    expect(screen.queryByTestId('start-match-1')).toBeNull();
+    // they can still type in a result by hand
+    expect(screen.getByTestId('enter-result-1')).toBeInTheDocument();
+  });
+
+  it('once the live match is finished, a stuck fixture can still be settled by hand', async () => {
+    api.getTournament.mockResolvedValue(running({}, { match_id: 'm1', match_status: 'COMPLETED' }));
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
+    expect(await screen.findByTestId('enter-result-1')).toBeInTheDocument();
+    expect(screen.queryByTestId('score-1')).toBeNull();
+  });
+
+  it('marks fees paid online differently from ones the host recorded', async () => {
+    api.getTournament.mockResolvedValue(
+      detail({
+        entries: [
+          entry('ea', 'Alpha', { payment_status: 'PAID', payment_id: 'pay-1' }),
+          entry('eb', 'Bravo', { payment_status: 'PAID', payment_id: null }),
+        ],
+      }),
+    );
+    render(<TournamentView tournamentId="t1" backHref="/b" scoringBase="/owner/scoring" />);
+    expect(await screen.findByTestId('entry-ea')).toHaveTextContent('Paid online');
+    expect(screen.getByTestId('entry-eb')).toHaveTextContent(/Paid/);
+    expect(screen.getByTestId('entry-eb')).not.toHaveTextContent('Paid online');
   });
 });

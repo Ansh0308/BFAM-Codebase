@@ -5,7 +5,13 @@ import Link from 'next/link';
 import type { Turf } from '@bfam/shared-types';
 import { apiClient } from '../../lib/apiClient';
 import { PageHeader, Card, PrimaryButton } from '../../components/DashboardShell';
+import { TurfOpenPanel } from '../../components/TurfOpenPanel';
 import { BallLoader } from '../../components/BallLoader';
+
+// Turf open / closed for the day (SW-5).
+const loadTurfStatus = () => apiClient.getOwnerTurfStatus().then((res) => res.results);
+const setTurfClosed = (turfId: string, closed: boolean) =>
+  apiClient.setOwnerTurfClosed(turfId, closed);
 
 const STATUS_TEXT: Record<string, string> = {
   PENDING_APPROVAL: 'Awaiting admin approval',
@@ -48,6 +54,8 @@ export default function OwnerDashboardPage() {
           </Link>
         }
       />
+
+      <TurfOpenPanel load={loadTurfStatus} setClosed={setTurfClosed} />
 
       {loading ? (
         <BallLoader />

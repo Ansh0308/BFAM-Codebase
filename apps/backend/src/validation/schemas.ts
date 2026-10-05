@@ -851,7 +851,8 @@ export const copyTurfDetailsSchema = z.object({
 export const createAvailabilityBlockSchema = z.object({
   start_datetime: z.string().datetime().or(z.string().min(10)),
   end_datetime: z.string().datetime().or(z.string().min(10)),
-  reason: z.enum(BLOCK_REASONS),
+  // 'DAY_CLOSED' is set only through the turf open/closed switch.
+  reason: z.enum(['MAINTENANCE', 'HOLIDAY', 'OWNER_BLOCK', 'SYSTEM_BLOCK']),
 });
 
 export const assignStaffSchema = z.object({
@@ -969,8 +970,28 @@ export const staffPermissionsSchema = z
     check_in: z.boolean(),
     collect_cash: z.boolean(),
     score_matches: z.boolean(),
+    close_turf: z.boolean(),
   })
   .partial();
+
+const offerFields = {
+  discount_type: z.enum(['PERCENTAGE', 'FLAT']),
+  discount_value: z.number().positive().max(100_000),
+  max_discount_amount: z.number().positive().nullable().optional(),
+  min_booking_amount: z.number().min(0).optional(),
+  usage_limit_total: z.number().int().positive().nullable().optional(),
+  usage_limit_per_player: z.number().int().positive().nullable().optional(),
+  valid_from: z.string().datetime().nullable().optional(),
+  valid_until: z.string().datetime().nullable().optional(),
+  turf_id: z.string().uuid().nullable().optional(),
+};
+export const createOfferSchema = z.object({
+  code: z.string().regex(/^[A-Za-z0-9_-]{3,30}$/),
+  ...offerFields,
+});
+export const updateOfferSchema = z.object(offerFields).partial();
+
+export const setTurfClosedSchema = z.object({ closed: z.boolean() });
 
 export const rejectTurfSchema = z.object({
   reason: z.string().trim().min(3).max(255),
@@ -1177,4 +1198,49 @@ export const updateMaintenanceTaskSchema = z
 export const maintenanceQuerySchema = z.object({
   turf_id: z.string().uuid().optional(),
   status: z.enum(['OPEN', 'IN_PROGRESS', 'DONE']).optional(),
+});
+
+export const tournamentSettleSchema = z.object({
+  winner_entry_id: z.string().uuid(),
+});
+export const tournamentPayEntrySchema = z.object({
+  payment_method: z.enum(['UPI', 'RAZORPAY']),
+});
+export const tournamentFixtureMatchSchema = z.object({
+  scheduled_at: z.string().datetime().nullable().optional(),
+  turf_id: z.string().uuid().nullable().optional(),
+});
+
+// ---- Admin: payment oversight + rewards / membership configuration ----
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+export const adminPaymentsQuerySchema = z.object({
+  from: isoDay,
+  to: isoDay,
+  status: z.enum(['PENDING', 'SUCCESS', 'FAILED', 'REFUNDED']).optional(),
+  method: z.enum(['UPI', 'RAZORPAY', 'CASH', 'GATEWAY']).optional(),
+  kind: z.enum(['BOOKING', 'TOURNAMENT_ENTRY']).optional(),
+  search: z.string().max(100).optional(),
+});
+export const adminRefundsQuerySchema = z.object({
+  from: isoDay,
+  to: isoDay,
+  status: z.enum(['PENDING', 'COMPLETED', 'FAILED']).optional(),
+});
+export const createRewardSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  description: z.string().trim().max(300).nullable().optional(),
+  coin_cost: z.number().int().min(1).max(10_000_000),
+  is_active: z.boolean().optional(),
+});
+export const updateRewardSchema = createRewardSchema.partial();
+export const createPlanSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  duration_days: z.number().int().min(1).max(3650),
+  coin_cost: z.number().int().min(1).max(10_000_000),
+  discount_percent: z.number().int().min(0).max(100),
+  is_active: z.boolean().optional(),
+});
+export const updatePlanSchema = createPlanSchema.partial();
+export const redemptionQuerySchema = z.object({
+  status: z.enum(['PENDING', 'FULFILLED']).optional(),
 });

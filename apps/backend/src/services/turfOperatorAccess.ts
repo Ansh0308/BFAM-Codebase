@@ -1,5 +1,6 @@
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
+import { ForbiddenActionError } from '../domain/errors';
 
 // Web live scoring (Owner / Staff console): for a match whose scoring mode is
 // TURF_STAFF_MANAGED, the turf's own owner and its approved, active staff may
@@ -29,4 +30,19 @@ export async function isTurfOperatorForMatch(matchId: string, userId: string): P
     { type: QueryTypes.SELECT, replacements: { matchId, userId } },
   );
   return rows.length > 0;
+}
+
+// A match created for a tournament fixture belongs to the tournament's host and
+// to nobody else: the toss, the setup and every ball are theirs to run. This is
+// stricter than the turf-operator rule above on purpose (a turf owner or staff
+// member who is not the host cannot score someone else's tournament match).
+// Only called for matches that carry a tournament_id.
+export async function assertTournamentHost(tournamentId: string, userId: string): Promise<void> {
+  const [row] = await sequelize.query<{ organiser_id: string }>(
+    'SELECT organiser_id FROM tournaments WHERE tournament_id = :tournamentId',
+    { type: QueryTypes.SELECT, replacements: { tournamentId } },
+  );
+  if (!row || row.organiser_id !== userId) {
+    throw new ForbiddenActionError('Only the tournament host can run this match.');
+  }
 }

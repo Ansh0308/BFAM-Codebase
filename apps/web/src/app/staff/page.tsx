@@ -19,6 +19,7 @@ import { BFAMApiError } from '@bfam/api-client';
 import type { OwnerBooking, OwnerMatch, StaffAssignment } from '@bfam/shared-types';
 import { apiClient } from '../../lib/apiClient';
 import { PageHeader } from '../../components/DashboardShell';
+import { TurfOpenPanel } from '../../components/TurfOpenPanel';
 import { BookingDesk, BOOKING_TONE, hhmm } from '../../components/staff/BookingDesk';
 import { Drawer } from '../../components/ui/Drawer';
 import { FadeIn, EASE_OUT } from '../../components/ui/motion';
@@ -35,6 +36,11 @@ import {
 
 type Phase = 'now' | 'upcoming' | 'done';
 type Filter = 'all' | Phase;
+
+// Turf open / closed for the day (SW-5).
+const loadTurfStatus = () => apiClient.getStaffTurfStatus().then((res) => res.results);
+const setTurfClosed = (turfId: string, closed: boolean) =>
+  apiClient.setStaffTurfClosed(turfId, closed);
 
 function minutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
@@ -177,6 +183,8 @@ export default function StaffBookingsPage() {
           </div>
         </div>
       </FadeIn>
+
+      <TurfOpenPanel load={loadTurfStatus} setClosed={setTurfClosed} />
 
       {verified === false && (
         <FadeIn delay={0.05}>

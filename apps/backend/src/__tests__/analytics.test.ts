@@ -28,7 +28,10 @@ jest.mock('../config/sequelize', () => ({
       }
       if (sql.includes('SUM(b.booking_status = ')) {
         // 10 bookings, 2 cancelled, 8 live = 8 * 60 booked minutes
-        return [{ bookings: 10, cancelled: 2, revenue: '9600', minutes: '480', customers: 5 }];
+        return [{ bookings: 10, cancelled: 2, revenue: '9600', customers: 5 }];
+      }
+      if (sql.includes('SUM(b.duration_minutes) AS minutes') && !sql.includes('turf_name')) {
+        return [{ minutes: '480' }];
       }
       if (sql.includes("o.due_status = 'PAID'")) return [{ total: '6000' }];
       if (sql.includes('first_date')) return [{ n: 3 }];
@@ -121,6 +124,30 @@ describe('owner analytics', () => {
     expect(res.body.payment_modes).toEqual([{ mode: 'UPI', bookings: 6 }]);
     // owners never get platform growth
     expect(res.body.growth).toBeUndefined();
+  });
+
+  it('keeps tournament matches out of bookings and revenue but in occupancy', async () => {
+    await request(app)
+      .get(`/owner/analytics?${RANGE}`)
+      .set('Authorization', await token(OWNER, 'TURF_OWNER'));
+    const tournament = (q: { sql: string }) => q.sql.includes('tmx.tournament_id IS NOT NULL');
+    const series = seen.filter(
+      (q) =>
+        q.sql.includes('GROUP BY b.booking_date') ||
+        q.sql.includes('GROUP BY HOUR') ||
+        q.sql.includes('GROUP BY dow') ||
+        q.sql.includes('GROUP BY b.payment_mode'),
+    );
+    expect(series.length).toBe(4);
+    expect(series.every(tournament)).toBe(true);
+    expect(seen.find((q) => q.sql.includes('SUM(b.booking_status = '))).toBeDefined();
+    expect(tournament(seen.find((q) => q.sql.includes('SUM(b.booking_status = '))!)).toBe(true);
+    // occupancy is measured on all booked time, tournaments included
+    const minutes = seen.find(
+      (q) => q.sql.includes('SUM(b.duration_minutes) AS minutes') && !q.sql.includes('turf_name'),
+    );
+    expect(minutes).toBeDefined();
+    expect(tournament(minutes!)).toBe(false);
   });
 
   it('scopes every query to the calling owner', async () => {

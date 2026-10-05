@@ -12,6 +12,13 @@ import {
   adminUpdateUserSchema,
   adminUserQuerySchema,
   rejectTurfSchema,
+  adminPaymentsQuerySchema,
+  adminRefundsQuerySchema,
+  createRewardSchema,
+  updateRewardSchema,
+  createPlanSchema,
+  updatePlanSchema,
+  redemptionQuerySchema,
   explorerRowsQuerySchema,
   explorerValuesSchema,
   ownerBookingRangeSchema,
@@ -40,6 +47,20 @@ import {
 } from '../services/adminManageService';
 import { AnalyticsError, getAnalytics } from '../services/analyticsService';
 import { approveTurf, rejectTurf } from '../services/adminTurfService';
+import { PaymentOversightError, listPayments, listRefunds } from '../services/adminPaymentService';
+import {
+  RewardsConfigError,
+  createPlan,
+  createReward,
+  deletePlan,
+  deleteReward,
+  fulfilRedemption,
+  listPlans,
+  listRedemptions,
+  listRewards,
+  updatePlan,
+  updateReward,
+} from '../services/adminRewardsService';
 import { InvalidTurfStateError, TurfNotFoundError } from '../domain/errors';
 import {
   getAdminOverview,
@@ -267,6 +288,153 @@ router.delete(
       return res.status(204).send();
     } catch (error) {
       return failWith(res, error);
+    }
+  }),
+);
+
+// ---- Payment & refund oversight (AW-7) ----
+
+function oversight(res: Response, error: unknown) {
+  if (error instanceof PaymentOversightError || error instanceof RewardsConfigError) {
+    return res
+      .status(error.status)
+      .json({ error: { message: error.message, status: error.status } });
+  }
+  throw error;
+}
+
+router.get(
+  '/payments',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = adminPaymentsQuerySchema.safeParse(req.query);
+    if (!parsed.success) return invalid(res, 'from and to (YYYY-MM-DD) are required');
+    try {
+      return res.status(200).json(await listPayments(parsed.data));
+    } catch (error) {
+      return oversight(res, error);
+    }
+  }),
+);
+
+router.get(
+  '/refunds',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = adminRefundsQuerySchema.safeParse(req.query);
+    if (!parsed.success) return invalid(res, 'from and to (YYYY-MM-DD) are required');
+    try {
+      return res
+        .status(200)
+        .json({ results: await listRefunds(parsed.data.from, parsed.data.to, parsed.data.status) });
+    } catch (error) {
+      return oversight(res, error);
+    }
+  }),
+);
+
+// ---- Rewards, redemptions and membership plans (AW-8) ----
+
+router.get(
+  '/rewards',
+  asyncHandler(async (_req: Request, res: Response) => {
+    return res.status(200).json({ results: await listRewards() });
+  }),
+);
+
+router.post(
+  '/rewards',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = createRewardSchema.safeParse(req.body);
+    if (!parsed.success) return invalid(res, 'A name and a coin cost are required.');
+    return res.status(201).json(await createReward(req.auth!.sub, parsed.data));
+  }),
+);
+
+router.patch(
+  '/rewards/:rewardId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = updateRewardSchema.safeParse(req.body);
+    if (!parsed.success) return invalid(res, 'Invalid reward details');
+    try {
+      return res
+        .status(200)
+        .json(await updateReward(req.auth!.sub, req.params.rewardId, parsed.data));
+    } catch (error) {
+      return oversight(res, error);
+    }
+  }),
+);
+
+router.delete(
+  '/rewards/:rewardId',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      await deleteReward(req.auth!.sub, req.params.rewardId);
+      return res.status(204).send();
+    } catch (error) {
+      return oversight(res, error);
+    }
+  }),
+);
+
+router.get(
+  '/reward-redemptions',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = redemptionQuerySchema.safeParse(req.query);
+    if (!parsed.success) return invalid(res, 'Invalid status filter');
+    return res.status(200).json({ results: await listRedemptions(parsed.data.status) });
+  }),
+);
+
+router.post(
+  '/reward-redemptions/:redemptionId/fulfil',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      await fulfilRedemption(req.auth!.sub, req.params.redemptionId);
+      return res.status(204).send();
+    } catch (error) {
+      return oversight(res, error);
+    }
+  }),
+);
+
+router.get(
+  '/membership-plans',
+  asyncHandler(async (_req: Request, res: Response) => {
+    return res.status(200).json({ results: await listPlans() });
+  }),
+);
+
+router.post(
+  '/membership-plans',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = createPlanSchema.safeParse(req.body);
+    if (!parsed.success)
+      return invalid(res, 'A name, duration, coin cost and discount are required.');
+    return res.status(201).json(await createPlan(req.auth!.sub, parsed.data));
+  }),
+);
+
+router.patch(
+  '/membership-plans/:planId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = updatePlanSchema.safeParse(req.body);
+    if (!parsed.success) return invalid(res, 'Invalid plan details');
+    try {
+      return res.status(200).json(await updatePlan(req.auth!.sub, req.params.planId, parsed.data));
+    } catch (error) {
+      return oversight(res, error);
+    }
+  }),
+);
+
+router.delete(
+  '/membership-plans/:planId',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      await deletePlan(req.auth!.sub, req.params.planId);
+      return res.status(204).send();
+    } catch (error) {
+      return oversight(res, error);
     }
   }),
 );

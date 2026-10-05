@@ -338,12 +338,18 @@ export async function assertStaffVerified(
 // Everything defaults to allowed — the permissions column was always empty —
 // so nothing changes for existing staff until an owner switches something off.
 
-export const STAFF_PERMISSIONS = ['check_in', 'collect_cash', 'score_matches'] as const;
+export const STAFF_PERMISSIONS = [
+  'check_in',
+  'collect_cash',
+  'score_matches',
+  'close_turf',
+] as const;
 export type StaffPermission = (typeof STAFF_PERMISSIONS)[number];
 export const STAFF_PERMISSION_LABELS: Record<StaffPermission, string> = {
   check_in: 'check players in',
   collect_cash: 'collect cash',
   score_matches: 'score matches',
+  close_turf: 'open or close the turf for the day',
 };
 
 export function normalizePermissions(raw: unknown): Record<StaffPermission, boolean> {
@@ -398,7 +404,13 @@ export async function updateStaffPermissions(
 
 // ---- Staff activity ------------------------------------------------------------
 
-export type StaffActivityAction = 'STAFF_CHECK_IN' | 'STAFF_CASH_COLLECTED';
+export type StaffActivityAction =
+  | 'STAFF_CHECK_IN'
+  | 'STAFF_CASH_COLLECTED'
+  | 'STAFF_INNINGS_STARTED'
+  | 'STAFF_MATCH_FINISHED'
+  | 'TURF_CLOSED_TODAY'
+  | 'TURF_REOPENED_TODAY';
 
 // Best-effort: recording that a staff member did something must never make the
 // action itself fail, so every failure is swallowed.
@@ -418,6 +430,32 @@ export async function recordStaffActivity(
       resourceId,
       afterData: { turf_id: turfId, ...details },
     });
+  } catch {
+    /* activity logging is advisory */
+  }
+}
+
+// Match-level scoring actions (starting an innings, finishing a match) by turf
+// staff — deliberately not every ball. Best effort, like the rest of the log.
+export async function recordScoringActivity(
+  matchId: string,
+  actorUserId: string,
+  action: 'STAFF_INNINGS_STARTED' | 'STAFF_MATCH_FINISHED',
+  details: Record<string, unknown> = {},
+): Promise<void> {
+  try {
+    const [actor] = await sequelize.query<{ role: string }>(
+      'SELECT role FROM users WHERE user_id = :actorUserId',
+      { type: QueryTypes.SELECT, replacements: { actorUserId } },
+    );
+    if (actor?.role !== 'TURF_STAFF') return;
+    await recordStaffActivity(
+      actorUserId,
+      action,
+      matchId,
+      await getTurfIdForMatch(matchId),
+      details,
+    );
   } catch {
     /* activity logging is advisory */
   }

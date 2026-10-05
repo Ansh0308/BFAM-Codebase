@@ -114,6 +114,7 @@ import consentsRouter from './routes/consents';
 import rewardsRouter from './routes/rewards';
 import membershipsRouter from './routes/memberships';
 import tournamentsRouter from './routes/tournaments';
+import { markEntryPaidByGateway } from './services/tournamentService';
 
 interface UserRow {
   user_id: string;
@@ -1408,6 +1409,15 @@ app.post('/payments/razorpay/webhook', async (req: Request, res: Response) => {
         obligationIds,
       );
       internalPaymentId = updated?.payment_id;
+
+      // A tournament entry fee: the order's notes name the entry it settles.
+      if (event === 'payment.captured' && notes.tournament_entry_id && updated) {
+        await markEntryPaidByGateway(
+          notes.tournament_entry_id,
+          updated.payment_id,
+          paymentEntity.id,
+        );
+      }
     }
 
     const persisted = await persistRazorpayWebhookEvent({

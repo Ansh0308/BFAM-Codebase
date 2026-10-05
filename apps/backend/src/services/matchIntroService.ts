@@ -4,7 +4,7 @@ import { sequelize } from '../config/sequelize';
 import { getIo, matchRoom } from '../realtime/io';
 import { sendNotificationToMany } from './notificationService';
 import { notifyFollowersOfMatchStart } from './followService';
-import { isTurfOperatorForMatch } from './turfOperatorAccess';
+import { assertTournamentHost, isTurfOperatorForMatch } from './turfOperatorAccess';
 import {
   ForbiddenActionError,
   InvalidMatchStateError,
@@ -15,6 +15,7 @@ import {
 interface MatchRow {
   match_id: string;
   booking_id: string;
+  tournament_id?: string | null;
   match_name: string | null;
   organizer_id: string;
   assigned_scorer_id: string | null;
@@ -44,13 +45,18 @@ interface PlayingXiPlayer {
 
 async function fetchMatch(matchId: string): Promise<MatchRow | null> {
   const [match] = await sequelize.query<MatchRow>(
-    'SELECT match_id, booking_id, match_name, organizer_id, assigned_scorer_id, match_status FROM matches WHERE match_id = :matchId',
+    'SELECT match_id, booking_id, tournament_id, match_name, organizer_id, assigned_scorer_id, match_status FROM matches WHERE match_id = :matchId',
     { type: QueryTypes.SELECT, replacements: { matchId } },
   );
   return match ?? null;
 }
 
 async function assertCanManage(match: MatchRow, actorUserId: string) {
+  // Tournament matches are run by the tournament's host alone.
+  if (match.tournament_id) {
+    await assertTournamentHost(match.tournament_id, actorUserId);
+    return;
+  }
   if (match.organizer_id === actorUserId || match.assigned_scorer_id === actorUserId) return;
   // Turf-managed matches can also be run by the turf's owner / approved staff.
   if (await isTurfOperatorForMatch(match.match_id, actorUserId)) return;

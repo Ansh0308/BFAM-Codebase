@@ -62,8 +62,8 @@
 | AW-4  | ✅ **DONE (Phase 3)** — **Promo code management** — create, list, deactivate                                                   | §9.1 (Rewards config)                                     | Ready         | `POST /admin/promo-codes` exists; no listing / UI.                                                                               |
 | AW-5  | ✅ **DONE (Phase 3)** — **BFAM ID reservation** — lock, assign, unlock premium IDs                                             | PRD §12.59                                                | Ready         | Three admin endpoints exist; no UI.                                                                                              |
 | AW-6  | ✅ **DONE (Phase 3)** — **Audit log viewer**                                                                                   | Audit-log backlog (G-24)                                  | Partial       | `audit_logs` table and service exist; needs a list endpoint + UI.                                                                |
-| AW-7  | **Payment & refund oversight** across UPI, gateway and cash                                                                    | §9.1                                                      | Needs backend | Nothing admin-side; owner payments list is owner-scoped only.                                                                    |
-| AW-8  | **Rewards / ratings / membership configuration**                                                                               | §9.1                                                      | Needs backend | Mobile has Rewards and Membership; nothing configures them.                                                                      |
+| AW-7  | ✅ **DONE (Phase 8)** — **Payment & refund oversight** across UPI, gateway and cash                                            | §9.1                                                      | Needs backend | Nothing admin-side; owner payments list is owner-scoped only.                                                                    |
+| AW-8  | ✅ **DONE (Phase 8)** — **Rewards / ratings / membership configuration**                                                       | §9.1                                                      | Needs backend | Mobile has Rewards and Membership; nothing configures them.                                                                      |
 | AW-9  | ✅ **DONE (Phase 6)** — **Tournament management** — create, registrations, fixtures, results, points table                     | §9.1, §30.10 Should-have                                  | Needs backend | No tournament entity exists. Largest item in this document.                                                                      |
 | AW-10 | ✅ **DONE (Phase 5)** — **Fuller analytics** — cancellation / no-show breakdown, peak hours, customer growth, trends, charts   | §23.1, §23.2, §30.10                                      | Needs backend | Today's report is 9 totals with no time dimension.                                                                               |
 | AW-11 | ✅ **DONE (Phase 7)** — **Turf approval + pricing edit + performance**                                                         | §30.10 ("approve, manage, suspend; pricing; performance") | Partial       | Suspend / reactivate exist. Approve flow, pricing editor and per-turf performance do not.                                        |
@@ -81,7 +81,7 @@
 | OW-5  | ✅ **DONE (Phase 7)** — **Customer management**                                                                                   | §9.2               | Needs backend | No customer endpoint.                                                                                      |
 | OW-6  | ✅ **DONE (Phase 5)** — **Occupancy & analytics dashboards**                                                                      | §9.2               | Needs backend | Same dependency as OW-1.                                                                                   |
 | OW-7  | ✅ **DONE (Phase 6)** — **Tournament management for their turf**                                                                  | §9.2               | Needs backend | Depends on AW-9.                                                                                           |
-| OW-8  | **Offers**                                                                                                                        | §22.1              | Partial       | Generic promo codes exist; no owner-scoped offers.                                                         |
+| OW-8  | ✅ **DONE (Phase 8)** — **Offers**                                                                                                | §22.1              | Partial       | Generic promo codes exist; no owner-scoped offers.                                                         |
 | OW-9  | ✅ **DONE (Phase 7)** — **Maintenance tracker** (tasks with status, not just a block reason)                                      | §22.1              | Needs backend | Maintenance is only a reason on an availability block.                                                     |
 | OW-10 | ✅ **DONE (Phase 7)** — **Staff permissions + staff activity**                                                                    | §22.2, §30.9       | Needs backend | UI can assign / remove staff and review verification; no permissions or activity log.                      |
 | OW-11 | ✅ **DONE (Phase 4)** — **Web live-scoring console**                                                                              | §9.2 / §9.3        | Ready         | Scoring endpoints exist (used by mobile). Only the display page exists on web.                             |
@@ -95,7 +95,7 @@
 | SW-2 | ✅ **DONE (Phase 1)** — **Cash collection** at the desk                                                 | §9.3 / §17  | Ready         | `POST /payments/cash`.                                                                               |
 | SW-3 | ✅ **DONE (Phase 4)** — **Match management + turf-managed live scoring**                                | §9.3        | Ready         | Match Operations is a table; no scoring console. Shares work with OW-11.                             |
 | SW-4 | ✅ **DONE (Phase 1)** — **Booking verification** (QR / confirmation lookup)                             | §22.3       | Partial       | Verification page is for the staff member's own ID document, not for verifying a customer's booking. |
-| SW-5 | **Turf status** (open / closed for the day)                                                             | §22.2       | Needs backend |                                                                                                      |
+| SW-5 | ✅ **DONE (Phase 8)** — **Turf status** (open / closed for the day)                                     | §22.2       | Needs backend |                                                                                                      |
 | SW-6 | **Customer assistance**                                                                                 | §22.2       | Needs backend |                                                                                                      |
 
 ---
@@ -259,3 +259,39 @@ AW-1 is only partly done as an item: the overview has no tournament figures (tou
 - **Backend:** migration `20261006000000-phase7-owner-admin` (turf status values, `rejection_reason`, `maintenance_tasks`). Run `npm run db:migrate --workspace=apps/backend`, or restart the backend.
 
 **Known limits:** staff permissions are checked per action across a staff member's turfs (one turf granting it is enough); staff activity covers check-ins and cash only (not individual scoring balls); owners are not yet notified when a turf is approved or rejected (they see it on their dashboard); the remaining Phase 7 items (AW-2, AW-7, AW-8, AW-12, AW-13, OW-8, SW-5, SW-6) need product decisions and were not part of this scope.
+
+---
+
+## 12. Update — Tournament follow-ups: online fees, mobile screens, live scoring
+
+**Done (not yet committed):**
+
+- **Entry fee paid online, like a turf booking.** A captain pays with **UPI** or the **payment gateway** (the same Razorpay order and webhook turf bookings use). The entry flips to _Paid online_ when the webhook confirms. **Cash** is still recorded by the host. A team that paid online cannot be removed until the host reverses the payment (no automatic refund).
+- **Tournaments on the mobile app.** Profile → **Tournaments** lists tournaments (Open / Live / Finished). A tournament shows the fee and stage, **Teams**, **Fixtures**, the **Points table** and the **Bracket**. A captain can **enter their team**, **pay the fee**, and **withdraw**; anyone can **watch a live fixture**. Tournament notifications open the tournament.
+- **Notifications.** Captains are told when their team is accepted or rejected, when the tournament starts, when they reach the knockout, when a match is scheduled, and when a result is in; the host is told when a fee is paid online.
+- **Fixtures run on the live-scoring engine, host only.** On a fixture the host clicks **Start live match** (picks the start time, and the turf for an admin-hosted event). That books the slot, puts both squads on their sides and opens the scoring engine. **Only the tournament's host can run the toss and score it**; turf owners, turf staff and other admins are refused. When the match is finished, the **result flows into the fixture, points table and bracket automatically** (an all-out side is charged its full overs for net run rate). A fixture with a live match cannot be given a manual result until the match is finished.
+- **Backend:** migration `20261007000000-tournament-payments-and-live-link` (`tournament_teams.payment_id`, `matches.tournament_id`). Run `npm run db:migrate --workspace=apps/backend` or restart the backend. New endpoints: `POST /tournaments/entries/:id/pay`, `POST /tournaments/fixtures/:id/match`.
+
+**Known limits:** a tournament match creates a zero-amount booking at the turf, so it counts as a booking in the owner's analytics (with no revenue); a knockout match that ends tied has no winner to advance, so the host settles it by hand; there is no automatic refund when a paid team leaves; an admin who is not the host can still type results by hand but cannot start or score matches.
+
+---
+
+## 13. Update — Phase 8: closing the known limits and four more gap items
+
+**Limits closed:**
+
+- **Turf approval notifications.** The owner is notified (new `TURF_UPDATE` notification) when a turf is approved or rejected, with the reason.
+- **Staff activity now includes scoring**, at match level: starting an innings and finishing a match (not every ball). Closing / reopening the turf is logged too.
+- **Tournament analytics.** A tournament match's zero-amount booking still counts toward **occupancy** but is left out of booking counts, revenue, averages, customers, the charts and the owner's customer list.
+- **Knockout ties.** A knockout match that ends level shows _"Tied — choose who goes through"_ to the host, with a one-tap pick per team. The finished match's runs, wickets and overs are kept, and the bracket advances. The host is notified; mobile players are told the host is deciding.
+
+**New items built:**
+
+- **SW-5 Turf open / closed for the day.** A switch per turf on the **staff desk** and the **owner dashboard**. Closing blocks new bookings for today (existing ones are untouched; the count is shown so those customers can be contacted). New permission **Close the turf for the day** (on by default, switchable per staff member).
+- **OW-8 Owner offers.** **Owner → Offers**: discount codes for the owner's own turfs (all of them, or one). Players enter them at checkout like any code; checkout refuses them at anyone else's turf. Used offers cannot be deleted, only switched off.
+- **AW-7 Payment and refund oversight.** **Admin → Payments**: every payment (UPI, gateway, cash; turf bookings and tournament entry fees) with who paid, what for, status and any refund; totals by status and method; filters, search, a Refunds view and CSV export.
+- **AW-8 Rewards and membership configuration.** **Admin → Rewards**: edit the reward catalog, hand over pending redemptions (the player is notified), and manage membership plans (price, duration, discount, active members).
+
+**Backend:** migration `20261008000000-offers-day-closed-turf-notifications` (notification type, `DAY_CLOSED` block reason, `promo_codes.owner_id` / `turf_id`). Run `npm run db:migrate --workspace=apps/backend` or restart the backend.
+
+**Still open:** AW-12 platform settings, AW-13 home content beyond banners and SW-6 customer assistance need product decisions. The first real Razorpay payment (booking or tournament fee) still has to be tried on a phone with live keys.

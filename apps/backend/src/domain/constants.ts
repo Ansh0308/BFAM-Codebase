@@ -24,7 +24,14 @@ export const TURF_STATUSES = [
 export const MODERATION_TURF_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as const;
 export const DAY_TYPES = ['WEEKDAY', 'WEEKEND', 'HOLIDAY'] as const;
 export const ASSIGNMENT_STATUSES = ['ACTIVE', 'INACTIVE'] as const;
-export const BLOCK_REASONS = ['MAINTENANCE', 'HOLIDAY', 'OWNER_BLOCK', 'SYSTEM_BLOCK'] as const;
+export const BLOCK_REASONS = [
+  'MAINTENANCE',
+  'HOLIDAY',
+  'OWNER_BLOCK',
+  'SYSTEM_BLOCK',
+  // "Closed for the day", set from the staff desk / owner dashboard.
+  'DAY_CLOSED',
+] as const;
 
 export const BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'] as const;
 export const PAYMENT_MODES = ['UPI', 'GATEWAY', 'CASH', 'CAPTAIN_PAYS', 'SPLIT_PAYMENT'] as const;
@@ -130,6 +137,8 @@ export const NOTIFICATION_TYPES = [
   'CHALLENGE_RECEIVED',
   'CHALLENGE_ACCEPTED',
   'CHALLENGE_DECLINED',
+  // An owner is told when their turf is approved or rejected.
+  'TURF_UPDATE',
 ] as const;
 export const DELIVERY_CHANNELS = ['PUSH', 'EMAIL', 'SMS', 'IN_APP'] as const;
 export const DELIVERY_STATUSES = ['PENDING', 'DELIVERED', 'FAILED', 'READ'] as const;

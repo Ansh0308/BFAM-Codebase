@@ -7,7 +7,9 @@ import { BallLoader } from '../../components/BallLoader';
 import {
   BarChart3,
   CalendarCheck,
+  CreditCard,
   Database,
+  Gift,
   Hash,
   ImageIcon,
   LayoutDashboard,
@@ -37,6 +39,8 @@ const NAV_ITEMS = [
   { href: '/admin/turfs', label: 'Turfs', icon: MapPin },
   { href: '/admin/teams', label: 'Teams', icon: UsersRound },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
+  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { href: '/admin/rewards', label: 'Rewards', icon: Gift },
   { href: '/admin/promos', label: 'Promo Codes', icon: Ticket },
   { href: '/admin/bfam-ids', label: 'BFAM IDs', icon: Hash },
   { href: '/admin/banners', label: 'Home Banners', icon: ImageIcon },

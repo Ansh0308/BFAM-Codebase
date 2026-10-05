@@ -1697,6 +1697,8 @@ export interface TournamentEntry {
   payment_status: 'NOT_REQUIRED' | 'UNPAID' | 'PAID';
   payment_reference: string | null;
   paid_at: string | null;
+  /** Set when the fee was paid online (not recorded by the host). */
+  payment_id?: string | null;
   seed: number | null;
   registered_at: string;
 }
@@ -1725,6 +1727,25 @@ export interface TournamentFixture {
   team_b_wickets: number | null;
   team_b_overs: number | null;
   next_match_number: number | null;
+  /** The live BFAM match this fixture is played as, once the host sets it up. */
+  match_id: string | null;
+  match_status: string | null;
+}
+
+export interface TournamentEntryPayment {
+  payment_id: string;
+  order_id: string;
+  amount: number;
+  currency: string;
+  key_id: string;
+  entry_id: string;
+}
+
+export interface TournamentFixtureMatch {
+  match_id: string;
+  fixture_id: string;
+  booking_date: string;
+  start_time: string;
 }
 
 export interface TournamentTableRow {
@@ -1747,6 +1768,8 @@ export interface TournamentTableRow {
 export interface TournamentDetail {
   tournament: Tournament;
   can_manage: boolean;
+  /** True only for the tournament's host — the one person who can run its live matches. */
+  is_host: boolean;
   can_start_knockout: boolean;
   entries: TournamentEntry[];
   fixtures: TournamentFixture[];
@@ -1832,12 +1855,159 @@ export interface StaffPermissions {
   check_in: boolean;
   collect_cash: boolean;
   score_matches: boolean;
+  close_turf: boolean;
 }
 
 export interface StaffActivityEntry {
   log_id: string;
-  action: 'STAFF_CHECK_IN' | 'STAFF_CASH_COLLECTED' | string;
+  action:
+    | 'STAFF_CHECK_IN'
+    | 'STAFF_CASH_COLLECTED'
+    | 'STAFF_INNINGS_STARTED'
+    | 'STAFF_MATCH_FINISHED'
+    | 'TURF_CLOSED_TODAY'
+    | 'TURF_REOPENED_TODAY'
+    | string;
   resource_id: string;
   details: Record<string, unknown> | null;
   created_at: string;
+}
+
+// ---- Phase 8: turf open/closed, owner offers, payment oversight, rewards config ----
+
+export interface TurfDayStatus {
+  turf_id: string;
+  turf_name: string;
+  city: string;
+  closed: boolean;
+  /** Upcoming bookings today, so closing the turf is not a surprise. */
+  bookings_today: number;
+}
+
+export interface OwnerOffer {
+  promo_code_id: string;
+  code: string;
+  discount_type: 'PERCENTAGE' | 'FLAT';
+  discount_value: number;
+  max_discount_amount: number | null;
+  min_booking_amount: number;
+  usage_limit_total: number | null;
+  usage_limit_per_player: number | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  is_active: boolean;
+  turf_id: string | null;
+  turf_name: string | null;
+  redeemed: number;
+  created_at: string;
+}
+
+export interface OwnerOfferInput {
+  code: string;
+  discount_type: 'PERCENTAGE' | 'FLAT';
+  discount_value: number;
+  max_discount_amount?: number | null;
+  min_booking_amount?: number;
+  usage_limit_total?: number | null;
+  usage_limit_per_player?: number | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  turf_id?: string | null;
+}
+
+export interface AdminPayment {
+  payment_id: string;
+  amount: number;
+  payment_method: string;
+  payment_status: string;
+  kind: 'BOOKING' | 'TOURNAMENT_ENTRY';
+  reference: string | null;
+  payer_phone: string;
+  payer_name: string | null;
+  collected_by_phone: string | null;
+  context: string | null;
+  refunded: number;
+  initiated_at: string;
+  completed_at: string | null;
+}
+
+export interface AdminPaymentSummary {
+  collected: number;
+  pending: number;
+  failed: number;
+  refunded: number;
+  count: number;
+  by_method: { method: string; payments: number; amount: number }[];
+}
+
+export interface AdminPaymentFilters {
+  from: string;
+  to: string;
+  status?: string;
+  method?: string;
+  kind?: 'BOOKING' | 'TOURNAMENT_ENTRY';
+  search?: string;
+}
+
+export interface AdminRefund {
+  refund_id: string;
+  payment_id: string;
+  refund_amount: number;
+  reason: string;
+  refund_status: string;
+  gateway_refund_id: string | null;
+  payment_amount: number;
+  payment_method: string;
+  payer_phone: string;
+  payer_name: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface AdminReward {
+  reward_id: string;
+  name: string;
+  description: string | null;
+  coin_cost: number;
+  is_active: boolean;
+  redemptions: number;
+  created_at: string;
+}
+
+export interface AdminRewardInput {
+  name: string;
+  description?: string | null;
+  coin_cost: number;
+  is_active?: boolean;
+}
+
+export interface AdminRedemption {
+  redemption_id: string;
+  status: 'PENDING' | 'FULFILLED';
+  coins_spent: number;
+  created_at: string;
+  reward_name: string;
+  player_name: string | null;
+  bfam_id: string | null;
+  player_phone: string;
+}
+
+export interface AdminMembershipPlan {
+  plan_id: string;
+  name: string;
+  duration_days: number;
+  coin_cost: number;
+  discount_percent: number;
+  is_active: boolean;
+  active_members: number;
+  total_members: number;
+  created_at: string;
+}
+
+export interface AdminMembershipPlanInput {
+  name: string;
+  duration_days: number;
+  coin_cost: number;
+  discount_percent: number;
+  is_active?: boolean;
 }

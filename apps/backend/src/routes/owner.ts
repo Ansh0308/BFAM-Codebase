@@ -5,6 +5,10 @@ import {
   assignStaffSchema,
   createStaffAccountSchema,
   staffPermissionsSchema,
+  setTurfClosedSchema,
+  createOfferSchema,
+  updateOfferSchema,
+  setPromoCodeActiveSchema,
   customerQuerySchema,
   createMaintenanceTaskSchema,
   updateMaintenanceTaskSchema,
@@ -51,6 +55,19 @@ import {
 import { AdminUserError } from '../services/adminUserManagement';
 import { AnalyticsError, assertOwnsTurf, getAnalytics } from '../services/analyticsService';
 import { CustomerError, getCustomer, listCustomers } from '../services/customerService';
+import {
+  OfferError,
+  createOffer,
+  deleteOffer,
+  listOffers,
+  setOfferActive,
+  updateOffer,
+} from '../services/ownerOffersService';
+import {
+  TurfDayError,
+  listTurfDayStatus,
+  setTurfClosedToday,
+} from '../services/turfDayStatusService';
 import {
   MaintenanceError,
   createTask,
@@ -552,6 +569,129 @@ router.get(
           .json({ error: { message: error.message, status: error.status } });
       }
       throw error;
+    }
+  }),
+);
+
+// ---- Turf open / closed for the day (SW-5) ----
+
+router.get(
+  '/turf-status',
+  asyncHandler(async (req: Request, res: Response) => {
+    const results = await listTurfDayStatus({ userId: req.auth!.sub, role: 'TURF_OWNER' });
+    return res.status(200).json({ results });
+  }),
+);
+
+router.post(
+  '/turfs/:turfId/closed',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = setTurfClosedSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'closed (true / false) is required', status: 400 } });
+    }
+    try {
+      const status = await setTurfClosedToday(
+        { userId: req.auth!.sub, role: 'TURF_OWNER' },
+        req.params.turfId,
+        parsed.data.closed,
+      );
+      return res.status(200).json(status);
+    } catch (error) {
+      if (error instanceof TurfDayError) {
+        return res
+          .status(error.status)
+          .json({ error: { message: error.message, status: error.status } });
+      }
+      throw error;
+    }
+  }),
+);
+
+// ---- Offers (OW-8): discount codes for the owner's own turfs ----
+
+function offerFailure(res: Response, error: unknown) {
+  if (error instanceof OfferError) {
+    return res
+      .status(error.status)
+      .json({ error: { message: error.message, status: error.status } });
+  }
+  throw error;
+}
+
+router.get(
+  '/offers',
+  asyncHandler(async (req: Request, res: Response) => {
+    return res.status(200).json({ results: await listOffers(req.auth!.sub) });
+  }),
+);
+
+router.post(
+  '/offers',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = createOfferSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          message: 'A code (3–30 letters, numbers, - or _) and a discount are required.',
+          status: 400,
+        },
+      });
+    }
+    try {
+      return res.status(201).json(await createOffer(req.auth!.sub, parsed.data));
+    } catch (error) {
+      return offerFailure(res, error);
+    }
+  }),
+);
+
+router.patch(
+  '/offers/:offerId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = updateOfferSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid offer details', status: 400 } });
+    }
+    try {
+      return res
+        .status(200)
+        .json(await updateOffer(req.auth!.sub, req.params.offerId, parsed.data));
+    } catch (error) {
+      return offerFailure(res, error);
+    }
+  }),
+);
+
+router.post(
+  '/offers/:offerId/active',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = setPromoCodeActiveSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'is_active (true / false) is required', status: 400 } });
+    }
+    try {
+      return res
+        .status(200)
+        .json(await setOfferActive(req.auth!.sub, req.params.offerId, parsed.data.is_active));
+    } catch (error) {
+      return offerFailure(res, error);
+    }
+  }),
+);
+
+router.delete(
+  '/offers/:offerId',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      await deleteOffer(req.auth!.sub, req.params.offerId);
+      return res.status(204).send();
+    } catch (error) {
+      return offerFailure(res, error);
     }
   }),
 );

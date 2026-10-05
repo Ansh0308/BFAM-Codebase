@@ -25,7 +25,9 @@ import {
   wicketsToEndInnings,
   type PotmCandidate,
 } from '../domain/matchOutcome';
-import { isTurfOperatorForMatch } from './turfOperatorAccess';
+import { assertTournamentHost, isTurfOperatorForMatch } from './turfOperatorAccess';
+import { syncFixtureFromMatch } from './tournamentService';
+import { recordScoringActivity } from './staffService';
 import {
   ForbiddenActionError,
   InningsNotFoundError,
@@ -36,6 +38,7 @@ import {
 
 interface MatchRow {
   match_id: string;
+  tournament_id?: string | null;
   organizer_id: string;
   assigned_scorer_id: string | null;
   scoring_mode: string;
@@ -82,7 +85,7 @@ interface ScoreEventRow {
 
 async function fetchMatch(matchId: string): Promise<MatchRow | null> {
   const [row] = await sequelize.query<MatchRow>(
-    `SELECT match_id, organizer_id, assigned_scorer_id, scoring_mode, match_status,
+    `SELECT match_id, tournament_id, organizer_id, assigned_scorer_id, scoring_mode, match_status,
             extras_count_toward_score, overs_per_innings, no_non_striker
      FROM matches WHERE match_id = :matchId`,
     { type: QueryTypes.SELECT, replacements: { matchId } },
@@ -96,6 +99,11 @@ async function fetchMatch(matchId: string): Promise<MatchRow | null> {
 // (standing in for "the batting/fielding captains", which module 2.5/2.6
 // don't yet have a dedicated in-match role for).
 async function assertCanScore(match: MatchRow, actorUserId: string) {
+  // Tournament matches are run by the tournament's host alone.
+  if (match.tournament_id) {
+    await assertTournamentHost(match.tournament_id, actorUserId);
+    return;
+  }
   if (match.scoring_mode === 'TURF_STAFF_MANAGED') {
     if (match.assigned_scorer_id === actorUserId) return;
     // The turf's own owner and approved staff can score its turf-managed matches.
@@ -279,6 +287,9 @@ export async function startInnings(matchId: string, actorUserId: string, input: 
       updated_at: now,
     },
   ]);
+  await recordScoringActivity(matchId, actorUserId, 'STAFF_INNINGS_STARTED', {
+    innings_number: input.innings_number,
+  });
   return fetchInnings(inningsId);
 }
 
@@ -935,6 +946,17 @@ export async function finalizeMatch(
   });
 
   broadcastScoreUpdate(matchId, { audio_trigger: 'MATCH_WON', result_id: resultId });
+  await recordScoringActivity(matchId, actorUserId, 'STAFF_MATCH_FINISHED', {
+    result_type: resolved.result_type,
+  });
+
+  // A tournament match carries its result straight into the tournament's
+  // fixture list, points table and bracket.
+  if (match.tournament_id) {
+    await syncFixtureFromMatch(matchId).catch((error) => {
+      console.error(`[scoringService] Failed to sync tournament fixture for ${matchId}:`, error);
+    });
+  }
   return { result_id: resultId, already_finalized: false };
 }
 

@@ -13,6 +13,7 @@ import {
   IndianRupee,
   Pencil,
   Play,
+  Radio,
   RotateCcw,
   Search,
   Trophy,
@@ -90,9 +91,15 @@ function resultLine(f: TournamentFixture): string {
 export function TournamentView({
   tournamentId,
   backHref,
+  scoringBase,
+  loadTurfs,
 }: {
   tournamentId: string;
   backHref: string;
+  /** Where the host's scoring console lives, e.g. /owner/scoring. */
+  scoringBase: string;
+  /** For a tournament with no home turf (admin events): where its matches can be played. */
+  loadTurfs?: () => Promise<{ turf_id: string; turf_name: string }[]>;
 }) {
   const toast = useToast();
   const [detail, setDetail] = useState<TournamentDetail | null>(null);
@@ -100,6 +107,7 @@ export function TournamentView({
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('teams');
   const [busy, setBusy] = useState(false);
+  const [startFor, setStartFor] = useState<TournamentFixture | null>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [editing, setEditing] = useState(false);
   const [resultFor, setResultFor] = useState<TournamentFixture | null>(null);
@@ -183,6 +191,9 @@ export function TournamentView({
     ...(t.format !== 'KNOCKOUT' ? [{ value: 'table' as Tab, label: 'Points table' }] : []),
     ...(hasKnockout ? [{ value: 'bracket' as Tab, label: 'Bracket' }] : []),
   ];
+
+  const settleTie = (f: TournamentFixture, entryId: string) =>
+    act(() => apiClient.settleTournamentTie(f.fixture_id, entryId), 'Result recorded');
 
   async function move(entryId: string, delta: -1 | 1) {
     const ids = approved
@@ -388,6 +399,12 @@ export function TournamentView({
             onReopen={(f) =>
               act(() => apiClient.reopenTournamentFixture(f.fixture_id), 'Result reopened')
             }
+            live={{
+              isHost: detail.is_host,
+              scoringBase,
+              onStart: setStartFor,
+              onSettle: settleTie,
+            }}
           />
         ))}
 
@@ -411,8 +428,32 @@ export function TournamentView({
           fixtures={detail.fixtures.filter((f) => f.stage === 'KNOCKOUT')}
           manage={manage && t.status === 'IN_PROGRESS'}
           onResult={setResultFor}
+          live={{ isHost: detail.is_host, scoringBase, onStart: setStartFor, onSettle: settleTie }}
         />
       )}
+
+      <Drawer
+        open={startFor !== null}
+        onClose={() => setStartFor(null)}
+        title="Start live match"
+        subtitle={startFor ? `${startFor.team_a_name} v ${startFor.team_b_name}` : undefined}
+        width={460}
+        testID="start-match-drawer"
+      >
+        {startFor && (
+          <StartMatchForm
+            fixture={startFor}
+            fixedTurf={!!t.turf_id}
+            loadTurfs={loadTurfs}
+            onStarted={async (matchId) => {
+              toast.success('Match is set up — open the scoring console to begin.');
+              setStartFor(null);
+              await load();
+              void matchId;
+            }}
+          />
+        )}
+      </Drawer>
 
       {/* Result entry */}
       <Drawer
@@ -631,7 +672,13 @@ function TeamsPanel({
                 <StatusPill label={e.status} tone={ENTRY_TONE[e.status]} />
                 {e.payment_status !== 'NOT_REQUIRED' && (
                   <StatusPill
-                    label={e.payment_status === 'PAID' ? 'Paid' : 'Unpaid'}
+                    label={
+                      e.payment_status === 'PAID'
+                        ? e.payment_id
+                          ? 'Paid online'
+                          : 'Paid'
+                        : 'Unpaid'
+                    }
                     tone={e.payment_status === 'PAID' ? 'success' : 'warning'}
                   />
                 )}
@@ -844,18 +891,34 @@ function PayForm({
 
 // ---- Fixtures ----------------------------------------------------------------
 
+// What the host can do with a fixture's live match. Only the host runs a
+// tournament's matches; anyone else running the event just sees their status.
+interface LiveControls {
+  isHost: boolean;
+  scoringBase: string;
+  onStart: (f: TournamentFixture) => void;
+  /** A knockout match ended level: the host picks who goes through. */
+  onSettle: (f: TournamentFixture, entryId: string) => void;
+}
+
 function FixtureCard({
   f,
   manage,
   onResult,
   onReopen,
+  live: liveControls,
 }: {
   f: TournamentFixture;
   manage: boolean;
   onResult: (f: TournamentFixture) => void;
   onReopen?: (f: TournamentFixture) => void;
+  live?: LiveControls;
 }) {
   const done = f.status === 'COMPLETED';
+  const liveMatch =
+    !!f.match_id && f.match_status !== 'COMPLETED' && f.match_status !== 'CANCELLED';
+  // A knockout match that finished level has nobody to advance yet.
+  const tied = f.stage === 'KNOCKOUT' && !done && f.match_status === 'COMPLETED';
   const ready = !!f.team_a_entry_id && !!f.team_b_entry_id;
   const winnerA = done && f.winner_entry_id === f.team_a_entry_id;
   const winnerB = done && f.winner_entry_id === f.team_b_entry_id;
@@ -880,6 +943,12 @@ function FixtureCard({
         </span>
         {done ? (
           <StatusPill label="Done" tone="success" />
+        ) : liveMatch ? (
+          <StatusPill
+            label={f.match_status === 'IN_PROGRESS' ? 'Live' : 'Match set'}
+            tone="brand"
+            pulse={f.match_status === 'IN_PROGRESS'}
+          />
         ) : (
           <StatusPill label={ready ? 'Scheduled' : 'Waiting'} tone={ready ? 'info' : 'neutral'} />
         )}
@@ -903,9 +972,61 @@ function FixtureCard({
       )}
       {manage && (
         <div className="mt-3 flex gap-2">
-          {!done && ready && (
+          {!done && ready && liveMatch && liveControls?.isHost && (
+            <Link href={`${liveControls.scoringBase}/${f.match_id}`}>
+              <Button size="sm" icon={Radio} testID={`score-${f.match_number}`}>
+                Open scoring
+              </Button>
+            </Link>
+          )}
+          {!done && ready && liveMatch && !liveControls?.isHost && (
+            <span
+              className="font-ui text-micro text-text-tertiary"
+              data-testid={`host-only-${f.match_number}`}
+            >
+              Run by the tournament host
+            </span>
+          )}
+          {!done && ready && !f.match_id && liveControls?.isHost && (
             <Button
               size="sm"
+              icon={Radio}
+              onClick={() => liveControls.onStart(f)}
+              testID={`start-match-${f.match_number}`}
+            >
+              Start live match
+            </Button>
+          )}
+          {tied && liveControls && (
+            <div data-testid={`tie-${f.match_number}`}>
+              <p className="mb-2 font-ui text-body font-semibold text-brand-red">
+                Tied — choose who goes through
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ['a', f.team_a_entry_id, f.team_a_name],
+                    ['b', f.team_b_entry_id, f.team_b_name],
+                  ] as const
+                ).map(([side, entryId, name]) =>
+                  entryId ? (
+                    <Button
+                      key={side}
+                      size="sm"
+                      onClick={() => liveControls.onSettle(f, entryId)}
+                      testID={`settle-${f.match_number}-${side}`}
+                    >
+                      {name}
+                    </Button>
+                  ) : null,
+                )}
+              </div>
+            </div>
+          )}
+          {!done && ready && !liveMatch && !tied && (
+            <Button
+              size="sm"
+              variant={f.match_id || !liveControls?.isHost ? 'primary' : 'soft'}
               icon={ClipboardEdit}
               onClick={() => onResult(f)}
               testID={`enter-result-${f.match_number}`}
@@ -935,11 +1056,13 @@ function FixtureList({
   manage,
   onResult,
   onReopen,
+  live,
 }: {
   fixtures: TournamentFixture[];
   manage: boolean;
   onResult: (f: TournamentFixture) => void;
   onReopen: (f: TournamentFixture) => void;
+  live: LiveControls;
 }) {
   const groups = new Map<string, TournamentFixture[]>();
   for (const f of fixtures) {
@@ -962,6 +1085,7 @@ function FixtureList({
                 manage={manage}
                 onResult={onResult}
                 onReopen={onReopen}
+                live={live}
               />
             ))}
           </div>
@@ -1033,10 +1157,12 @@ function Bracket({
   fixtures,
   manage,
   onResult,
+  live,
 }: {
   fixtures: TournamentFixture[];
   manage: boolean;
   onResult: (f: TournamentFixture) => void;
+  live: LiveControls;
 }) {
   const rounds = [...new Set(fixtures.map((f) => f.round_number))].sort((a, b) => a - b);
   return (
@@ -1049,7 +1175,13 @@ function Bracket({
               {list[0].stage_label}
             </h3>
             {list.map((f) => (
-              <FixtureCard key={f.fixture_id} f={f} manage={manage} onResult={onResult} />
+              <FixtureCard
+                key={f.fixture_id}
+                f={f}
+                manage={manage}
+                onResult={onResult}
+                live={live}
+              />
             ))}
           </div>
         );
@@ -1271,6 +1403,107 @@ function ResultForm({
       )}
       <Button type="submit" size="lg" loading={saving} testID="result-submit">
         Save result
+      </Button>
+    </form>
+  );
+}
+
+function StartMatchForm({
+  fixture,
+  fixedTurf,
+  loadTurfs,
+  onStarted,
+}: {
+  fixture: TournamentFixture;
+  fixedTurf: boolean;
+  loadTurfs?: () => Promise<{ turf_id: string; turf_name: string }[]>;
+  onStarted: (matchId: string) => void | Promise<void>;
+}) {
+  const [turfs, setTurfs] = useState<{ turf_id: string; turf_name: string }[]>([]);
+  const [turfId, setTurfId] = useState('');
+  const [startAt, setStartAt] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (fixedTurf || !loadTurfs) return;
+    loadTurfs()
+      .then((list) => {
+        setTurfs(list);
+        setTurfId((cur) => cur || list[0]?.turf_id || '');
+      })
+      .catch(() => setTurfs([]));
+  }, [fixedTurf, loadTurfs]);
+
+  async function submit() {
+    if (!fixedTurf && !turfId) return setError('Choose the turf this match is played at.');
+    if (!startAt && !fixture.scheduled_at) return setError('Pick when the match starts.');
+    setError(null);
+    setSaving(true);
+    try {
+      const res = await apiClient.createTournamentFixtureMatch(fixture.fixture_id, {
+        ...(startAt ? { scheduled_at: new Date(startAt).toISOString() } : {}),
+        ...(!fixedTurf ? { turf_id: turfId } : {}),
+      });
+      await onStarted(res.match_id);
+    } catch (err) {
+      setError(err instanceof BFAMApiError ? err.message : 'Could not set up the match.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+      data-testid="start-match-form"
+    >
+      <p className="mb-4 font-ui text-body text-text-secondary">
+        This books the slot, puts both squads on their sides and opens the live-scoring engine. Only
+        you, as the host, can score it; the result flows back into the tournament when you finish
+        the match.
+      </p>
+      {!fixedTurf && (
+        <label className="mb-4 block">
+          <span className={LABEL}>Played at</span>
+          <select
+            value={turfId}
+            onChange={(e) => setTurfId(e.target.value)}
+            data-testid="match-turf"
+            className={FIELD}
+          >
+            {turfs.map((t) => (
+              <option key={t.turf_id} value={t.turf_id}>
+                {t.turf_name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <label className="mb-5 block">
+        <span className={LABEL}>Starts</span>
+        <input
+          type="datetime-local"
+          value={startAt}
+          onChange={(e) => setStartAt(e.target.value)}
+          data-testid="match-start"
+          className={FIELD}
+        />
+      </label>
+      {error && (
+        <p
+          role="alert"
+          data-testid="start-match-error"
+          className="mb-4 rounded-md bg-status-danger-bg px-3 py-2 font-ui text-body text-status-danger"
+        >
+          {error}
+        </p>
+      )}
+      <Button type="submit" size="lg" loading={saving} testID="start-match-submit">
+        Set up match
       </Button>
     </form>
   );

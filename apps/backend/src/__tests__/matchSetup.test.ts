@@ -18,6 +18,8 @@ jest.mock('../config/sequelize', () => ({
   sequelize: {
     query: async (sql: string, options: { replacements?: Record<string, unknown> } = {}) => {
       const r = options.replacements ?? {};
+      // A turf owner / approved staff may run turf-managed matches; nobody here is one.
+      if (sql.includes("m.scoring_mode = 'TURF_STAFF_MANAGED'")) return [];
       if (sql.includes('FROM matches WHERE match_id')) {
         return r.matchId === MATCH_ID
           ? [

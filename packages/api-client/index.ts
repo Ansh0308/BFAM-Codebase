@@ -103,6 +103,18 @@ import {
   AdminOverview,
   AdminUserRow,
   AnalyticsResult,
+  TurfDayStatus,
+  OwnerOffer,
+  OwnerOfferInput,
+  AdminPayment,
+  AdminPaymentSummary,
+  AdminPaymentFilters,
+  AdminRefund,
+  AdminReward,
+  AdminRewardInput,
+  AdminRedemption,
+  AdminMembershipPlan,
+  AdminMembershipPlanInput,
   CustomerSegment,
   OwnerCustomer,
   OwnerCustomerDetail,
@@ -114,6 +126,8 @@ import {
   Tournament,
   TournamentDetail,
   TournamentEntry,
+  TournamentEntryPayment,
+  TournamentFixtureMatch,
   TournamentInput,
   TournamentListItem,
   TournamentResultInput,
@@ -1669,6 +1683,29 @@ export class BFAMApiClient {
     });
   }
 
+  // Starts the entry-fee payment — the same Razorpay order a turf booking opens
+  // (UPI or Payment Gateway). The webhook marks the entry paid once it clears.
+  async payTournamentEntry(
+    entryId: string,
+    paymentMethod: 'UPI' | 'RAZORPAY',
+  ): Promise<TournamentEntryPayment> {
+    return this.request(`/tournaments/entries/${entryId}/pay`, {
+      method: 'POST',
+      body: JSON.stringify({ payment_method: paymentMethod }),
+    });
+  }
+
+  // Host only: set the fixture up as a live match (booking, squads, scoring).
+  async createTournamentFixtureMatch(
+    fixtureId: string,
+    input: { scheduled_at?: string | null; turf_id?: string | null } = {},
+  ): Promise<TournamentFixtureMatch> {
+    return this.request(`/tournaments/fixtures/${fixtureId}/match`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
   async removeTournamentEntry(entryId: string): Promise<void> {
     await this.request(`/tournaments/entries/${entryId}`, { method: 'DELETE' });
   }
@@ -1753,6 +1790,135 @@ export class BFAMApiClient {
     return this.request(`/admin/turfs/${turfId}/reject`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
+    });
+  }
+
+  // ---- Phase 8: turf open/closed, offers, payment oversight, rewards config ----
+
+  async getOwnerTurfStatus(): Promise<{ results: TurfDayStatus[] }> {
+    return this.request('/owner/turf-status');
+  }
+
+  async setOwnerTurfClosed(turfId: string, closed: boolean): Promise<TurfDayStatus> {
+    return this.request(`/owner/turfs/${turfId}/closed`, {
+      method: 'POST',
+      body: JSON.stringify({ closed }),
+    });
+  }
+
+  async getStaffTurfStatus(): Promise<{ results: TurfDayStatus[] }> {
+    return this.request('/staff/turf-status');
+  }
+
+  async setStaffTurfClosed(turfId: string, closed: boolean): Promise<TurfDayStatus> {
+    return this.request(`/staff/turfs/${turfId}/closed`, {
+      method: 'POST',
+      body: JSON.stringify({ closed }),
+    });
+  }
+
+  async getOwnerOffers(): Promise<{ results: OwnerOffer[] }> {
+    return this.request('/owner/offers');
+  }
+
+  async createOwnerOffer(input: OwnerOfferInput): Promise<OwnerOffer> {
+    return this.request('/owner/offers', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async updateOwnerOffer(
+    offerId: string,
+    input: Partial<Omit<OwnerOfferInput, 'code'>>,
+  ): Promise<OwnerOffer> {
+    return this.request(`/owner/offers/${offerId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async setOwnerOfferActive(offerId: string, isActive: boolean): Promise<OwnerOffer> {
+    return this.request(`/owner/offers/${offerId}/active`, {
+      method: 'POST',
+      body: JSON.stringify({ is_active: isActive }),
+    });
+  }
+
+  async deleteOwnerOffer(offerId: string): Promise<void> {
+    await this.request(`/owner/offers/${offerId}`, { method: 'DELETE' });
+  }
+
+  async getAdminPayments(
+    filters: AdminPaymentFilters,
+  ): Promise<{ results: AdminPayment[]; summary: AdminPaymentSummary }> {
+    return this.request(`/admin/payments${toQueryString({ ...filters })}`);
+  }
+
+  async getAdminRefunds(filters: {
+    from: string;
+    to: string;
+    status?: string;
+  }): Promise<{ results: AdminRefund[] }> {
+    return this.request(`/admin/refunds${toQueryString(filters)}`);
+  }
+
+  async getAdminRewards(): Promise<{ results: AdminReward[] }> {
+    return this.request('/admin/rewards');
+  }
+
+  async createAdminReward(input: AdminRewardInput): Promise<AdminReward> {
+    return this.request('/admin/rewards', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async updateAdminReward(
+    rewardId: string,
+    input: Partial<AdminRewardInput>,
+  ): Promise<AdminReward> {
+    return this.request(`/admin/rewards/${rewardId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteAdminReward(rewardId: string): Promise<void> {
+    await this.request(`/admin/rewards/${rewardId}`, { method: 'DELETE' });
+  }
+
+  async getAdminRedemptions(
+    status?: 'PENDING' | 'FULFILLED',
+  ): Promise<{ results: AdminRedemption[] }> {
+    return this.request(`/admin/reward-redemptions${toQueryString(status ? { status } : {})}`);
+  }
+
+  async fulfilAdminRedemption(redemptionId: string): Promise<void> {
+    await this.request(`/admin/reward-redemptions/${redemptionId}/fulfil`, { method: 'POST' });
+  }
+
+  async getAdminMembershipPlans(): Promise<{ results: AdminMembershipPlan[] }> {
+    return this.request('/admin/membership-plans');
+  }
+
+  async createAdminMembershipPlan(input: AdminMembershipPlanInput): Promise<AdminMembershipPlan> {
+    return this.request('/admin/membership-plans', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async updateAdminMembershipPlan(
+    planId: string,
+    input: Partial<AdminMembershipPlanInput>,
+  ): Promise<AdminMembershipPlan> {
+    return this.request(`/admin/membership-plans/${planId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteAdminMembershipPlan(planId: string): Promise<void> {
+    await this.request(`/admin/membership-plans/${planId}`, { method: 'DELETE' });
+  }
+
+  // Host: a knockout match ended level, so choose who goes through.
+  async settleTournamentTie(fixtureId: string, winnerEntryId: string): Promise<void> {
+    await this.request(`/tournaments/fixtures/${fixtureId}/settle`, {
+      method: 'POST',
+      body: JSON.stringify({ winner_entry_id: winnerEntryId }),
     });
   }
 

@@ -2,6 +2,7 @@ import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { InvalidTurfStateError, TurfNotFoundError } from '../domain/errors';
 import { writeAuditLog } from './auditLogService';
+import { sendNotification } from './notificationService';
 
 // Backlog E-3 — Turf Management in Admin Web (PRD §9.1). Owner Web already
 // has a full turf-management hub (pricing, hours, blocks, sound, copy-
@@ -107,6 +108,13 @@ export async function approveTurf(turfId: string, actorUserId: string): Promise<
     beforeData: { turf_status: turf.turf_status },
     afterData: { turf_status: 'ACTIVE' },
   });
+  await sendNotification({
+    userId: turf.owner_id,
+    event: 'TURF_UPDATE',
+    params: { message: `${turf.turf_name} has been approved and is now live for players.` },
+    relatedEntityType: 'turf',
+    relatedEntityId: turfId,
+  });
   return (await listAllTurfsForAdmin()).filter((r) => r.turf_id === turfId)[0];
 }
 
@@ -131,6 +139,13 @@ export async function rejectTurf(
     resourceId: turfId,
     beforeData: { turf_status: turf.turf_status },
     afterData: { turf_status: 'REJECTED', reason },
+  });
+  await sendNotification({
+    userId: turf.owner_id,
+    event: 'TURF_UPDATE',
+    params: { message: `${turf.turf_name} was not approved: ${reason}` },
+    relatedEntityType: 'turf',
+    relatedEntityId: turfId,
   });
   return (await listAllTurfsForAdmin()).filter((r) => r.turf_id === turfId)[0];
 }

@@ -6,5 +6,11 @@ import { TournamentView } from '../../../../components/tournaments/TournamentVie
 
 export default function OwnerTournamentPage() {
   const params = useParams<{ id: string }>();
-  return <TournamentView tournamentId={params.id} backHref="/owner/tournaments" />;
+  return (
+    <TournamentView
+      tournamentId={params.id}
+      backHref="/owner/tournaments"
+      scoringBase="/owner/scoring"
+    />
+  );
 }

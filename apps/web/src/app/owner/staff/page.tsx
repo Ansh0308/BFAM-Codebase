@@ -24,11 +24,16 @@ const PERMISSIONS: { key: keyof StaffPermissions; label: string; hint: string }[
   { key: 'check_in', label: 'Check players in', hint: 'Mark players present, late or no-show' },
   { key: 'collect_cash', label: 'Collect cash', hint: 'Record cash taken at the desk' },
   { key: 'score_matches', label: 'Score matches', hint: 'Run the live scoring console' },
+  { key: 'close_turf', label: 'Close the turf for the day', hint: 'Stop new bookings for today' },
 ];
 
 const ACTIVITY_LABEL: Record<string, string> = {
   STAFF_CHECK_IN: 'Checked a player in',
   STAFF_CASH_COLLECTED: 'Collected cash',
+  STAFF_INNINGS_STARTED: 'Started an innings',
+  STAFF_MATCH_FINISHED: 'Finished a match',
+  TURF_CLOSED_TODAY: 'Closed the turf for the day',
+  TURF_REOPENED_TODAY: 'Reopened the turf',
 };
 
 const STATUS_COLOR: Record<string, string> = {

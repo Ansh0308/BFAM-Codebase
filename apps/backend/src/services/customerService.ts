@@ -101,6 +101,7 @@ export async function listCustomers(
      JOIN users u ON u.user_id = b.booked_by
      LEFT JOIN players pl ON pl.user_id = b.booked_by
      WHERE t.owner_id = :ownerId AND t.deleted_at IS NULL${extra}
+       AND NOT EXISTS (SELECT 1 FROM matches tmx WHERE tmx.booking_id = b.booking_id AND tmx.tournament_id IS NOT NULL)
      GROUP BY b.booked_by, pl.player_id, pl.full_name, u.phone_number
      ORDER BY total_spend DESC
      LIMIT 1000`,

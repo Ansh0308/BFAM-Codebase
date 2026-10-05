@@ -35,6 +35,9 @@ interface PromoCodeRow {
   valid_from: Date | null;
   valid_until: Date | null;
   is_active: boolean;
+  /** An owner's own offer: only valid at that owner's turfs (and one turf if set). */
+  owner_id?: string | null;
+  turf_id?: string | null;
 }
 
 async function fetchObligation(obligationId: string): Promise<ObligationRow | null> {
@@ -58,6 +61,7 @@ async function validatePromoCode(
   code: string,
   playerId: string,
   amountDue: number,
+  obligationId: string,
 ): Promise<PromoCodeRow> {
   const [promo] = await sequelize.query<PromoCodeRow>(
     'SELECT * FROM promo_codes WHERE code = :code',
@@ -71,6 +75,21 @@ async function validatePromoCode(
   }
   if (promo.valid_until && now > new Date(promo.valid_until)) {
     throw new PromoCodeNotApplicableError('This promo code has expired.');
+  }
+  if (promo.owner_id) {
+    const [booked] = await sequelize.query<{ owner_id: string; turf_id: string }>(
+      `SELECT t.owner_id, t.turf_id FROM payment_obligations o
+       JOIN bookings b ON b.booking_id = o.booking_id JOIN turfs t ON t.turf_id = b.turf_id
+       WHERE o.obligation_id = :obligationId`,
+      { type: QueryTypes.SELECT, replacements: { obligationId } },
+    );
+    if (
+      !booked ||
+      booked.owner_id !== promo.owner_id ||
+      (promo.turf_id && booked.turf_id !== promo.turf_id)
+    ) {
+      throw new PromoCodeNotApplicableError('This offer is not valid for this turf.');
+    }
   }
   if (amountDue < Number(promo.min_booking_amount)) {
     throw new PromoCodeNotApplicableError(
@@ -141,7 +160,7 @@ export async function applyCheckoutDiscount(
   let promoDiscount = 0;
   let promo: PromoCodeRow | null = null;
   if (input.promoCode) {
-    promo = await validatePromoCode(input.promoCode, playerId, amountDue);
+    promo = await validatePromoCode(input.promoCode, playerId, amountDue, obligationId);
     promoDiscount = computePromoDiscount(amountDue, {
       discount_type: promo.discount_type,
       discount_value: Number(promo.discount_value),

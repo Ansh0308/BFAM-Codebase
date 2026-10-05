@@ -1,13 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJwt, requireRoles } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { GatewayNotConfiguredError } from '../domain/errors';
 import {
   createTournamentSchema,
+  tournamentFixtureMatchSchema,
   tournamentListQuerySchema,
+  tournamentPayEntrySchema,
   tournamentPaymentSchema,
   tournamentResultSchema,
   tournamentReviewSchema,
   tournamentScheduleSchema,
+  tournamentSettleSchema,
   tournamentSeedsSchema,
   tournamentTeamSchema,
   updateTournamentSchema,
@@ -16,9 +20,11 @@ import {
   TournamentError,
   addTeam,
   cancelTournament,
+  createFixtureMatch,
   createTournament,
   deleteTournament,
   getTournament,
+  initiateEntryPayment,
   listTournaments,
   markEntryPaid,
   openRegistration,
@@ -28,6 +34,7 @@ import {
   reopenFixture,
   reviewEntry,
   scheduleFixture,
+  settleKnockoutTie,
   setSeeds,
   startKnockout,
   startTournament,
@@ -114,6 +121,29 @@ router.post(
   }),
 );
 
+// A team captain pays the entry fee online (UPI or the payment gateway) — the
+// same Razorpay order the app opens for turf bookings. The webhook marks the
+// entry paid once the payment is confirmed.
+router.post(
+  '/entries/:entryId/pay',
+  run(async (req, res) => {
+    const parsed = tournamentPayEntrySchema.safeParse(req.body);
+    if (!parsed.success) return bad(res, 'payment_method must be UPI or RAZORPAY');
+    try {
+      res
+        .status(201)
+        .json(
+          await initiateEntryPayment(actorOf(req), req.params.entryId, parsed.data.payment_method),
+        );
+    } catch (error) {
+      if (error instanceof GatewayNotConfiguredError) {
+        return res.status(503).json({ error: { message: error.message, status: 503 } });
+      }
+      throw error;
+    }
+  }),
+);
+
 // Organiser removes a team, or a captain withdraws their own.
 router.delete(
   '/entries/:entryId',
@@ -146,6 +176,31 @@ router.post(
     const parsed = tournamentResultSchema.safeParse(req.body);
     if (!parsed.success) return bad(res, 'Check the result and try again.');
     await recordResult(actorOf(req), req.params.fixtureId, parsed.data);
+    res.status(204).send();
+  }),
+);
+
+// Set up this fixture as a live BFAM match (booking, both squads on their sides,
+// the scoring engine). Only the tournament's host can do it — and only the host
+// can score it.
+router.post(
+  '/fixtures/:fixtureId/match',
+  managers,
+  run(async (req, res) => {
+    const parsed = tournamentFixtureMatchSchema.safeParse(req.body ?? {});
+    if (!parsed.success) return bad(res, 'Invalid match details');
+    res.status(201).json(await createFixtureMatch(actorOf(req), req.params.fixtureId, parsed.data));
+  }),
+);
+
+// A knockout match that ended level: the host chooses who goes through.
+router.post(
+  '/fixtures/:fixtureId/settle',
+  managers,
+  run(async (req, res) => {
+    const parsed = tournamentSettleSchema.safeParse(req.body);
+    if (!parsed.success) return bad(res, 'winner_entry_id is required');
+    await settleKnockoutTie(actorOf(req), req.params.fixtureId, parsed.data.winner_entry_id);
     res.status(204).send();
   }),
 );

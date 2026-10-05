@@ -40,7 +40,8 @@ export type NotificationEventType =
   | 'PLAYER_PLAYING'
   | 'CHALLENGE_RECEIVED'
   | 'CHALLENGE_ACCEPTED'
-  | 'CHALLENGE_DECLINED';
+  | 'CHALLENGE_DECLINED'
+  | 'TURF_UPDATE';
 
 export type NotificationPreferenceCategory =
   'match_updates' | 'booking_reminders' | 'team_invites' | 'promotions';
@@ -135,6 +136,11 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationEventType, NotificationT
     category: 'team_invites',
     title: () => 'Team invite',
     body: (p: { teamName: string }) => `You've been invited to join ${p.teamName}.`,
+  },
+  TURF_UPDATE: {
+    category: 'booking_reminders',
+    title: () => 'Turf update',
+    body: (p: { message: string }) => p.message,
   },
   BOOKING_UPDATE: {
     category: 'booking_reminders',

@@ -26,6 +26,8 @@ interface PromoRow {
   valid_from: string | null;
   valid_until: string | null;
   is_active: boolean;
+  owner_id?: string | null;
+  turf_id?: string | null;
 }
 
 const USER_ID = 'aaaaaaaa-0000-4000-8000-000000000401';
@@ -36,6 +38,8 @@ const PROMO_ID = 'dddddddd-0000-4000-8000-000000000404';
 let obligations: ObligationRow[];
 let players: PlayerRow[];
 let promoCodes: PromoRow[];
+// The turf (and its owner) the obligation's booking is at.
+let bookedAt = { owner_id: 'owner-1', turf_id: 'turf-1' };
 let redemptions: { promo_code_id: string; player_id: string }[];
 const coinTransactions: Record<string, unknown>[] = [];
 
@@ -55,6 +59,9 @@ jest.mock('../config/sequelize', () => {
         if (sql.includes('SELECT coin_balance FROM players WHERE player_id')) {
           const p = players.find((x) => x.player_id === r.playerId);
           return p ? [{ coin_balance: p.coin_balance }] : [];
+        }
+        if (sql.includes('SELECT t.owner_id, t.turf_id FROM payment_obligations o')) {
+          return [bookedAt];
         }
         if (sql.includes('FROM promo_codes WHERE code')) {
           const p = promoCodes.find((x) => x.code === r.code);
@@ -135,6 +142,7 @@ describe('applyCheckoutDiscount (backlog B-1)', () => {
     ];
     redemptions = [];
     coinTransactions.length = 0;
+    bookedAt = { owner_id: 'owner-1', turf_id: 'turf-1' };
   });
 
   it('applies a percentage promo code to reduce the amount due', async () => {
@@ -143,6 +151,45 @@ describe('applyCheckoutDiscount (backlog B-1)', () => {
     expect(result.promo_discount).toBe(100);
     expect(result.new_amount_due).toBe(900);
     expect(obligations[0].amount_due).toBe(900);
+  });
+
+  describe('an owner’s own offer (OW-8)', () => {
+    beforeEach(() => {
+      promoCodes[0].owner_id = 'owner-1';
+    });
+
+    it('works at that owner’s turf', async () => {
+      const result = await applyCheckoutDiscount(OBLIGATION_ID, USER_ID, { promoCode: 'SAVE10' });
+      expect(result.new_amount_due).toBe(900);
+    });
+
+    it('is refused at another owner’s turf', async () => {
+      bookedAt = { owner_id: 'owner-2', turf_id: 'turf-9' };
+      await expect(
+        applyCheckoutDiscount(OBLIGATION_ID, USER_ID, { promoCode: 'SAVE10' }),
+      ).rejects.toThrow(/not valid for this turf/);
+      expect(obligations[0].amount_due).toBe('1000.00');
+    });
+
+    it('limited to one turf, is refused at the owner’s other turfs', async () => {
+      promoCodes[0].turf_id = 'turf-1';
+      await expect(
+        applyCheckoutDiscount(OBLIGATION_ID, USER_ID, { promoCode: 'SAVE10' }),
+      ).resolves.toBeDefined();
+      obligations[0].amount_due = '1000.00';
+      redemptions = [];
+      bookedAt = { owner_id: 'owner-1', turf_id: 'turf-2' };
+      await expect(
+        applyCheckoutDiscount(OBLIGATION_ID, USER_ID, { promoCode: 'SAVE10' }),
+      ).rejects.toThrow(/not valid for this turf/);
+    });
+
+    it('an admin code (no owner) still works everywhere', async () => {
+      promoCodes[0].owner_id = null;
+      bookedAt = { owner_id: 'owner-2', turf_id: 'turf-9' };
+      const result = await applyCheckoutDiscount(OBLIGATION_ID, USER_ID, { promoCode: 'SAVE10' });
+      expect(result.new_amount_due).toBe(900);
+    });
   });
 
   it('applies coins on top of a promo code, in the same call', async () => {
