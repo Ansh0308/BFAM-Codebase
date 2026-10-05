@@ -102,6 +102,14 @@ import {
   AdminPromoCode,
   AdminOverview,
   AdminUserRow,
+  AnalyticsResult,
+  Tournament,
+  TournamentDetail,
+  TournamentEntry,
+  TournamentInput,
+  TournamentListItem,
+  TournamentResultInput,
+  TournamentStatus,
   AdminBookingRow,
   CreateManagedUserInput,
   UpdateManagedUserInput,
@@ -1547,6 +1555,136 @@ export class BFAMApiClient {
       method: 'POST',
       body: JSON.stringify(input),
     });
+  }
+
+  async getOwnerAnalytics(filters: {
+    from: string;
+    to: string;
+    turf_id?: string;
+  }): Promise<AnalyticsResult> {
+    return this.request(`/owner/analytics${toQueryString(filters)}`);
+  }
+
+  async getAdminAnalytics(filters: {
+    from: string;
+    to: string;
+    turf_id?: string;
+  }): Promise<AnalyticsResult> {
+    return this.request(`/admin/analytics${toQueryString(filters)}`);
+  }
+
+  // ---- Tournaments ----
+
+  async getTournaments(status?: TournamentStatus): Promise<{ results: TournamentListItem[] }> {
+    return this.request(`/tournaments${toQueryString(status ? { status } : {})}`);
+  }
+
+  async getTournament(tournamentId: string): Promise<TournamentDetail> {
+    return this.request(`/tournaments/${tournamentId}`);
+  }
+
+  async createTournament(input: TournamentInput): Promise<Tournament> {
+    return this.request('/tournaments', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async updateTournament(
+    tournamentId: string,
+    input: Partial<TournamentInput>,
+  ): Promise<Tournament> {
+    return this.request(`/tournaments/${tournamentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteTournament(tournamentId: string): Promise<void> {
+    await this.request(`/tournaments/${tournamentId}`, { method: 'DELETE' });
+  }
+
+  async openTournamentRegistration(tournamentId: string): Promise<Tournament> {
+    return this.request(`/tournaments/${tournamentId}/open`, { method: 'POST' });
+  }
+
+  async cancelTournament(tournamentId: string): Promise<Tournament> {
+    return this.request(`/tournaments/${tournamentId}/cancel`, { method: 'POST' });
+  }
+
+  async startTournament(tournamentId: string): Promise<Tournament> {
+    return this.request(`/tournaments/${tournamentId}/start`, { method: 'POST' });
+  }
+
+  async startTournamentKnockout(tournamentId: string): Promise<Tournament> {
+    return this.request(`/tournaments/${tournamentId}/knockout`, { method: 'POST' });
+  }
+
+  // Organiser adds a team (approved at once).
+  async addTournamentTeam(tournamentId: string, teamId: string): Promise<TournamentEntry> {
+    return this.request(`/tournaments/${tournamentId}/teams`, {
+      method: 'POST',
+      body: JSON.stringify({ team_id: teamId }),
+    });
+  }
+
+  // A captain enters their own team; waits for approval.
+  async registerTournamentTeam(tournamentId: string, teamId: string): Promise<TournamentEntry> {
+    return this.request(`/tournaments/${tournamentId}/register`, {
+      method: 'POST',
+      body: JSON.stringify({ team_id: teamId }),
+    });
+  }
+
+  async setTournamentSeeds(tournamentId: string, order: string[]): Promise<void> {
+    await this.request(`/tournaments/${tournamentId}/seeds`, {
+      method: 'PUT',
+      body: JSON.stringify({ order }),
+    });
+  }
+
+  async reviewTournamentEntry(
+    entryId: string,
+    decision: 'APPROVED' | 'REJECTED',
+  ): Promise<TournamentEntry> {
+    return this.request(`/tournaments/entries/${entryId}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ decision }),
+    });
+  }
+
+  async setTournamentEntryPaid(
+    entryId: string,
+    paid: boolean,
+    reference?: string | null,
+  ): Promise<TournamentEntry> {
+    return this.request(`/tournaments/entries/${entryId}/payment`, {
+      method: 'POST',
+      body: JSON.stringify({ paid, reference: reference ?? null }),
+    });
+  }
+
+  async removeTournamentEntry(entryId: string): Promise<void> {
+    await this.request(`/tournaments/entries/${entryId}`, { method: 'DELETE' });
+  }
+
+  async scheduleTournamentFixture(
+    fixtureId: string,
+    scheduledAt: string | null,
+    venueNote: string | null,
+  ): Promise<void> {
+    await this.request(`/tournaments/fixtures/${fixtureId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ scheduled_at: scheduledAt, venue_note: venueNote }),
+    });
+  }
+
+  async recordTournamentResult(fixtureId: string, input: TournamentResultInput): Promise<void> {
+    await this.request(`/tournaments/fixtures/${fixtureId}/result`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async reopenTournamentFixture(fixtureId: string): Promise<void> {
+    await this.request(`/tournaments/fixtures/${fixtureId}/reopen`, { method: 'POST' });
   }
 
   // ---- Admin Web console ----

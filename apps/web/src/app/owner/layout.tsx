@@ -6,19 +6,23 @@ import { useRequireRole } from '../../lib/auth';
 import { DashboardShell } from '../../components/DashboardShell';
 import { BallLoader } from '../../components/BallLoader';
 import {
+  BarChart3,
   CalendarCheck,
   CalendarRange,
   CreditCard,
   LayoutDashboard,
   Swords,
+  Trophy,
   Tv,
   UserCog,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/owner', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/owner/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/owner/bookings', label: 'Bookings', icon: CalendarCheck },
   { href: '/owner/availability', label: 'Availability', icon: CalendarRange },
+  { href: '/owner/tournaments', label: 'Tournaments', icon: Trophy },
   { href: '/owner/matches', label: 'Match Management', icon: Swords },
   { href: '/owner/staff', label: 'Staff Management', icon: UserCog },
   { href: '/owner/payments', label: 'Payments & Cash', icon: CreditCard },

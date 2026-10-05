@@ -44,6 +44,7 @@ import {
   updateVenue,
 } from '../services/ownerService';
 import { AdminUserError } from '../services/adminUserManagement';
+import { AnalyticsError, assertOwnsTurf, getAnalytics } from '../services/analyticsService';
 import {
   assignStaff,
   createStaffForTurf,
@@ -501,6 +502,36 @@ router.post(
       }
       const handled = handleOwnerError(error, res);
       if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// GET /owner/analytics?from&to[&turf_id] — revenue, occupancy, peak hours and
+// customer figures for this owner's turfs (PRD §9.2 / §23.1).
+router.get(
+  '/analytics',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = ownerBookingRangeSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'from and to (YYYY-MM-DD) are required', status: 400 } });
+    }
+    try {
+      if (parsed.data.turf_id) await assertOwnsTurf(req.auth!.sub, parsed.data.turf_id);
+      const result = await getAnalytics(
+        { ownerId: req.auth!.sub, turfId: parsed.data.turf_id },
+        parsed.data.from,
+        parsed.data.to,
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof AnalyticsError) {
+        return res
+          .status(error.status)
+          .json({ error: { message: error.message, status: error.status } });
+      }
       throw error;
     }
   }),

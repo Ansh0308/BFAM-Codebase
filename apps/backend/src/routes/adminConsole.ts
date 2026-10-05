@@ -13,6 +13,7 @@ import {
   adminUserQuerySchema,
   explorerRowsQuerySchema,
   explorerValuesSchema,
+  ownerBookingRangeSchema,
   setPromoCodeActiveSchema,
 } from '../validation/schemas';
 import {
@@ -36,6 +37,7 @@ import {
   explorerListTables,
   explorerUpdateRow,
 } from '../services/adminManageService';
+import { AnalyticsError, getAnalytics } from '../services/analyticsService';
 import {
   getAdminOverview,
   listAuditLogs,
@@ -276,6 +278,30 @@ router.delete(
       return res.status(204).send();
     } catch (error) {
       return failWith(res, error);
+    }
+  }),
+);
+
+// ---- Analytics: the whole platform ----
+
+router.get(
+  '/analytics',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = ownerBookingRangeSchema.safeParse(req.query);
+    if (!parsed.success) return invalid(res, 'from and to (YYYY-MM-DD) are required');
+    try {
+      return res
+        .status(200)
+        .json(
+          await getAnalytics({ turfId: parsed.data.turf_id }, parsed.data.from, parsed.data.to),
+        );
+    } catch (error) {
+      if (error instanceof AnalyticsError) {
+        return res
+          .status(error.status)
+          .json({ error: { message: error.message, status: error.status } });
+      }
+      throw error;
     }
   }),
 );

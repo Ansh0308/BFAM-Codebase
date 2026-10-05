@@ -1087,3 +1087,49 @@ export const explorerRowsQuerySchema = z.object({
 export const explorerValuesSchema = z.object({
   values: z.record(z.string(), z.unknown()),
 });
+
+// ---- Tournaments ----
+const isoDateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const tournamentBaseSchema = z.object({
+  name: z.string().trim().min(3).max(150),
+  description: z.string().max(2000).nullable().optional(),
+  format: z.enum(['LEAGUE', 'KNOCKOUT', 'LEAGUE_KNOCKOUT']),
+  turf_id: z.string().uuid().nullable().optional(),
+  overs_per_innings: z.number().int().min(1).max(50),
+  entry_fee: z.number().min(0).max(1_000_000),
+  min_teams: z.number().int().min(2).max(64),
+  max_teams: z.number().int().min(2).max(64),
+  double_round: z.boolean().optional(),
+  start_date: isoDateField.nullable().optional(),
+  registration_deadline: isoDateField.nullable().optional(),
+});
+export const createTournamentSchema = tournamentBaseSchema;
+export const updateTournamentSchema = tournamentBaseSchema.partial();
+
+export const tournamentTeamSchema = z.object({ team_id: z.string().uuid() });
+export const tournamentSeedsSchema = z.object({ order: z.array(z.string().uuid()).max(64) });
+export const tournamentReviewSchema = z.object({ decision: z.enum(['APPROVED', 'REJECTED']) });
+export const tournamentPaymentSchema = z.object({
+  paid: z.boolean(),
+  reference: z.string().trim().max(100).nullable().optional(),
+});
+export const tournamentScheduleSchema = z.object({
+  scheduled_at: z.string().datetime().nullable().optional(),
+  venue_note: z.string().max(150).nullable().optional(),
+});
+export const tournamentResultSchema = z.object({
+  result_type: z.enum(['WIN', 'TIE', 'NO_RESULT']),
+  winner_entry_id: z.string().uuid().nullable().optional(),
+  team_a_runs: z.number().int().min(0).max(999).nullable().optional(),
+  team_a_wickets: z.number().int().min(0).max(20).nullable().optional(),
+  team_a_overs: z.number().min(0).max(50).nullable().optional(),
+  team_b_runs: z.number().int().min(0).max(999).nullable().optional(),
+  team_b_wickets: z.number().int().min(0).max(20).nullable().optional(),
+  team_b_overs: z.number().min(0).max(50).nullable().optional(),
+});
+export const tournamentListQuerySchema = z.object({
+  status: z
+    .enum(['DRAFT', 'REGISTRATION_OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'])
+    .optional(),
+});

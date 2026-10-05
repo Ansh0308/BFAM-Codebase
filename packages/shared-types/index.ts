@@ -1601,3 +1601,162 @@ export interface ExplorerRows {
   rows: Record<string, unknown>[];
   total: number;
 }
+
+// ---- Analytics (owner + admin dashboards) ----
+
+export interface AnalyticsSummary {
+  bookings: number;
+  cancelled: number;
+  cancellation_rate: number;
+  revenue: number;
+  collected: number;
+  outstanding: number;
+  avg_booking_value: number;
+  unique_customers: number;
+  new_customers: number;
+  occupancy_pct: number;
+  no_shows: number;
+}
+
+export interface AnalyticsResult {
+  range: { from: string; to: string; days: number };
+  previous_range: { from: string; to: string };
+  summary: AnalyticsSummary;
+  previous: AnalyticsSummary;
+  daily: { date: string; bookings: number; revenue: number }[];
+  peak_hours: { hour: number; bookings: number }[];
+  by_weekday: { dow: number; bookings: number; revenue: number }[];
+  by_turf: {
+    turf_id: string;
+    turf_name: string;
+    bookings: number;
+    revenue: number;
+    occupancy_pct: number;
+  }[];
+  growth?: { date: string; new_players: number }[];
+  payment_modes: { mode: string; bookings: number }[];
+}
+
+// ---- Tournaments ----
+
+export type TournamentFormat = 'LEAGUE' | 'KNOCKOUT' | 'LEAGUE_KNOCKOUT';
+export type TournamentStatus =
+  'DRAFT' | 'REGISTRATION_OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+export interface Tournament {
+  tournament_id: string;
+  name: string;
+  description: string | null;
+  format: TournamentFormat;
+  organiser_id: string;
+  turf_id: string | null;
+  turf_name?: string | null;
+  overs_per_innings: number;
+  entry_fee: number | string;
+  min_teams: number;
+  max_teams: number;
+  double_round: boolean | number;
+  start_date: string | null;
+  registration_deadline: string | null;
+  status: TournamentStatus;
+  champion_entry_id: string | null;
+  champion_name?: string | null;
+  created_at: string;
+}
+
+export interface TournamentListItem extends Tournament {
+  teams: number | string;
+}
+
+export interface TournamentInput {
+  name: string;
+  description?: string | null;
+  format: TournamentFormat;
+  turf_id?: string | null;
+  overs_per_innings: number;
+  entry_fee: number;
+  min_teams: number;
+  max_teams: number;
+  double_round?: boolean;
+  start_date?: string | null;
+  registration_deadline?: string | null;
+}
+
+export interface TournamentEntry {
+  entry_id: string;
+  tournament_id: string;
+  team_id: string;
+  team_name: string;
+  team_logo_url: string | null;
+  registered_by: string | null;
+  registered_by_phone: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
+  payment_status: 'NOT_REQUIRED' | 'UNPAID' | 'PAID';
+  payment_reference: string | null;
+  paid_at: string | null;
+  seed: number | null;
+  registered_at: string;
+}
+
+export interface TournamentFixture {
+  fixture_id: string;
+  tournament_id: string;
+  stage: 'LEAGUE' | 'KNOCKOUT';
+  stage_label: string;
+  round_number: number;
+  match_number: number;
+  team_a_entry_id: string | null;
+  team_b_entry_id: string | null;
+  team_a_name: string | null;
+  team_b_name: string | null;
+  scheduled_at: string | null;
+  venue_note: string | null;
+  status: 'SCHEDULED' | 'COMPLETED';
+  result_type: 'WIN' | 'TIE' | 'NO_RESULT' | null;
+  winner_entry_id: string | null;
+  winner_name: string | null;
+  team_a_runs: number | null;
+  team_a_wickets: number | null;
+  team_a_overs: number | null;
+  team_b_runs: number | null;
+  team_b_wickets: number | null;
+  team_b_overs: number | null;
+  next_match_number: number | null;
+}
+
+export interface TournamentTableRow {
+  team_id: string; // the entry id
+  name: string;
+  rank: number;
+  played: number;
+  won: number;
+  lost: number;
+  tied: number;
+  no_result: number;
+  points: number;
+  runs_for: number;
+  overs_for: number;
+  runs_against: number;
+  overs_against: number;
+  nrr: number;
+}
+
+export interface TournamentDetail {
+  tournament: Tournament;
+  can_manage: boolean;
+  can_start_knockout: boolean;
+  entries: TournamentEntry[];
+  fixtures: TournamentFixture[];
+  table: TournamentTableRow[];
+}
+
+export interface TournamentResultInput {
+  result_type: 'WIN' | 'TIE' | 'NO_RESULT';
+  winner_entry_id?: string | null;
+  team_a_runs?: number | null;
+  team_a_wickets?: number | null;
+  team_a_overs?: number | null;
+  team_b_runs?: number | null;
+  team_b_wickets?: number | null;
+  team_b_overs?: number | null;
+}

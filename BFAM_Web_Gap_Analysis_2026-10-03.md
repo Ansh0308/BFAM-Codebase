@@ -64,28 +64,28 @@
 | AW-6  | ✅ **DONE (Phase 3)** — **Audit log viewer**                                                                                   | Audit-log backlog (G-24)                                  | Partial       | `audit_logs` table and service exist; needs a list endpoint + UI.                                                                |
 | AW-7  | **Payment & refund oversight** across UPI, gateway and cash                                                                    | §9.1                                                      | Needs backend | Nothing admin-side; owner payments list is owner-scoped only.                                                                    |
 | AW-8  | **Rewards / ratings / membership configuration**                                                                               | §9.1                                                      | Needs backend | Mobile has Rewards and Membership; nothing configures them.                                                                      |
-| AW-9  | **Tournament management** — create, registrations, fixtures, results, points table                                             | §9.1, §30.10 Should-have                                  | Needs backend | No tournament entity exists. Largest item in this document.                                                                      |
-| AW-10 | **Fuller analytics** — cancellation / no-show breakdown, peak hours, customer growth, trends, charts                           | §23.1, §23.2, §30.10                                      | Needs backend | Today's report is 9 totals with no time dimension.                                                                               |
+| AW-9  | ✅ **DONE (Phase 6)** — **Tournament management** — create, registrations, fixtures, results, points table                     | §9.1, §30.10 Should-have                                  | Needs backend | No tournament entity exists. Largest item in this document.                                                                      |
+| AW-10 | ✅ **DONE (Phase 5)** — **Fuller analytics** — cancellation / no-show breakdown, peak hours, customer growth, trends, charts   | §23.1, §23.2, §30.10                                      | Needs backend | Today's report is 9 totals with no time dimension.                                                                               |
 | AW-11 | **Turf approval + pricing edit + performance**                                                                                 | §30.10 ("approve, manage, suspend; pricing; performance") | Partial       | Suspend / reactivate exist. Approve flow, pricing editor and per-turf performance do not.                                        |
 | AW-12 | **Platform settings**                                                                                                          | §9.1                                                      | Needs backend |                                                                                                                                  |
 | AW-13 | **Home content beyond banners** (sliders / offers)                                                                             | Backlog E-7                                               | Partial       | Banners CMS only.                                                                                                                |
 
 ### 2.2 Turf Owner Web (PRD §9.2, §22.1, §30.9)
 
-| ID    | Item                                                                                                            | PRD ref            | Backend       | Notes                                                                                                      |
-| ----- | --------------------------------------------------------------------------------------------------------------- | ------------------ | ------------- | ---------------------------------------------------------------------------------------------------------- |
-| OW-1  | **Revenue & booking dashboard** — revenue, bookings, occupancy, peak hours, cancellation, customer growth       | §9.2, §23.1, §30.9 | Needs backend | Dashboard today is a venue / turf list. No owner analytics endpoint.                                       |
-| OW-2  | ✅ **DONE (Phase 2)** — **Cash payment reconciliation** alongside digital payments                              | §9.2               | Ready         | `POST /payments/cash` exists; the Payments page is a read-only list.                                       |
-| OW-3  | ✅ **DONE (Phase 2)** — **Booking actions & detail** — view customer + payment status, cancel, upcoming vs past | §30.9              | Partial       | Cancel exists on the player side; owner-facing detail / cancel needs checking. Today's Bookings is a list. |
-| OW-4  | ✅ **DONE (Phase 2)** — **Availability calendar view** (slots, blocks, maintenance, holiday schedule)           | §30.9              | Ready         | Block create / list / remove are in the turf editor; no calendar view.                                     |
-| OW-5  | **Customer management**                                                                                         | §9.2               | Needs backend | No customer endpoint.                                                                                      |
-| OW-6  | **Occupancy & analytics dashboards**                                                                            | §9.2               | Needs backend | Same dependency as OW-1.                                                                                   |
-| OW-7  | **Tournament management for their turf**                                                                        | §9.2               | Needs backend | Depends on AW-9.                                                                                           |
-| OW-8  | **Offers**                                                                                                      | §22.1              | Partial       | Generic promo codes exist; no owner-scoped offers.                                                         |
-| OW-9  | **Maintenance tracker** (tasks with status, not just a block reason)                                            | §22.1              | Needs backend | Maintenance is only a reason on an availability block.                                                     |
-| OW-10 | **Staff permissions + staff activity**                                                                          | §22.2, §30.9       | Needs backend | UI can assign / remove staff and review verification; no permissions or activity log.                      |
-| OW-11 | ✅ **DONE (Phase 4)** — **Web live-scoring console**                                                            | §9.2 / §9.3        | Ready         | Scoring endpoints exist (used by mobile). Only the display page exists on web.                             |
-| OW-12 | ✅ **DONE (Phase 2)** — **Match Management actions** (players, teams, status, scoring)                          | §30.9              | Partial       | Page is a list.                                                                                            |
+| ID    | Item                                                                                                                              | PRD ref            | Backend       | Notes                                                                                                      |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------------- | ---------------------------------------------------------------------------------------------------------- |
+| OW-1  | ✅ **DONE (Phase 5)** — **Revenue & booking dashboard** — revenue, bookings, occupancy, peak hours, cancellation, customer growth | §9.2, §23.1, §30.9 | Needs backend | Dashboard today is a venue / turf list. No owner analytics endpoint.                                       |
+| OW-2  | ✅ **DONE (Phase 2)** — **Cash payment reconciliation** alongside digital payments                                                | §9.2               | Ready         | `POST /payments/cash` exists; the Payments page is a read-only list.                                       |
+| OW-3  | ✅ **DONE (Phase 2)** — **Booking actions & detail** — view customer + payment status, cancel, upcoming vs past                   | §30.9              | Partial       | Cancel exists on the player side; owner-facing detail / cancel needs checking. Today's Bookings is a list. |
+| OW-4  | ✅ **DONE (Phase 2)** — **Availability calendar view** (slots, blocks, maintenance, holiday schedule)                             | §30.9              | Ready         | Block create / list / remove are in the turf editor; no calendar view.                                     |
+| OW-5  | **Customer management**                                                                                                           | §9.2               | Needs backend | No customer endpoint.                                                                                      |
+| OW-6  | ✅ **DONE (Phase 5)** — **Occupancy & analytics dashboards**                                                                      | §9.2               | Needs backend | Same dependency as OW-1.                                                                                   |
+| OW-7  | ✅ **DONE (Phase 6)** — **Tournament management for their turf**                                                                  | §9.2               | Needs backend | Depends on AW-9.                                                                                           |
+| OW-8  | **Offers**                                                                                                                        | §22.1              | Partial       | Generic promo codes exist; no owner-scoped offers.                                                         |
+| OW-9  | **Maintenance tracker** (tasks with status, not just a block reason)                                                              | §22.1              | Needs backend | Maintenance is only a reason on an availability block.                                                     |
+| OW-10 | **Staff permissions + staff activity**                                                                                            | §22.2, §30.9       | Needs backend | UI can assign / remove staff and review verification; no permissions or activity log.                      |
+| OW-11 | ✅ **DONE (Phase 4)** — **Web live-scoring console**                                                                              | §9.2 / §9.3        | Ready         | Scoring endpoints exist (used by mobile). Only the display page exists on web.                             |
+| OW-12 | ✅ **DONE (Phase 2)** — **Match Management actions** (players, teams, status, scoring)                                            | §30.9              | Partial       | Page is a list.                                                                                            |
 
 ### 2.3 Turf Staff Web (PRD §9.3, §22.2–22.3)
 
@@ -210,3 +210,38 @@ AW-1 is only partly done as an item: the overview has no tournament figures (tou
 - **Permissions (backend):** for `TURF_STAFF_MANAGED` matches the turf's owner and its approved, active staff may now run the toss / setup and record balls, not only a pre-assigned scorer (`turfOperatorAccess.ts`). Player-managed matches are unchanged. Admins can use it through **Manage as**.
 
 **Known limits:** every player must already have a side (Match Setup); the legacy "assign sides while scoring" fallback is not on web. The fielder on a catch and the Player-of-the-Match override are not captured (the result is auto-computed).
+
+---
+
+## 9. Update — Phase 5: analytics
+
+**Done (not yet committed):**
+
+- **Owner → Analytics** and **Admin → Analytics** (one shared dashboard). Date range 7D / 30D / 90D / 12M; owners can filter by turf.
+- **Figures** (each with change versus the previous equal-length period): revenue, bookings, occupancy, average booking value, collected, cancellation rate, customers, new customers, no-shows.
+- **Charts:** revenue / bookings over time, peak start hours, busiest weekdays, top turfs by revenue (with occupancy), payment modes, and (admin) new players per day. Built in-house in SVG, so there is no new dependency.
+- **Backend:** `GET /owner/analytics` (scoped to the owner's turfs) and `GET /admin/analytics`, from `analyticsService.ts`. The SQL was run against the local database.
+
+**Definitions (also shown on the page):** revenue = booking value of non-cancelled bookings; collected = paid obligations on those bookings; occupancy = booked time ÷ opening hours (blocks and maintenance are not subtracted); peak hours = bookings by the hour they start.
+
+**Not included:** CSV / PDF export, custom date pickers, per-customer reports (OW-5), and tournament figures.
+
+---
+
+## 10. Update — Phase 6: tournaments
+
+**Done (not yet committed):**
+
+- **Admin → Tournaments** (platform-wide) and **Owner → Tournaments** (hosted at the owner's own turfs). An owner can manage only the tournaments they organise; an admin can manage all.
+- **Formats:** league (round robin, optionally home and away), knockout (seeded bracket with byes), or league followed by a knockout (top 4 go through, or top 2 for a small field).
+- **Lifecycle:** draft, open registration, start (fixtures generated and entries closed), enter results, start knockout, champion. Cancel is available until it finishes; delete only for a draft or cancelled one.
+- **Teams:** captains apply (`POST /tournaments/:id/register`, needs the captain of the team) and the organiser approves or rejects. The organiser can also search for and add a team directly, set the seeding, and remove a team.
+- **Entry fee:** set per tournament; each team shows Paid / Unpaid and the organiser records payment with a reference.
+- **Results:** per match, win / tie / no result, runs, wickets and overs for both teams. They feed the **points table** (win 2, tie or no result 1; ties split by wins, then net run rate) and the **bracket**. A result can be reopened until the next stage has been played.
+- **Backend:** migration `20261005000000-tournaments`, pure maths in `domain/tournamentEngine.ts`, `tournamentService.ts`, `routes/tournaments.ts`. Run `npm run db:migrate --workspace=apps/backend` (or just restart the backend) to create the tables.
+
+**Known limits:**
+
+- **No online payment yet.** Fees are recorded by the organiser (cash / UPI / transfer). Taking them through the payment gateway is a follow-up.
+- **Captain registration needs the mobile app.** The endpoint exists, but there is no screen for captains yet (mobile is paused), so for now organisers add teams themselves.
+- Results are typed in by the organiser; fixtures are not yet linked to the live-scoring engine, and captains are not notified.
