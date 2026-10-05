@@ -29,6 +29,8 @@ export default function AdminTurfsPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<AdminTurf | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [rejecting, setRejecting] = useState<AdminTurf | null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
   const router = useRouter();
   const { startActingAs } = useAuth();
   const toast = useToast();
@@ -53,6 +55,42 @@ export default function AdminTurfsPage() {
       setUpdatingId(null);
     }
   }
+
+  // Turf approval (AW-11): a turf an owner creates stays hidden from players
+  // until it is approved here; a rejection carries a reason the owner can read.
+  async function approve(turf: AdminTurf) {
+    setUpdatingId(turf.turf_id);
+    try {
+      await apiClient.approveTurfAdmin(turf.turf_id);
+      toast.success(`${turf.turf_name} is now live`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof BFAMApiError ? err.message : 'Could not approve that turf.');
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function reject(reason: string) {
+    if (!rejecting) return;
+    if (reason.length < 3) {
+      toast.error('Give the owner a reason (at least 3 characters).');
+      return;
+    }
+    setReviewBusy(true);
+    try {
+      await apiClient.rejectTurfAdmin(rejecting.turf_id, reason);
+      toast.success(`${rejecting.turf_name} was rejected`);
+      setRejecting(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof BFAMApiError ? err.message : 'Could not reject that turf.');
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+
+  const pending = turfs.filter((t) => t.turf_status === 'PENDING_APPROVAL');
 
   // Opens the owner's own portal as that owner — the full turf editor
   // (pricing, hours, availability, venues, staff) without a second copy of it.
@@ -97,6 +135,17 @@ export default function AdminTurfsPage() {
     <div data-testid="admin-turfs-page">
       <PageHeader title={`Turfs (${turfs.length})`} />
 
+      {pending.length > 0 && (
+        <p
+          role="status"
+          data-testid="pending-banner"
+          className="mb-4 rounded-md bg-status-warning-bg px-4 py-3 font-ui text-body text-status-warning"
+        >
+          {pending.length} {pending.length === 1 ? 'turf is' : 'turfs are'} waiting for your
+          approval.
+        </p>
+      )}
+
       <div className="max-w-sm mb-4">
         <TextInput
           label="Search"
@@ -127,7 +176,16 @@ export default function AdminTurfsPage() {
               label: 'Owner',
               render: (r) => r.owner_name ?? r.owner_phone,
             },
-            { key: 'turf_status', label: 'Status' },
+            {
+              key: 'turf_status',
+              label: 'Status',
+              render: (r) =>
+                r.turf_status === 'PENDING_APPROVAL'
+                  ? 'AWAITING APPROVAL'
+                  : r.turf_status === 'REJECTED'
+                    ? `REJECTED${r.rejection_reason ? ` — ${r.rejection_reason}` : ''}`
+                    : r.turf_status,
+            },
             {
               key: 'turf_id',
               label: 'Actions',
@@ -136,22 +194,39 @@ export default function AdminTurfsPage() {
                   <SecondaryButton onClick={() => manageAsOwner(r)}>
                     Manage as owner
                   </SecondaryButton>
-                  {r.turf_status !== 'SUSPENDED' && (
-                    <SecondaryButton
-                      onClick={() => setStatus(r, 'SUSPENDED')}
-                      disabled={updatingId === r.turf_id}
-                    >
-                      Suspend
-                    </SecondaryButton>
+                  {(r.turf_status === 'PENDING_APPROVAL' || r.turf_status === 'REJECTED') && (
+                    <>
+                      <SecondaryButton
+                        onClick={() => approve(r)}
+                        disabled={updatingId === r.turf_id}
+                      >
+                        Approve
+                      </SecondaryButton>
+                      {r.turf_status === 'PENDING_APPROVAL' && (
+                        <SecondaryButton onClick={() => setRejecting(r)}>Reject</SecondaryButton>
+                      )}
+                    </>
                   )}
-                  {r.turf_status !== 'ACTIVE' && (
-                    <SecondaryButton
-                      onClick={() => setStatus(r, 'ACTIVE')}
-                      disabled={updatingId === r.turf_id}
-                    >
-                      Reactivate
-                    </SecondaryButton>
-                  )}
+                  {r.turf_status !== 'SUSPENDED' &&
+                    r.turf_status !== 'PENDING_APPROVAL' &&
+                    r.turf_status !== 'REJECTED' && (
+                      <SecondaryButton
+                        onClick={() => setStatus(r, 'SUSPENDED')}
+                        disabled={updatingId === r.turf_id}
+                      >
+                        Suspend
+                      </SecondaryButton>
+                    )}
+                  {r.turf_status !== 'ACTIVE' &&
+                    r.turf_status !== 'PENDING_APPROVAL' &&
+                    r.turf_status !== 'REJECTED' && (
+                      <SecondaryButton
+                        onClick={() => setStatus(r, 'ACTIVE')}
+                        disabled={updatingId === r.turf_id}
+                      >
+                        Reactivate
+                      </SecondaryButton>
+                    )}
                   <SecondaryButton onClick={() => setDeleting(r)}>Delete</SecondaryButton>
                 </div>
               ),
@@ -159,6 +234,22 @@ export default function AdminTurfsPage() {
           ]}
         />
       )}
+
+      <ConfirmDialog
+        open={rejecting !== null}
+        title="Reject this turf?"
+        message={
+          rejecting
+            ? `${rejecting.turf_name} stays hidden from players. The owner sees your reason and can fix it.`
+            : ''
+        }
+        confirmLabel="Reject turf"
+        reasonLabel="Reason for the owner"
+        busy={reviewBusy}
+        onConfirm={reject}
+        onCancel={() => setRejecting(null)}
+        testID="reject-dialog"
+      />
 
       <ConfirmDialog
         open={deleting !== null}

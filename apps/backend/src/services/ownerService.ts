@@ -78,6 +78,7 @@ function buildTurfRow(params: {
   latitude: number;
   longitude: number;
   now: Date;
+  status?: 'ACTIVE' | 'PENDING_APPROVAL';
 }) {
   return {
     turf_id: randomUUID(),
@@ -91,7 +92,7 @@ function buildTurfRow(params: {
     longitude: params.longitude,
     ball_types_supported: JSON.stringify([]),
     stadium_sound_enabled: true,
-    turf_status: 'ACTIVE',
+    turf_status: params.status ?? 'PENDING_APPROVAL',
     average_rating: null,
     created_at: params.now,
     updated_at: params.now,
@@ -116,7 +117,18 @@ export interface CreateVenueInput {
   pitch_count?: number;
 }
 
-export async function createVenue(ownerUserId: string, input: CreateVenueInput) {
+// New turfs wait for an admin's approval before players can see them. An admin
+// working on an owner's behalf ("Manage as") is that approval, so
+// `autoApprove` publishes straight away.
+export interface CreateOptions {
+  autoApprove?: boolean;
+}
+
+export async function createVenue(
+  ownerUserId: string,
+  input: CreateVenueInput,
+  options: CreateOptions = {},
+) {
   const venueId = randomUUID();
   const now = new Date();
   await sequelize.getQueryInterface().bulkInsert('venues', [
@@ -145,6 +157,7 @@ export async function createVenue(ownerUserId: string, input: CreateVenueInput) 
         latitude: input.latitude,
         longitude: input.longitude,
         now,
+        status: options.autoApprove ? 'ACTIVE' : 'PENDING_APPROVAL',
       }),
     );
     await sequelize.getQueryInterface().bulkInsert('turfs', pitchRows);
@@ -262,7 +275,11 @@ export interface CreateTurfInput {
 
 // Turf Management (module 2.12, PRD §8.3/§9.2) — the module 2.3 turfService
 // only ever read turfs (discovery); this is the first owner-authoring path.
-export async function createTurf(ownerUserId: string, input: CreateTurfInput) {
+export async function createTurf(
+  ownerUserId: string,
+  input: CreateTurfInput,
+  options: CreateOptions = {},
+) {
   let addressLine = input.address_line;
   let city = input.city;
   let latitude = input.latitude;
@@ -305,7 +322,7 @@ export async function createTurf(ownerUserId: string, input: CreateTurfInput) {
       longitude: longitude,
       ball_types_supported: JSON.stringify(input.ball_types_supported ?? []),
       stadium_sound_enabled: true,
-      turf_status: 'ACTIVE',
+      turf_status: options.autoApprove ? 'ACTIVE' : 'PENDING_APPROVAL',
       average_rating: null,
       created_at: now,
       updated_at: now,

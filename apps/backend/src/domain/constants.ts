@@ -13,7 +13,15 @@ export const TEAM_MEMBER_ROLES = ['CAPTAIN', 'MEMBER'] as const;
 export const MEMBERSHIP_STATUSES = ['ACTIVE', 'LEFT', 'REMOVED'] as const;
 export const INVITATION_STATUSES = ['PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED'] as const;
 
-export const TURF_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as const;
+export const TURF_STATUSES = [
+  'ACTIVE',
+  'INACTIVE',
+  'SUSPENDED',
+  'PENDING_APPROVAL',
+  'REJECTED',
+] as const;
+// What an admin can switch an approved turf between (approval has its own actions).
+export const MODERATION_TURF_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as const;
 export const DAY_TYPES = ['WEEKDAY', 'WEEKEND', 'HOLIDAY'] as const;
 export const ASSIGNMENT_STATUSES = ['ACTIVE', 'INACTIVE'] as const;
 export const BLOCK_REASONS = ['MAINTENANCE', 'HOLIDAY', 'OWNER_BLOCK', 'SYSTEM_BLOCK'] as const;

@@ -1070,6 +1070,8 @@ export interface StaffAssignment {
   created_at: string;
   phone_number?: string;
   turf_name?: string;
+  /** Owner-set desk permissions (all allowed unless switched off). */
+  permissions?: Partial<StaffPermissions>;
 }
 
 export interface OwnerBooking extends Booking {
@@ -1233,7 +1235,8 @@ export interface AdminTurf {
   turf_id: string;
   turf_name: string;
   city: string;
-  turf_status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  turf_status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING_APPROVAL' | 'REJECTED';
+  rejection_reason?: string | null;
   average_rating: string | null;
   owner_id: string;
   owner_name: string | null;
@@ -1759,4 +1762,82 @@ export interface TournamentResultInput {
   team_b_runs?: number | null;
   team_b_wickets?: number | null;
   team_b_overs?: number | null;
+}
+
+// ---- Phase 7: customers, maintenance, staff permissions, turf approval ----
+
+export type CustomerSegment = 'NEW' | 'REGULAR' | 'LAPSED' | 'OCCASIONAL';
+
+export interface OwnerCustomer {
+  user_id: string;
+  name: string | null;
+  phone_number: string;
+  visits: number;
+  cancelled: number;
+  no_shows: number;
+  total_spend: number;
+  first_booking: string | null;
+  last_booking: string | null;
+  segment: CustomerSegment;
+}
+
+export interface OwnerCustomerDetail {
+  customer: OwnerCustomer;
+  bookings: {
+    booking_id: string;
+    turf_name: string;
+    booking_date: string;
+    start_time: string;
+    end_time: string;
+    booking_amount: number;
+    booking_status: string;
+    payment_mode: string;
+  }[];
+}
+
+export type MaintenanceStatus = 'OPEN' | 'IN_PROGRESS' | 'DONE';
+export type MaintenanceCategory =
+  'PITCH' | 'NETS' | 'LIGHTING' | 'FACILITIES' | 'EQUIPMENT' | 'OTHER';
+export type MaintenancePriority = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface MaintenanceTask {
+  task_id: string;
+  turf_id: string;
+  turf_name: string;
+  title: string;
+  description: string | null;
+  category: MaintenanceCategory;
+  priority: MaintenancePriority;
+  status: MaintenanceStatus;
+  due_date: string | null;
+  cost: number | null;
+  assigned_to: string | null;
+  completed_at: string | null;
+  created_at: string;
+  overdue: boolean;
+}
+
+export interface MaintenanceTaskInput {
+  turf_id: string;
+  title: string;
+  description?: string | null;
+  category?: MaintenanceCategory;
+  priority?: MaintenancePriority;
+  due_date?: string | null;
+  cost?: number | null;
+  assigned_to?: string | null;
+}
+
+export interface StaffPermissions {
+  check_in: boolean;
+  collect_cash: boolean;
+  score_matches: boolean;
+}
+
+export interface StaffActivityEntry {
+  log_id: string;
+  action: 'STAFF_CHECK_IN' | 'STAFF_CASH_COLLECTED' | string;
+  resource_id: string;
+  details: Record<string, unknown> | null;
+  created_at: string;
 }

@@ -13,7 +13,7 @@ import {
 } from '../domain/errors';
 import { createRazorpayOrder, refundGatewayPayment } from './razorpayService';
 import { sendNotification } from './notificationService';
-import { assertStaffVerified } from './staffService';
+import { assertStaffVerified, getTurfIdForObligations, recordStaffActivity } from './staffService';
 import { writeAuditLog } from './auditLogService';
 
 interface BookingRow {
@@ -214,7 +214,7 @@ export async function recordCashPayment(
     { type: QueryTypes.SELECT, replacements: { collectedBy } },
   );
   if (collector?.role === 'TURF_STAFF') {
-    await assertStaffVerified(collectedBy);
+    await assertStaffVerified(collectedBy, 'collect_cash');
   }
 
   const obligations = await fetchObligations(obligationIds);
@@ -243,6 +243,16 @@ export async function recordCashPayment(
   ]);
 
   await allocatePaymentToObligations(paymentId, obligations);
+
+  if (collector?.role === 'TURF_STAFF') {
+    await recordStaffActivity(
+      collectedBy,
+      'STAFF_CASH_COLLECTED',
+      paymentId,
+      await getTurfIdForObligations(obligationIds),
+      { amount, reference: cashReference ?? null },
+    );
+  }
 
   return await fetchPayment(paymentId);
 }

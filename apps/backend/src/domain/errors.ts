@@ -288,9 +288,18 @@ export class StaffAssignmentNotFoundError extends Error {
 // PRD §32.14: blocks Check-In and Payments actions until an owner approves
 // the staff member's submitted document.
 export class StaffNotVerifiedError extends Error {
-  constructor() {
-    super('Your staff account is still pending verification by the turf owner.');
+  constructor(message = 'Your staff account is still pending verification by the turf owner.') {
+    super(message);
     this.name = 'StaffNotVerifiedError';
+  }
+}
+
+// The owner has switched this action off for the staff member. Extends the
+// verification error so every existing handler already maps it to 403.
+export class StaffPermissionDeniedError extends StaffNotVerifiedError {
+  constructor(label: string) {
+    super(`Your turf owner has not allowed you to ${label}.`);
+    this.name = 'StaffPermissionDeniedError';
   }
 }
 

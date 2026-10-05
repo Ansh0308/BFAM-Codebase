@@ -4,6 +4,11 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import {
   assignStaffSchema,
   createStaffAccountSchema,
+  staffPermissionsSchema,
+  customerQuerySchema,
+  createMaintenanceTaskSchema,
+  updateMaintenanceTaskSchema,
+  maintenanceQuerySchema,
   assignTurfToVenueSchema,
   ownerBookingRangeSchema,
   copyTurfDetailsSchema,
@@ -45,9 +50,19 @@ import {
 } from '../services/ownerService';
 import { AdminUserError } from '../services/adminUserManagement';
 import { AnalyticsError, assertOwnsTurf, getAnalytics } from '../services/analyticsService';
+import { CustomerError, getCustomer, listCustomers } from '../services/customerService';
+import {
+  MaintenanceError,
+  createTask,
+  deleteTask,
+  listTasks,
+  updateTask,
+} from '../services/maintenanceService';
 import {
   assignStaff,
   createStaffForTurf,
+  getStaffActivity,
+  updateStaffPermissions,
   listStaffForTurf,
   removeStaff,
   reviewVerification,
@@ -109,7 +124,9 @@ router.post(
     if (!parsed.success) {
       return res.status(400).json({ error: { message: 'Invalid venue payload', status: 400 } });
     }
-    const venue = await createVenue(req.auth!.sub, parsed.data);
+    const venue = await createVenue(req.auth!.sub, parsed.data, {
+      autoApprove: Boolean(req.actingAdminId),
+    });
     return res.status(201).json(venue);
   }),
 );
@@ -174,7 +191,9 @@ router.post(
     if (!parsed.success) {
       return res.status(400).json({ error: { message: 'Invalid turf payload', status: 400 } });
     }
-    const turf = await createTurf(req.auth!.sub, parsed.data);
+    const turf = await createTurf(req.auth!.sub, parsed.data, {
+      autoApprove: Boolean(req.actingAdminId),
+    });
     return res.status(201).json(turf);
   }),
 );
@@ -532,6 +551,148 @@ router.get(
           .status(error.status)
           .json({ error: { message: error.message, status: error.status } });
       }
+      throw error;
+    }
+  }),
+);
+
+// ---- Customers (OW-5) ----
+
+function customerFailure(res: Response, error: unknown) {
+  if (error instanceof CustomerError || error instanceof MaintenanceError) {
+    return res
+      .status(error.status)
+      .json({ error: { message: error.message, status: error.status } });
+  }
+  throw error;
+}
+
+router.get(
+  '/customers',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = customerQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid customer filter', status: 400 } });
+    }
+    const results = await listCustomers(req.auth!.sub, {
+      turfId: parsed.data.turf_id,
+      search: parsed.data.search,
+      segment: parsed.data.segment,
+    });
+    return res.status(200).json({ results });
+  }),
+);
+
+router.get(
+  '/customers/:userId',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      return res.status(200).json(await getCustomer(req.auth!.sub, req.params.userId));
+    } catch (error) {
+      return customerFailure(res, error);
+    }
+  }),
+);
+
+// ---- Maintenance tracker (OW-9) ----
+
+router.get(
+  '/maintenance',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = maintenanceQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid filter', status: 400 } });
+    }
+    const results = await listTasks(req.auth!.sub, {
+      turfId: parsed.data.turf_id,
+      status: parsed.data.status,
+    });
+    return res.status(200).json({ results });
+  }),
+);
+
+router.post(
+  '/maintenance',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = createMaintenanceTaskSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'A turf and a task title are required.', status: 400 } });
+    }
+    try {
+      return res.status(201).json(await createTask(req.auth!.sub, parsed.data));
+    } catch (error) {
+      return customerFailure(res, error);
+    }
+  }),
+);
+
+router.patch(
+  '/maintenance/:taskId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = updateMaintenanceTaskSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { message: 'Invalid task details', status: 400 } });
+    }
+    try {
+      return res.status(200).json(await updateTask(req.auth!.sub, req.params.taskId, parsed.data));
+    } catch (error) {
+      return customerFailure(res, error);
+    }
+  }),
+);
+
+router.delete(
+  '/maintenance/:taskId',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      await deleteTask(req.auth!.sub, req.params.taskId);
+      return res.status(204).send();
+    } catch (error) {
+      return customerFailure(res, error);
+    }
+  }),
+);
+
+// PATCH /owner/staff/:assignmentId/permissions — switch desk actions on or off
+// for one staff member (check-in, cash, scoring). Anything omitted is unchanged.
+router.patch(
+  '/staff/:assignmentId/permissions',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = staffPermissionsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: { message: 'Invalid permissions payload', status: 400 } });
+    }
+    try {
+      const assignment = await updateStaffPermissions(
+        req.params.assignmentId,
+        req.auth!.sub,
+        parsed.data,
+      );
+      return res.status(200).json(assignment);
+    } catch (error) {
+      const handled = handleOwnerError(error, res);
+      if (handled) return handled;
+      throw error;
+    }
+  }),
+);
+
+// GET /owner/staff/:assignmentId/activity — recent check-ins and cash
+// collected by this staff member at this turf.
+router.get(
+  '/staff/:assignmentId/activity',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      return res
+        .status(200)
+        .json({ results: await getStaffActivity(req.params.assignmentId, req.auth!.sub) });
+    } catch (error) {
+      const handled = handleOwnerError(error, res);
+      if (handled) return handled;
       throw error;
     }
   }),

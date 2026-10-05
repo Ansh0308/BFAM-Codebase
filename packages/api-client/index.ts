@@ -103,6 +103,14 @@ import {
   AdminOverview,
   AdminUserRow,
   AnalyticsResult,
+  CustomerSegment,
+  OwnerCustomer,
+  OwnerCustomerDetail,
+  MaintenanceStatus,
+  MaintenanceTask,
+  MaintenanceTaskInput,
+  StaffPermissions,
+  StaffActivityEntry,
   Tournament,
   TournamentDetail,
   TournamentEntry,
@@ -1685,6 +1693,67 @@ export class BFAMApiClient {
 
   async reopenTournamentFixture(fixtureId: string): Promise<void> {
     await this.request(`/tournaments/fixtures/${fixtureId}/reopen`, { method: 'POST' });
+  }
+
+  // ---- Phase 7: customers, maintenance, staff permissions, turf approval ----
+
+  async getOwnerCustomers(
+    filters: { turf_id?: string; search?: string; segment?: CustomerSegment } = {},
+  ): Promise<{ results: OwnerCustomer[] }> {
+    return this.request(`/owner/customers${toQueryString(filters)}`);
+  }
+
+  async getOwnerCustomer(userId: string): Promise<OwnerCustomerDetail> {
+    return this.request(`/owner/customers/${userId}`);
+  }
+
+  async getMaintenanceTasks(
+    filters: { turf_id?: string; status?: MaintenanceStatus } = {},
+  ): Promise<{ results: MaintenanceTask[] }> {
+    return this.request(`/owner/maintenance${toQueryString(filters)}`);
+  }
+
+  async createMaintenanceTask(input: MaintenanceTaskInput): Promise<MaintenanceTask> {
+    return this.request('/owner/maintenance', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async updateMaintenanceTask(
+    taskId: string,
+    input: Partial<Omit<MaintenanceTaskInput, 'turf_id'>> & { status?: MaintenanceStatus },
+  ): Promise<MaintenanceTask> {
+    return this.request(`/owner/maintenance/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteMaintenanceTask(taskId: string): Promise<void> {
+    await this.request(`/owner/maintenance/${taskId}`, { method: 'DELETE' });
+  }
+
+  async updateStaffPermissions(
+    assignmentId: string,
+    changes: Partial<StaffPermissions>,
+  ): Promise<StaffAssignment> {
+    return this.request(`/owner/staff/${assignmentId}/permissions`, {
+      method: 'PATCH',
+      body: JSON.stringify(changes),
+    });
+  }
+
+  async getStaffActivity(assignmentId: string): Promise<{ results: StaffActivityEntry[] }> {
+    return this.request(`/owner/staff/${assignmentId}/activity`);
+  }
+
+  async approveTurfAdmin(turfId: string): Promise<AdminTurf> {
+    return this.request(`/admin/turfs/${turfId}/approve`, { method: 'POST' });
+  }
+
+  async rejectTurfAdmin(turfId: string, reason: string): Promise<AdminTurf> {
+    return this.request(`/admin/turfs/${turfId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
   }
 
   // ---- Admin Web console ----

@@ -4,7 +4,7 @@ import { sequelize } from '../config/sequelize';
 import { getBookingById } from './bookingService';
 import { getObligationsForBooking } from './paymentService';
 import { sendNotification } from './notificationService';
-import { assertStaffVerified } from './staffService';
+import { assertStaffVerified, getTurfIdForMatch, recordStaffActivity } from './staffService';
 import { postSystemMessage } from './chatService';
 import { balanceTeams } from '../domain/teamBalance';
 import { assertSlotAcceptsNewMatch, assessSlot, scheduledStartFor } from '../domain/matchSlot';
@@ -789,7 +789,7 @@ export async function setPlayerAttendance(
     { type: QueryTypes.SELECT, replacements: { actorUserId } },
   );
   if (actor?.role === 'TURF_STAFF') {
-    await assertStaffVerified(actorUserId);
+    await assertStaffVerified(actorUserId, 'check_in');
   }
 
   const membership = await fetchMatchPlayer(matchId, targetPlayerId);
@@ -806,6 +806,16 @@ export async function setPlayerAttendance(
 
   if (status === 'CHECKED_IN') {
     await postRosterEventMessage(matchId, targetPlayerId, 'checked in.');
+  }
+
+  if (actor?.role === 'TURF_STAFF') {
+    await recordStaffActivity(
+      actorUserId,
+      'STAFF_CHECK_IN',
+      matchId,
+      await getTurfIdForMatch(matchId),
+      { status, player_id: targetPlayerId },
+    );
   }
 }
 

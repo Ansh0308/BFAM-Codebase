@@ -13,6 +13,8 @@ import {
   LayoutDashboard,
   Swords,
   Trophy,
+  Users,
+  Wrench,
   Tv,
   UserCog,
 } from 'lucide-react';
@@ -24,6 +26,8 @@ const NAV_ITEMS = [
   { href: '/owner/availability', label: 'Availability', icon: CalendarRange },
   { href: '/owner/tournaments', label: 'Tournaments', icon: Trophy },
   { href: '/owner/matches', label: 'Match Management', icon: Swords },
+  { href: '/owner/customers', label: 'Customers', icon: Users },
+  { href: '/owner/maintenance', label: 'Maintenance', icon: Wrench },
   { href: '/owner/staff', label: 'Staff Management', icon: UserCog },
   { href: '/owner/payments', label: 'Payments & Cash', icon: CreditCard },
   { href: '/owner/scoreboard', label: 'Scoreboard', icon: Tv },

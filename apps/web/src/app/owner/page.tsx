@@ -7,6 +7,11 @@ import { apiClient } from '../../lib/apiClient';
 import { PageHeader, Card, PrimaryButton } from '../../components/DashboardShell';
 import { BallLoader } from '../../components/BallLoader';
 
+const STATUS_TEXT: Record<string, string> = {
+  PENDING_APPROVAL: 'Awaiting admin approval',
+  REJECTED: 'Rejected',
+};
+
 // Owner Dashboard (module 2.12, PRD §8.3/§9.2) — business overview: every
 // turf this owner runs.
 export default function OwnerDashboardPage() {
@@ -61,6 +66,8 @@ export default function OwnerDashboardPage() {
                 <p className="font-ui font-bold text-body text-text-primary">{group.venue_name}</p>
                 <p className="font-ui text-micro text-text-tertiary mt-1">
                   {group.turfs.length} pitch{group.turfs.length === 1 ? '' : 'es'}
+                  {group.turfs.some((t) => t.turf_status === 'PENDING_APPROVAL') &&
+                    ` · ${group.turfs.filter((t) => t.turf_status === 'PENDING_APPROVAL').length} awaiting approval`}
                 </p>
               </Card>
             </Link>
@@ -73,8 +80,17 @@ export default function OwnerDashboardPage() {
               >
                 <p className="font-ui font-bold text-body text-text-primary">{t.turf_name}</p>
                 <p className="font-ui text-micro text-text-tertiary mt-1">
-                  {t.city} · {t.turf_status}
+                  {t.city} · {STATUS_TEXT[t.turf_status] ?? t.turf_status}
                 </p>
+                {t.turf_status === 'REJECTED' &&
+                  (t as { rejection_reason?: string | null }).rejection_reason && (
+                    <p
+                      className="font-ui text-micro text-brand-red mt-1"
+                      data-testid={`rejection-${t.turf_id}`}
+                    >
+                      {(t as { rejection_reason?: string | null }).rejection_reason}
+                    </p>
+                  )}
               </Card>
             </Link>
           ))}

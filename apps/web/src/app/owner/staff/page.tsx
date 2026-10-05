@@ -1,7 +1,12 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import type { StaffAssignment, Turf } from '@bfam/shared-types';
+import type {
+  StaffActivityEntry,
+  StaffAssignment,
+  StaffPermissions,
+  Turf,
+} from '@bfam/shared-types';
 import { apiClient } from '../../../lib/apiClient';
 import { BFAMApiError } from '../../../lib/auth';
 import {
@@ -12,6 +17,19 @@ import {
   SecondaryButton,
 } from '../../../components/DashboardShell';
 import { BallLoader } from '../../../components/BallLoader';
+import { Drawer } from '../../../components/ui/Drawer';
+import { Toggle } from '../../../components/ui/Toggle';
+
+const PERMISSIONS: { key: keyof StaffPermissions; label: string; hint: string }[] = [
+  { key: 'check_in', label: 'Check players in', hint: 'Mark players present, late or no-show' },
+  { key: 'collect_cash', label: 'Collect cash', hint: 'Record cash taken at the desk' },
+  { key: 'score_matches', label: 'Score matches', hint: 'Run the live scoring console' },
+];
+
+const ACTIVITY_LABEL: Record<string, string> = {
+  STAFF_CHECK_IN: 'Checked a player in',
+  STAFF_CASH_COLLECTED: 'Collected cash',
+};
 
 const STATUS_COLOR: Record<string, string> = {
   APPROVED: 'text-brand-red',
@@ -33,6 +51,8 @@ export default function OwnerStaffPage() {
   const [created, setCreated] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activityFor, setActivityFor] = useState<StaffAssignment | null>(null);
+  const [activity, setActivity] = useState<StaffActivityEntry[] | null>(null);
 
   useEffect(() => {
     apiClient
@@ -109,6 +129,35 @@ export default function OwnerStaffPage() {
       loadStaff();
     } catch (err) {
       setError(err instanceof BFAMApiError ? err.message : 'Could not review this staff member.');
+    }
+  }
+
+  // Owner decides which desk actions this staff member may do (all on by default).
+  async function setPermission(s: StaffAssignment, key: keyof StaffPermissions, value: boolean) {
+    setError(null);
+    const previous = staff;
+    setStaff((list) =>
+      list.map((x) =>
+        x.assignment_id === s.assignment_id
+          ? { ...x, permissions: { ...x.permissions, [key]: value } }
+          : x,
+      ),
+    );
+    try {
+      await apiClient.updateStaffPermissions(s.assignment_id, { [key]: value });
+    } catch (err) {
+      setStaff(previous);
+      setError(err instanceof BFAMApiError ? err.message : 'Could not change that permission.');
+    }
+  }
+
+  async function openActivity(s: StaffAssignment) {
+    setActivityFor(s);
+    setActivity(null);
+    try {
+      setActivity((await apiClient.getStaffActivity(s.assignment_id)).results);
+    } catch {
+      setActivity([]);
     }
   }
 
@@ -210,13 +259,84 @@ export default function OwnerStaffPage() {
                   </SecondaryButton>
                 </div>
               )}
-              <div className="mt-3">
+              {s.verification_status === 'APPROVED' && (
+                <div
+                  className="mt-4 border-t border-border-subtle pt-3"
+                  data-testid={`permissions-${s.assignment_id}`}
+                >
+                  <p className="font-ui text-micro uppercase tracking-wide text-text-secondary mb-2">
+                    What they can do
+                  </p>
+                  {PERMISSIONS.map((perm) => (
+                    <div
+                      key={perm.key}
+                      className="flex items-center justify-between gap-3 py-[6px]"
+                    >
+                      <div>
+                        <p className="font-ui text-body font-semibold text-ink-black">
+                          {perm.label}
+                        </p>
+                        <p className="font-ui text-micro text-text-tertiary">{perm.hint}</p>
+                      </div>
+                      <Toggle
+                        checked={s.permissions?.[perm.key] !== false}
+                        onChange={(v) => setPermission(s, perm.key, v)}
+                        label={`${perm.label} for ${s.phone_number ?? 'staff'}`}
+                        testID={`perm-${perm.key}-${s.assignment_id}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3 flex gap-2">
+                <SecondaryButton onClick={() => openActivity(s)}>Activity</SecondaryButton>
                 <SecondaryButton onClick={() => remove(s.assignment_id)}>Remove</SecondaryButton>
               </div>
             </Card>
           ))}
         </div>
       )}
+
+      <Drawer
+        open={activityFor !== null}
+        onClose={() => setActivityFor(null)}
+        title="Staff activity"
+        subtitle={activityFor?.phone_number ?? undefined}
+        width={460}
+        testID="staff-activity-drawer"
+      >
+        {activity === null ? (
+          <BallLoader />
+        ) : activity.length === 0 ? (
+          <p className="font-ui text-body text-text-tertiary" data-testid="activity-empty">
+            Nothing recorded yet. Check-ins and cash they collect will show here.
+          </p>
+        ) : (
+          <ul className="space-y-3" data-testid="activity-list">
+            {activity.map((a) => (
+              <li key={a.log_id} className="rounded-md border border-border-subtle px-4 py-3">
+                <p className="font-ui text-body font-semibold text-ink-black">
+                  {ACTIVITY_LABEL[a.action] ?? a.action}
+                  {a.action === 'STAFF_CASH_COLLECTED' && a.details?.amount != null
+                    ? ` — ₹${Number(a.details.amount).toLocaleString('en-IN')}`
+                    : ''}
+                  {a.action === 'STAFF_CHECK_IN' && a.details?.status
+                    ? ` — ${String(a.details.status).replace('_', ' ').toLowerCase()}`
+                    : ''}
+                </p>
+                <p className="font-ui text-micro text-text-tertiary">
+                  {new Date(a.created_at).toLocaleString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Drawer>
     </div>
   );
 }

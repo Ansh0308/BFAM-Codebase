@@ -22,6 +22,7 @@ export async function isTurfOperatorForMatch(matchId: string, userId: string): P
            SELECT 1 FROM turf_staff_assignments a
            WHERE a.turf_id = t.turf_id AND a.staff_user_id = :userId
              AND a.status = 'ACTIVE' AND a.verification_status = 'APPROVED'
+             AND NOT COALESCE(JSON_EXTRACT(a.permissions, '$.score_matches') = CAST('false' AS JSON), 0)
          )
        )
      LIMIT 1`,

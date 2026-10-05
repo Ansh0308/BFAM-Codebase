@@ -1,6 +1,6 @@
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
-import { TurfNotFoundError } from '../domain/errors';
+import { InvalidTurfStateError, TurfNotFoundError } from '../domain/errors';
 import { writeAuditLog } from './auditLogService';
 
 // Backlog E-3 — Turf Management in Admin Web (PRD §9.1). Owner Web already
@@ -21,6 +21,7 @@ export interface AdminTurfRow {
   owner_id: string;
   owner_name: string | null;
   owner_phone: string;
+  rejection_reason: string | null;
   created_at: Date;
 }
 
@@ -28,7 +29,7 @@ export async function listAllTurfsForAdmin(): Promise<AdminTurfRow[]> {
   return sequelize.query<AdminTurfRow>(
     `SELECT t.turf_id, t.turf_name, t.city, t.turf_status, t.average_rating,
             t.owner_id, p.full_name AS owner_name, u.phone_number AS owner_phone,
-            t.created_at
+            t.rejection_reason, t.created_at
      FROM turfs t
      JOIN users u ON u.user_id = t.owner_id
      LEFT JOIN players p ON p.user_id = u.user_id
@@ -67,4 +68,69 @@ export async function setTurfStatusAsAdmin(
     rows.filter((r) => r.turf_id === turfId),
   );
   return updated;
+}
+
+// Turf approval (AW-11, PRD §30.10): a turf an owner creates waits here until an
+// admin approves it (it then becomes visible to players) or rejects it with a
+// reason the owner can read.
+async function loadPendingTurf(turfId: string) {
+  const [turf] = await sequelize.query<{
+    turf_status: string;
+    owner_id: string;
+    turf_name: string;
+  }>(
+    'SELECT turf_status, owner_id, turf_name FROM turfs WHERE turf_id = :turfId AND deleted_at IS NULL',
+    { type: QueryTypes.SELECT, replacements: { turfId } },
+  );
+  if (!turf) throw new TurfNotFoundError(turfId);
+  if (turf.turf_status !== 'PENDING_APPROVAL' && turf.turf_status !== 'REJECTED') {
+    throw new InvalidTurfStateError('This turf is not waiting for approval.');
+  }
+  return turf;
+}
+
+export async function approveTurf(turfId: string, actorUserId: string): Promise<AdminTurfRow> {
+  const turf = await loadPendingTurf(turfId);
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate(
+      'turfs',
+      { turf_status: 'ACTIVE', rejection_reason: null, updated_at: new Date() },
+      { turf_id: turfId },
+    );
+  await writeAuditLog({
+    actorUserId,
+    actorRole: 'ADMIN',
+    action: 'TURF_APPROVED',
+    resourceType: 'turf',
+    resourceId: turfId,
+    beforeData: { turf_status: turf.turf_status },
+    afterData: { turf_status: 'ACTIVE' },
+  });
+  return (await listAllTurfsForAdmin()).filter((r) => r.turf_id === turfId)[0];
+}
+
+export async function rejectTurf(
+  turfId: string,
+  actorUserId: string,
+  reason: string,
+): Promise<AdminTurfRow> {
+  const turf = await loadPendingTurf(turfId);
+  await sequelize
+    .getQueryInterface()
+    .bulkUpdate(
+      'turfs',
+      { turf_status: 'REJECTED', rejection_reason: reason, updated_at: new Date() },
+      { turf_id: turfId },
+    );
+  await writeAuditLog({
+    actorUserId,
+    actorRole: 'ADMIN',
+    action: 'TURF_REJECTED',
+    resourceType: 'turf',
+    resourceId: turfId,
+    beforeData: { turf_status: turf.turf_status },
+    afterData: { turf_status: 'REJECTED', reason },
+  });
+  return (await listAllTurfsForAdmin()).filter((r) => r.turf_id === turfId)[0];
 }

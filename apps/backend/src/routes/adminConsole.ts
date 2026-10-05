@@ -11,6 +11,7 @@ import {
   adminUpdatePromoSchema,
   adminUpdateUserSchema,
   adminUserQuerySchema,
+  rejectTurfSchema,
   explorerRowsQuerySchema,
   explorerValuesSchema,
   ownerBookingRangeSchema,
@@ -38,6 +39,8 @@ import {
   explorerUpdateRow,
 } from '../services/adminManageService';
 import { AnalyticsError, getAnalytics } from '../services/analyticsService';
+import { approveTurf, rejectTurf } from '../services/adminTurfService';
+import { InvalidTurfStateError, TurfNotFoundError } from '../domain/errors';
 import {
   getAdminOverview,
   listAuditLogs,
@@ -264,6 +267,44 @@ router.delete(
       return res.status(204).send();
     } catch (error) {
       return failWith(res, error);
+    }
+  }),
+);
+
+// ---- Turf approval ----
+
+function turfFailure(res: Response, error: unknown) {
+  if (error instanceof TurfNotFoundError) {
+    return res.status(404).json({ error: { message: error.message, status: 404 } });
+  }
+  if (error instanceof InvalidTurfStateError) {
+    return res.status(409).json({ error: { message: error.message, status: 409 } });
+  }
+  throw error;
+}
+
+router.post(
+  '/turfs/:turfId/approve',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      return res.status(200).json(await approveTurf(req.params.turfId, req.auth!.sub));
+    } catch (error) {
+      return turfFailure(res, error);
+    }
+  }),
+);
+
+router.post(
+  '/turfs/:turfId/reject',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = rejectTurfSchema.safeParse(req.body);
+    if (!parsed.success) return invalid(res, 'Give the owner a reason (at least 3 characters).');
+    try {
+      return res
+        .status(200)
+        .json(await rejectTurf(req.params.turfId, req.auth!.sub, parsed.data.reason));
+    } catch (error) {
+      return turfFailure(res, error);
     }
   }),
 );

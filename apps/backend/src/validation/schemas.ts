@@ -42,6 +42,7 @@ import {
   TEAM_SKILL_LEVELS,
   TEAM_STATUSES,
   TURF_STATUSES,
+  MODERATION_TURF_STATUSES,
   USER_ROLES,
   WICKET_TYPES,
   NOTIFICATION_TYPES,
@@ -960,7 +961,19 @@ export const updateBannerSchema = createBannerSchema.partial();
 // ---- Backlog E-3: Turf Management in Admin Web ----
 
 export const setTurfStatusSchema = z.object({
-  turf_status: z.enum(TURF_STATUSES),
+  turf_status: z.enum(MODERATION_TURF_STATUSES),
+});
+
+export const staffPermissionsSchema = z
+  .object({
+    check_in: z.boolean(),
+    collect_cash: z.boolean(),
+    score_matches: z.boolean(),
+  })
+  .partial();
+
+export const rejectTurfSchema = z.object({
+  reason: z.string().trim().min(3).max(255),
 });
 
 // ---- Backlog E-4: Team Management in Admin Web ----
@@ -1132,4 +1145,36 @@ export const tournamentListQuerySchema = z.object({
   status: z
     .enum(['DRAFT', 'REGISTRATION_OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'])
     .optional(),
+});
+
+// ---- Owner customers + maintenance ----
+export const customerQuerySchema = z.object({
+  turf_id: z.string().uuid().optional(),
+  search: z.string().max(100).optional(),
+  segment: z.enum(['NEW', 'REGULAR', 'LAPSED', 'OCCASIONAL']).optional(),
+});
+
+const maintenanceFields = {
+  title: z.string().trim().min(2).max(150),
+  description: z.string().max(2000).nullable().optional(),
+  category: z.enum(['PITCH', 'NETS', 'LIGHTING', 'FACILITIES', 'EQUIPMENT', 'OTHER']).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+  due_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  cost: z.number().min(0).max(10_000_000).nullable().optional(),
+  assigned_to: z.string().trim().max(100).nullable().optional(),
+};
+export const createMaintenanceTaskSchema = z.object({
+  turf_id: z.string().uuid(),
+  ...maintenanceFields,
+});
+export const updateMaintenanceTaskSchema = z
+  .object({ ...maintenanceFields, status: z.enum(['OPEN', 'IN_PROGRESS', 'DONE']) })
+  .partial();
+export const maintenanceQuerySchema = z.object({
+  turf_id: z.string().uuid().optional(),
+  status: z.enum(['OPEN', 'IN_PROGRESS', 'DONE']).optional(),
 });
