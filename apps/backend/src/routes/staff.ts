@@ -14,7 +14,28 @@ import {
   uploadStaffVerificationDocument,
 } from '../services/uploadService';
 import { StaffAssignmentNotFoundError } from '../domain/errors';
-import { setTurfClosedSchema } from '../validation/schemas';
+import {
+  setTurfClosedSchema,
+  staffCustomerLookupSchema,
+  staffTicketSchema,
+  staffWalkInSchema,
+} from '../validation/schemas';
+import {
+  StaffAssistError,
+  createWalkInBooking,
+  lookupCustomers,
+  raiseTicketForCustomer,
+} from '../services/staffAssistService';
+import { BookingTooFarAheadError, MaintenanceModeError } from '../services/settingsService';
+import {
+  InvalidSlotAlignmentError,
+  NoPricingConfiguredError,
+  OutsideOperatingHoursError,
+  SlotBlockedError,
+  SlotUnavailableError,
+  StaffNotVerifiedError,
+  TurfNotFoundError,
+} from '../domain/errors';
 import {
   TurfDayError,
   listTurfDayStatus,
@@ -84,6 +105,108 @@ router.post(
           .json({ error: { message: error.message, status: error.status } });
       }
       throw error;
+    }
+  }),
+);
+
+// ---- Customer assistance (SW-6) ----
+
+// Same error mapping as the booking route, plus this service's own.
+function assistFailure(res: Response, error: unknown) {
+  if (error instanceof StaffAssistError) {
+    return res
+      .status(error.status)
+      .json({ error: { message: error.message, status: error.status } });
+  }
+  if (error instanceof StaffNotVerifiedError) {
+    return res.status(403).json({ error: { message: error.message, status: 403 } });
+  }
+  if (error instanceof MaintenanceModeError) {
+    return res
+      .status(503)
+      .json({ error: { message: error.message, status: 503, code: 'MAINTENANCE' } });
+  }
+  if (error instanceof SlotUnavailableError) {
+    return res.status(409).json({ error: { message: error.message, status: 409 } });
+  }
+  if (error instanceof TurfNotFoundError) {
+    return res.status(404).json({ error: { message: error.message, status: 404 } });
+  }
+  if (
+    error instanceof SlotBlockedError ||
+    error instanceof OutsideOperatingHoursError ||
+    error instanceof NoPricingConfiguredError ||
+    error instanceof InvalidSlotAlignmentError ||
+    error instanceof BookingTooFarAheadError
+  ) {
+    return res.status(422).json({ error: { message: error.message, status: 422 } });
+  }
+  throw error;
+}
+
+router.get(
+  '/customers/lookup',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = staffCustomerLookupSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({
+          error: { message: 'Type a phone number or BFAM ID (3+ characters).', status: 400 },
+        });
+    }
+    try {
+      return res.status(200).json({ results: await lookupCustomers(req.auth!.sub, parsed.data.q) });
+    } catch (error) {
+      return assistFailure(res, error);
+    }
+  }),
+);
+
+router.post(
+  '/bookings/walk-in',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = staffWalkInSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({
+          error: { message: 'Pick a customer, a date, a start time and a duration.', status: 400 },
+        });
+    }
+    try {
+      return res.status(201).json(await createWalkInBooking(req.auth!.sub, parsed.data));
+    } catch (error) {
+      return assistFailure(res, error);
+    }
+  }),
+);
+
+router.post(
+  '/customers/:userId/tickets',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = staffTicketSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({
+          error: {
+            message: 'Choose a category and describe the issue (10+ characters).',
+            status: 400,
+          },
+        });
+    }
+    try {
+      return res
+        .status(201)
+        .json(
+          await raiseTicketForCustomer(req.auth!.sub, {
+            customer_user_id: req.params.userId,
+            ...parsed.data,
+          }),
+        );
+    } catch (error) {
+      return assistFailure(res, error);
     }
   }),
 );

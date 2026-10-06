@@ -13,6 +13,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { SCREEN_TRANSITION } from '../src/theme/navigation';
 import { CrashBoundary, installCrashGuard } from '../src/lib/crashGuard';
 import { UpdateBanner } from '../src/components/UpdateBanner';
+import { PlatformNotice } from '../src/components/PlatformNotice';
 
 installCrashGuard();
 
@@ -62,6 +63,7 @@ function RootLayout() {
     <>
       <StatusBar style="auto" />
       <UpdateBanner />
+      <PlatformNotice />
       <CrashBoundary>
         <Stack screenOptions={{ headerShown: false, animation: SCREEN_TRANSITION }} />
       </CrashBoundary>

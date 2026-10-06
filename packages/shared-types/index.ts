@@ -1867,6 +1867,9 @@ export interface StaffActivityEntry {
     | 'STAFF_MATCH_FINISHED'
     | 'TURF_CLOSED_TODAY'
     | 'TURF_REOPENED_TODAY'
+    | 'STAFF_CUSTOMER_LOOKUP'
+    | 'STAFF_WALK_IN_BOOKING'
+    | 'STAFF_TICKET_RAISED'
     | string;
   resource_id: string;
   details: Record<string, unknown> | null;
@@ -2010,4 +2013,130 @@ export interface AdminMembershipPlanInput {
   coin_cost: number;
   discount_percent: number;
   is_active?: boolean;
+}
+
+// ---- Phase 9: platform settings, home content, staff customer assistance ----
+
+export interface PlatformSettings {
+  'booking.refund_full_hours': number;
+  'booking.refund_partial_hours': number;
+  'booking.refund_partial_percent': number;
+  'booking.max_advance_days': number | null;
+  'coins.value_in_rupees': number;
+  'coins.review_reward': number;
+  'coins.referral_reward': number;
+  'support.phone': string;
+  'support.email': string;
+  'legal.terms_url': string;
+  'legal.privacy_url': string;
+  'app.min_version': string;
+  'app.maintenance_enabled': boolean;
+  'app.maintenance_message': string;
+}
+
+export interface PlatformSettingsResponse {
+  settings: PlatformSettings;
+  defaults: PlatformSettings;
+}
+
+export interface PublicConfig {
+  support: { phone: string; email: string };
+  legal: { terms_url: string; privacy_url: string };
+  app: { min_version: string; maintenance: { enabled: boolean; message: string } };
+  coins: { value_in_rupees: number };
+  booking: { max_advance_days: number | null };
+}
+
+export type HomeItemKind = 'OFFER' | 'TURF' | 'TOURNAMENT' | 'ANNOUNCEMENT';
+
+export interface HomeContentItem {
+  item_id: string;
+  kind: HomeItemKind;
+  ref_id: string | null;
+  ref_label: string | null;
+  title: string | null;
+  body: string | null;
+  link_url: string | null;
+  display_order: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+}
+
+export interface HomeContentInput {
+  kind: HomeItemKind;
+  ref_id?: string | null;
+  title?: string | null;
+  body?: string | null;
+  link_url?: string | null;
+  display_order?: number;
+  is_active?: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
+}
+
+export interface HomeFeatured {
+  offers: {
+    item_id: string;
+    code: string;
+    label: string;
+    min_booking_amount: number;
+    valid_until: string | null;
+    title: string | null;
+  }[];
+  turfs: {
+    item_id: string;
+    turf_id: string;
+    turf_name: string;
+    city: string;
+    average_rating: string | null;
+    title: string | null;
+  }[];
+  tournaments: {
+    item_id: string;
+    tournament_id: string;
+    name: string;
+    entry_fee: number;
+    start_date: string | null;
+    status: string;
+    title: string | null;
+  }[];
+  announcements: {
+    item_id: string;
+    title: string | null;
+    body: string | null;
+    link_url: string | null;
+  }[];
+}
+
+export interface StaffCustomerBooking {
+  booking_id: string;
+  turf_id: string;
+  turf_name: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  booking_amount: number;
+  booking_status: string;
+  payment_mode: string;
+}
+
+export interface StaffCustomer {
+  user_id: string;
+  name: string | null;
+  phone_number: string;
+  bfam_id: string | null;
+  bookings_here: number;
+  bookings: StaffCustomerBooking[];
+}
+
+export interface StaffWalkInInput {
+  turf_id: string;
+  customer_user_id: string;
+  booking_date: string;
+  start_time: string;
+  duration_minutes: number;
+  collect_cash: boolean;
+  cash_reference?: string | null;
 }

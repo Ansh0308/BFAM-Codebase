@@ -1,11 +1,8 @@
 import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
-import {
-  COIN_VALUE_IN_RUPEES,
-  computeCoinRedemption,
-  computePromoDiscount,
-} from '../domain/checkout';
+import { getSetting } from './settingsService';
+import { computeCoinRedemption, computePromoDiscount } from '../domain/checkout';
 import { getCoinBalance, spendCoins } from './coinsService';
 import {
   InvalidPaymentStateError,
@@ -170,6 +167,7 @@ export async function applyCheckoutDiscount(
   }
 
   const remainingAfterPromo = amountDue - promoDiscount;
+  const coinValue = await getSetting('coins.value_in_rupees');
   let coinsSpent = 0;
   let coinDiscount = 0;
   if (input.coinsToRedeem && input.coinsToRedeem > 0) {
@@ -178,6 +176,7 @@ export async function applyCheckoutDiscount(
       remainingAfterPromo,
       input.coinsToRedeem,
       coinBalance,
+      coinValue,
     ));
   }
 
@@ -193,7 +192,7 @@ export async function applyCheckoutDiscount(
   if (newAmountDue < 1) {
     const coinReduction = Math.min(1 - newAmountDue, actualCoinDiscount);
     actualCoinDiscount -= coinReduction;
-    actualCoinsSpent = Math.floor(actualCoinDiscount / COIN_VALUE_IN_RUPEES);
+    actualCoinsSpent = Math.floor(actualCoinDiscount / coinValue);
     newAmountDue += coinReduction;
   }
   if (newAmountDue < 1) {

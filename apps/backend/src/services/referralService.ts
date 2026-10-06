@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
 import { earnCoins } from './coinsService';
+import { getSetting } from './settingsService';
 
 // Long tail — Referral System (PRD §12.53/§31.35). See the migration's
 // comment for the scoping decisions (referral code = BFAM ID, qualifying
@@ -76,19 +77,20 @@ export async function qualifyReferralIfPending(
     },
   );
   if (!referral) return;
+  const rewardCoins = await getSetting('coins.referral_reward');
 
   await sequelize
     .getQueryInterface()
     .bulkUpdate(
       'referrals',
-      { status: 'QUALIFIED', reward_coins: REFERRAL_REWARD_COINS, qualified_at: new Date() },
+      { status: 'QUALIFIED', reward_coins: rewardCoins, qualified_at: new Date() },
       { referral_id: referral.referral_id },
       { transaction: transaction as never },
     );
 
   await earnCoins(
     referral.referrer_player_id,
-    REFERRAL_REWARD_COINS,
+    rewardCoins,
     'REFERRAL_REWARD',
     { type: 'referral', id: referral.referral_id },
     transaction,

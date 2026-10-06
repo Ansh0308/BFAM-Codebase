@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJwt } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { blockDuringMaintenance } from '../middleware/maintenance';
 import {
   applyCheckoutDiscountSchema,
   cashPaymentSchema,
@@ -32,6 +33,7 @@ const router = Router();
 router.post(
   '/razorpay/order',
   authenticateJwt,
+  blockDuringMaintenance,
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = initiateGatewayPaymentSchema.safeParse(req.body);
     if (!parsed.success) {

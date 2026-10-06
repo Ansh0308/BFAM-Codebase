@@ -15,6 +15,7 @@ import { createRazorpayOrder, refundGatewayPayment } from './razorpayService';
 import { sendNotification } from './notificationService';
 import { assertStaffVerified, getTurfIdForObligations, recordStaffActivity } from './staffService';
 import { writeAuditLog } from './auditLogService';
+import { getRefundRules } from './settingsService';
 
 interface BookingRow {
   booking_id: string;
@@ -441,9 +442,15 @@ export async function listPaymentsForBooking(bookingId: string): Promise<Payment
 //   >= 24h before the slot: full refund
 //   >= 3h and < 24h before: 50% refund
 //   < 3h before (or after): no refund
-export function calculateRefundPercentage(hoursBeforeSlot: number): number {
-  if (hoursBeforeSlot >= 24) return 1;
-  if (hoursBeforeSlot >= 3) return 0.5;
+// Admin-configurable in Platform Settings; these are the defaults.
+export const DEFAULT_REFUND_RULES = { fullHours: 24, partialHours: 3, partialPercent: 50 };
+
+export function calculateRefundPercentage(
+  hoursBeforeSlot: number,
+  rules: { fullHours: number; partialHours: number; partialPercent: number } = DEFAULT_REFUND_RULES,
+): number {
+  if (hoursBeforeSlot >= rules.fullHours) return 1;
+  if (hoursBeforeSlot >= rules.partialHours) return rules.partialPercent / 100;
   return 0;
 }
 
@@ -458,7 +465,7 @@ export async function refundPaymentsForBooking(
 
   const slotStart = bookingStartInstant(booking.booking_date, booking.start_time);
   const hoursBeforeSlot = (slotStart.getTime() - cancelledAt.getTime()) / (1000 * 60 * 60);
-  const refundPct = calculateRefundPercentage(hoursBeforeSlot);
+  const refundPct = calculateRefundPercentage(hoursBeforeSlot, await getRefundRules());
 
   const payments = await sequelize.query<PaymentRow>(
     `SELECT DISTINCT p.* FROM payments p

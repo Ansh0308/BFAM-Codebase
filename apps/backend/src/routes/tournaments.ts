@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJwt, requireRoles } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { blockDuringMaintenance } from '../middleware/maintenance';
 import { GatewayNotConfiguredError } from '../domain/errors';
 import {
   createTournamentSchema,
@@ -126,6 +127,7 @@ router.post(
 // entry paid once the payment is confirmed.
 router.post(
   '/entries/:entryId/pay',
+  blockDuringMaintenance,
   run(async (req, res) => {
     const parsed = tournamentPayEntrySchema.safeParse(req.body);
     if (!parsed.success) return bad(res, 'payment_method must be UPI or RAZORPAY');

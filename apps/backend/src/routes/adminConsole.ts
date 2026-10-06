@@ -19,6 +19,8 @@ import {
   createPlanSchema,
   updatePlanSchema,
   redemptionQuerySchema,
+  createHomeItemSchema,
+  updateHomeItemSchema,
   explorerRowsQuerySchema,
   explorerValuesSchema,
   ownerBookingRangeSchema,
@@ -47,6 +49,19 @@ import {
 } from '../services/adminManageService';
 import { AnalyticsError, getAnalytics } from '../services/analyticsService';
 import { approveTurf, rejectTurf } from '../services/adminTurfService';
+import {
+  HomeContentError,
+  adminListItems,
+  createItem as createHomeItem,
+  deleteItem as deleteHomeItem,
+  updateItem as updateHomeItem,
+} from '../services/homeContentService';
+import {
+  SETTING_DEFAULTS,
+  SettingsError,
+  getSettings,
+  updateSettings,
+} from '../services/settingsService';
 import { PaymentOversightError, listPayments, listRefunds } from '../services/adminPaymentService';
 import {
   RewardsConfigError,
@@ -435,6 +450,92 @@ router.delete(
       return res.status(204).send();
     } catch (error) {
       return oversight(res, error);
+    }
+  }),
+);
+
+// ---- Home content (AW-13) ----
+
+function homeFailure(res: Response, error: unknown) {
+  if (error instanceof HomeContentError) {
+    return res
+      .status(error.status)
+      .json({ error: { message: error.message, status: error.status } });
+  }
+  throw error;
+}
+
+router.get(
+  '/home-content',
+  asyncHandler(async (_req: Request, res: Response) => {
+    return res.status(200).json({ results: await adminListItems() });
+  }),
+);
+
+router.post(
+  '/home-content',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = createHomeItemSchema.safeParse(req.body);
+    if (!parsed.success) return invalid(res, 'Check the details and try again.');
+    try {
+      return res.status(201).json(await createHomeItem(req.auth!.sub, parsed.data));
+    } catch (error) {
+      return homeFailure(res, error);
+    }
+  }),
+);
+
+router.patch(
+  '/home-content/:itemId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = updateHomeItemSchema.safeParse(req.body);
+    if (!parsed.success) return invalid(res, 'Check the details and try again.');
+    try {
+      return res
+        .status(200)
+        .json(await updateHomeItem(req.auth!.sub, req.params.itemId, parsed.data));
+    } catch (error) {
+      return homeFailure(res, error);
+    }
+  }),
+);
+
+router.delete(
+  '/home-content/:itemId',
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      await deleteHomeItem(req.auth!.sub, req.params.itemId);
+      return res.status(204).send();
+    } catch (error) {
+      return homeFailure(res, error);
+    }
+  }),
+);
+
+// ---- Platform settings (AW-12) ----
+
+router.get(
+  '/settings',
+  asyncHandler(async (_req: Request, res: Response) => {
+    return res.status(200).json({ settings: await getSettings(), defaults: SETTING_DEFAULTS });
+  }),
+);
+
+router.patch(
+  '/settings',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+      return invalid(res, 'Send the settings to change as an object.');
+    }
+    try {
+      return res.status(200).json({ settings: await updateSettings(req.auth!.sub, req.body) });
+    } catch (error) {
+      if (error instanceof SettingsError) {
+        return res
+          .status(error.status)
+          .json({ error: { message: error.message, status: error.status } });
+      }
+      throw error;
     }
   }),
 );

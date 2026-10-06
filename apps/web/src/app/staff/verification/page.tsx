@@ -80,7 +80,7 @@ export default function StaffVerificationPage() {
           You are not yet assigned to a turf.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {assignments.map((a) => (
             <Card key={a.assignment_id} data-testid={`assignment-${a.assignment_id}`}>
               <p className="font-ui font-bold text-body text-text-primary">

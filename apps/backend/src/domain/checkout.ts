@@ -32,9 +32,11 @@ export function computeCoinRedemption(
   remainingAfterPromo: number,
   coinsRequested: number,
   coinBalance: number,
+  // Admin-configurable in Platform Settings; ₹1 per coin by default.
+  coinValue: number = COIN_VALUE_IN_RUPEES,
 ): { coinsSpent: number; discount: number } {
   const affordable = Math.min(coinsRequested, coinBalance);
-  const maxUsefulCoins = Math.floor(remainingAfterPromo / COIN_VALUE_IN_RUPEES);
+  const maxUsefulCoins = Math.floor(remainingAfterPromo / coinValue);
   const coinsSpent = Math.max(0, Math.min(affordable, maxUsefulCoins));
-  return { coinsSpent, discount: coinsSpent * COIN_VALUE_IN_RUPEES };
+  return { coinsSpent, discount: Math.round(coinsSpent * coinValue * 100) / 100 };
 }

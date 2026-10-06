@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { listMatchesForBooking } from '../services/matchService';
 import { authenticateJwt, requireRoles } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { blockDuringMaintenance } from '../middleware/maintenance';
+import { BookingTooFarAheadError } from '../services/settingsService';
 import {
   cancelBookingSchema,
   createBookingSchema,
@@ -44,6 +46,7 @@ router.post(
   '/',
   authenticateJwt,
   requireRoles('PLAYER'),
+  blockDuringMaintenance,
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = createBookingSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -74,7 +77,8 @@ router.post(
         error instanceof SlotBlockedError ||
         error instanceof OutsideOperatingHoursError ||
         error instanceof NoPricingConfiguredError ||
-        error instanceof InvalidSlotAlignmentError
+        error instanceof InvalidSlotAlignmentError ||
+        error instanceof BookingTooFarAheadError
       ) {
         return res.status(422).json({ error: { message: error.message, status: 422 } });
       }

@@ -11,6 +11,8 @@ import {
   Database,
   Gift,
   Hash,
+  Home,
+  Settings,
   ImageIcon,
   LayoutDashboard,
   LifeBuoy,
@@ -44,6 +46,8 @@ const NAV_ITEMS = [
   { href: '/admin/promos', label: 'Promo Codes', icon: Ticket },
   { href: '/admin/bfam-ids', label: 'BFAM IDs', icon: Hash },
   { href: '/admin/banners', label: 'Home Banners', icon: ImageIcon },
+  { href: '/admin/home-content', label: 'Home Content', icon: Home },
+  { href: '/admin/settings', label: 'Settings', icon: Settings },
   { href: '/admin/data', label: 'Data Explorer', icon: Database },
   { href: '/admin/audit', label: 'Audit Log', icon: ScrollText },
 ];

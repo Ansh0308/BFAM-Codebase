@@ -34,6 +34,9 @@ const ACTIVITY_LABEL: Record<string, string> = {
   STAFF_MATCH_FINISHED: 'Finished a match',
   TURF_CLOSED_TODAY: 'Closed the turf for the day',
   TURF_REOPENED_TODAY: 'Reopened the turf',
+  STAFF_CUSTOMER_LOOKUP: 'Looked up a customer',
+  STAFF_WALK_IN_BOOKING: 'Booked a walk-in customer',
+  STAFF_TICKET_RAISED: 'Logged a complaint for a customer',
 };
 
 const STATUS_COLOR: Record<string, string> = {

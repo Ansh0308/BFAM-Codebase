@@ -4,10 +4,11 @@ import React from 'react';
 import { useRequireRole } from '../../lib/auth';
 import { DashboardShell } from '../../components/DashboardShell';
 import { BallLoader } from '../../components/BallLoader';
-import { ClipboardCheck, ShieldCheck, Swords } from 'lucide-react';
+import { ClipboardCheck, ShieldCheck, Swords, UserSearch } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/staff', label: "Today's Desk", icon: ClipboardCheck },
+  { href: '/staff/customers', label: 'Customers', icon: UserSearch },
   { href: '/staff/matches', label: 'Match Operations', icon: Swords },
   { href: '/staff/verification', label: 'Verification', icon: ShieldCheck },
 ];

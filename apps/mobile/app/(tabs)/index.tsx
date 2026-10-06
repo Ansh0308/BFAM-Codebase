@@ -20,6 +20,7 @@ import { StaffDashboard } from '../../src/screens/StaffDashboard';
 import { apiClient } from '../../src/lib/apiClient';
 import { DISCOVERY_ENABLED } from '../../src/config/featureFlags';
 import { HomeBannerCarousel } from '../../src/components/HomeBannerCarousel';
+import { HomeFeatured } from '../../src/components/home/HomeFeatured';
 import { HomeHero } from '../../src/components/home/HomeHero';
 import { PerformanceCard, QuickAction } from '../../src/components/home/HomeParts';
 import { PlayerHeader } from '../../src/components/home/PlayerHeader';
@@ -333,6 +334,8 @@ export default function Home() {
               )}
             </>
           )}
+
+          <HomeFeatured />
 
           <View className="mt-6 mb-8">
             <HomeBannerCarousel />

@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion, useReducedMotion } from 'motion/react';
-import { LogOut, ShieldAlert, type LucideIcon } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { LogOut, Menu, ShieldAlert, X, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { Button } from './ui/kit';
 import { EASE_OUT } from './ui/motion';
@@ -24,8 +24,9 @@ const ROLE_LABEL: Record<string, string> = {
 
 // Desktop-optimized shell shared by Owner, Staff and Admin Web (module 2.12,
 // PRD §9): a fixed left sidebar + a sticky top bar + the content canvas — not
-// a mobile-style stacked layout. The sidebar collapses to icons below `lg`
-// so it still works on a tablet or a phone at the desk.
+// a mobile-style stacked layout. The sidebar collapses to icons below `lg`.
+// Below `md` (a phone at the counter) it goes away entirely: a top bar with a
+// menu button that opens a slide-over, plus a bottom tab bar for the main pages.
 export function DashboardShell({
   title,
   navItems,
@@ -45,10 +46,18 @@ export function DashboardShell({
     month: 'long',
   });
   const current = navItems.find((i) => i.href === pathname)?.label ?? title;
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Four tabs fit a phone comfortably; the rest live behind "More".
+  const tabItems = navItems.length > 5 ? navItems.slice(0, 4) : navItems;
+  const hasMore = navItems.length > tabItems.length;
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   return (
     <div className="min-h-screen flex bg-surface-alt">
-      <aside className="sticky top-0 h-screen w-[76px] lg:w-[264px] shrink-0 border-r border-border-subtle bg-surface flex flex-col transition-[width] duration-300">
+      <aside className="hidden md:flex sticky top-0 h-screen w-[76px] lg:w-[264px] shrink-0 border-r border-border-subtle bg-surface flex-col transition-[width] duration-300">
         <div className="relative overflow-hidden px-3 lg:px-6 py-6">
           <div
             aria-hidden
@@ -134,13 +143,15 @@ export function DashboardShell({
         {actingAs && (
           <div
             data-testid="acting-as-banner"
-            className="sticky top-0 z-40 flex items-center justify-between gap-4 bg-ink-black px-6 lg:px-10 h-[44px] text-white"
+            className="sticky top-0 z-40 flex items-center justify-between gap-4 bg-ink-black px-4 md:px-6 lg:px-10 h-[44px] text-white"
           >
             <p className="flex items-center gap-2 font-ui text-body min-w-0">
               <ShieldAlert className="h-[16px] w-[16px] shrink-0 text-brand-red" />
               <span className="truncate">
-                Admin mode — managing as <strong>{actingAs.label}</strong>. Changes are saved to
-                their account and recorded in the audit log.
+                Admin mode — managing as <strong>{actingAs.label}</strong>
+                <span className="hidden md:inline">
+                  . Changes are saved to their account and recorded in the audit log.
+                </span>
               </span>
             </p>
             <button
@@ -156,9 +167,18 @@ export function DashboardShell({
           </div>
         )}
         <header
-          className={`sticky ${actingAs ? 'top-[44px]' : 'top-0'} z-30 flex items-center justify-between gap-4 border-b border-border-subtle bg-surface/85 px-6 lg:px-10 h-[64px] backdrop-blur-md`}
+          className={`sticky ${actingAs ? 'top-[44px]' : 'top-0'} z-30 flex items-center justify-between gap-4 border-b border-border-subtle bg-surface/85 px-4 md:px-6 lg:px-10 h-[60px] md:h-[64px] backdrop-blur-md`}
         >
-          <div className="min-w-0">
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open menu"
+            data-testid="mobile-menu"
+            className="md:hidden -ml-2 grid h-[44px] w-[44px] shrink-0 place-items-center rounded-md text-ink-black active:bg-ink-black/[0.06] cursor-pointer"
+          >
+            <Menu className="h-[22px] w-[22px]" />
+          </button>
+          <div className="min-w-0 flex-1 md:flex-none">
             <p className="font-ui text-micro uppercase tracking-[0.16em] text-text-tertiary">
               {title}
             </p>
@@ -179,7 +199,7 @@ export function DashboardShell({
 
         <motion.main
           key={pathname}
-          className="flex-1 px-6 lg:px-10 py-8 overflow-y-auto"
+          className="flex-1 px-4 md:px-6 lg:px-10 py-5 md:py-8 pb-[96px] md:pb-8 overflow-y-auto"
           initial={reduce ? false : { opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: EASE_OUT }}
@@ -187,6 +207,116 @@ export function DashboardShell({
           {children}
         </motion.main>
       </div>
+
+      <nav
+        aria-label={`${title} tabs`}
+        data-testid="mobile-tabs"
+        className="md:hidden fixed inset-x-0 bottom-0 z-30 flex border-t border-border-subtle bg-surface/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
+      >
+        {tabItems.map((item) => {
+          const active = pathname === item.href;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? 'page' : undefined}
+              className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-[2px] h-[60px] font-ui text-[11px] font-semibold ${
+                active ? 'text-brand-red' : 'text-text-tertiary'
+              }`}
+            >
+              {Icon ? <Icon className="h-[22px] w-[22px]" /> : null}
+              <span className="truncate max-w-full px-1">{item.label}</span>
+            </Link>
+          );
+        })}
+        {hasMore && (
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            data-testid="mobile-more"
+            className="flex-1 flex flex-col items-center justify-center gap-[2px] h-[60px] font-ui text-[11px] font-semibold text-text-tertiary cursor-pointer"
+          >
+            <Menu className="h-[22px] w-[22px]" />
+            More
+          </button>
+        )}
+      </nav>
+
+      <AnimatePresence>
+        {menuOpen && (
+          <div className="md:hidden fixed inset-0 z-50" data-testid="mobile-drawer">
+            <motion.div
+              className="absolute inset-0 bg-ink-black/50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMenuOpen(false)}
+            />
+            <motion.aside
+              role="dialog"
+              aria-label="Menu"
+              className="absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col bg-surface shadow-[0_0_40px_rgba(0,0,0,0.25)]"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ duration: 0.28, ease: EASE_OUT }}
+            >
+              <div className="flex items-center justify-between px-5 py-5">
+                <div>
+                  <span className="block font-display text-[30px] leading-none text-brand-red uppercase tracking-wide">
+                    BFAM
+                  </span>
+                  <p className="font-ui text-micro uppercase tracking-[0.18em] text-text-tertiary mt-2">
+                    {title}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close menu"
+                  className="grid h-[44px] w-[44px] place-items-center rounded-md text-text-secondary cursor-pointer"
+                >
+                  <X className="h-[22px] w-[22px]" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-3 space-y-[2px]">
+                {navItems.map((item) => {
+                  const active = pathname === item.href;
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? 'page' : undefined}
+                      className={`flex items-center gap-3 rounded-md px-3 h-[48px] font-ui text-[15px] font-semibold ${
+                        active
+                          ? 'bg-brand-red text-white'
+                          : 'text-text-secondary active:bg-ink-black/[0.06]'
+                      }`}
+                    >
+                      {Icon ? <Icon className="h-[20px] w-[20px] shrink-0" /> : null}
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+              <div className="border-t border-border-subtle p-3">
+                <p className="px-3 pb-2 font-ui text-micro text-text-tertiary">
+                  {user ? (ROLE_LABEL[user.role] ?? user.role) : 'Signed in'} · {today}
+                </p>
+                <button
+                  onClick={logout}
+                  className="flex w-full items-center gap-3 rounded-md px-3 h-[48px] font-ui text-[15px] font-semibold text-text-secondary active:bg-brand-red/5 cursor-pointer"
+                >
+                  <LogOut className="h-[20px] w-[20px]" />
+                  Log Out
+                </button>
+              </div>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -201,9 +331,9 @@ export function PageHeader({
   subtitle?: string;
 }) {
   return (
-    <div className="flex items-end justify-between gap-4 mb-7">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4 mb-5 md:mb-7">
       <div>
-        <h1 className="font-display text-[40px] leading-none tracking-wide text-ink-black uppercase">
+        <h1 className="font-display text-[32px] md:text-[40px] leading-none tracking-wide text-ink-black uppercase">
           {title}
         </h1>
         <motion.span

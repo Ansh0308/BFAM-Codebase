@@ -114,6 +114,8 @@ import consentsRouter from './routes/consents';
 import rewardsRouter from './routes/rewards';
 import membershipsRouter from './routes/memberships';
 import tournamentsRouter from './routes/tournaments';
+import { getPublicConfig } from './services/settingsService';
+import { publicContent } from './services/homeContentService';
 import { markEntryPaidByGateway } from './services/tournamentService';
 
 interface UserRow {
@@ -1485,6 +1487,19 @@ app.use('/rewards', rewardsRouter);
 // Long tail — Memberships (PRD §12.51).
 app.use('/memberships', membershipsRouter);
 app.use('/tournaments', tournamentsRouter);
+
+// GET /config/public — what the apps need before anyone signs in: support and
+// legal links, the minimum app version and whether maintenance mode is on.
+// GET /home/content: the featured offers, turfs, tournaments and announcements
+// the admin pinned to Home.
+app.get('/home/content', authenticateJwt, async (_req: Request, res: Response) => {
+  return res.status(200).json(await publicContent());
+});
+
+app.get('/config/public', async (_req: Request, res: Response) => {
+  res.set('Cache-Control', 'public, max-age=30');
+  return res.status(200).json(await getPublicConfig());
+});
 
 // Sentry Error Handler setup for v8
 if (process.env.SENTRY_DSN) {

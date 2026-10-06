@@ -410,7 +410,10 @@ export type StaffActivityAction =
   | 'STAFF_INNINGS_STARTED'
   | 'STAFF_MATCH_FINISHED'
   | 'TURF_CLOSED_TODAY'
-  | 'TURF_REOPENED_TODAY';
+  | 'TURF_REOPENED_TODAY'
+  | 'STAFF_CUSTOMER_LOOKUP'
+  | 'STAFF_WALK_IN_BOOKING'
+  | 'STAFF_TICKET_RAISED';
 
 // Best-effort: recording that a staff member did something must never make the
 // action itself fail, so every failure is swallowed.

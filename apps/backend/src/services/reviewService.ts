@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { QueryTypes } from 'sequelize';
 import { sequelize } from '../config/sequelize';
+import { getSetting } from './settingsService';
 import { earnCoins } from './coinsService';
 import { earnXp } from './xpService';
 import {
@@ -98,6 +99,7 @@ export async function submitReview(actorUserId: string, input: SubmitReviewInput
   const reviewId = randomUUID();
   const now = new Date();
 
+  const coinReward = await getSetting('coins.review_reward');
   let coinBalance = 0;
   let xpTotal = 0;
   await sequelize.transaction(async (transaction) => {
@@ -111,7 +113,7 @@ export async function submitReview(actorUserId: string, input: SubmitReviewInput
           player_id: playerId,
           rating: input.rating,
           review_text: input.review_text ?? null,
-          coins_awarded: COIN_REWARD_PER_REVIEW,
+          coins_awarded: coinReward,
           created_at: now,
         },
       ],
@@ -120,7 +122,7 @@ export async function submitReview(actorUserId: string, input: SubmitReviewInput
 
     coinBalance = await earnCoins(
       playerId,
-      COIN_REWARD_PER_REVIEW,
+      coinReward,
       'REVIEW_REWARD',
       { type: 'review', id: reviewId },
       transaction,
@@ -139,7 +141,7 @@ export async function submitReview(actorUserId: string, input: SubmitReviewInput
 
   return {
     review_id: reviewId,
-    coins_awarded: COIN_REWARD_PER_REVIEW,
+    coins_awarded: coinReward,
     coin_balance: coinBalance,
     xp_awarded: XP_REWARD_PER_REVIEW,
     xp_total: xpTotal,

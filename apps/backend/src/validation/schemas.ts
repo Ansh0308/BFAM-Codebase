@@ -1244,3 +1244,43 @@ export const updatePlanSchema = createPlanSchema.partial();
 export const redemptionQuerySchema = z.object({
   status: z.enum(['PENDING', 'FULFILLED']).optional(),
 });
+
+// ---- Home content (AW-13) ----
+const homeItemFields = {
+  ref_id: z.string().uuid().nullable().optional(),
+  title: z.string().trim().max(120).nullable().optional(),
+  body: z.string().trim().max(400).nullable().optional(),
+  link_url: z
+    .string()
+    .trim()
+    .max(500)
+    .regex(/^(https?:\/\/\S+|\/\S*)?$/, 'A link must start with http(s):// or /')
+    .nullable()
+    .optional(),
+  display_order: z.number().int().min(0).max(9999).optional(),
+  is_active: z.boolean().optional(),
+  starts_at: z.string().datetime().nullable().optional(),
+  ends_at: z.string().datetime().nullable().optional(),
+};
+export const createHomeItemSchema = z.object({
+  kind: z.enum(['OFFER', 'TURF', 'TOURNAMENT', 'ANNOUNCEMENT']),
+  ...homeItemFields,
+});
+export const updateHomeItemSchema = z.object(homeItemFields).partial();
+
+// ---- Staff customer assistance (SW-6) ----
+export const staffCustomerLookupSchema = z.object({ q: z.string().trim().min(3).max(40) });
+export const staffWalkInSchema = z.object({
+  turf_id: z.string().uuid(),
+  customer_user_id: z.string().uuid(),
+  booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  start_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+  duration_minutes: z.number().int().min(30).max(480),
+  collect_cash: z.boolean(),
+  cash_reference: z.string().trim().max(100).nullable().optional(),
+});
+export const staffTicketSchema = z.object({
+  category: z.enum(['PAYMENT_ISSUE', 'BOOKING_ISSUE', 'MATCH_ISSUE', 'ACCOUNT_ISSUE', 'OTHER']),
+  description: z.string().trim().min(10).max(2000),
+  booking_id: z.string().uuid().nullable().optional(),
+});

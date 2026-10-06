@@ -103,6 +103,14 @@ import {
   AdminOverview,
   AdminUserRow,
   AnalyticsResult,
+  PlatformSettings,
+  PlatformSettingsResponse,
+  PublicConfig,
+  HomeContentItem,
+  HomeContentInput,
+  HomeFeatured,
+  StaffCustomer,
+  StaffWalkInInput,
   TurfDayStatus,
   OwnerOffer,
   OwnerOfferInput,
@@ -1919,6 +1927,71 @@ export class BFAMApiClient {
     await this.request(`/tournaments/fixtures/${fixtureId}/settle`, {
       method: 'POST',
       body: JSON.stringify({ winner_entry_id: winnerEntryId }),
+    });
+  }
+
+  // ---- Phase 9: settings, home content, staff customer assistance ----
+
+  async getPublicConfig(): Promise<PublicConfig> {
+    return this.request('/config/public');
+  }
+
+  async getAdminSettings(): Promise<PlatformSettingsResponse> {
+    return this.request('/admin/settings');
+  }
+
+  async updateAdminSettings(
+    patch: Partial<PlatformSettings>,
+  ): Promise<{ settings: PlatformSettings }> {
+    return this.request('/admin/settings', { method: 'PATCH', body: JSON.stringify(patch) });
+  }
+
+  async getHomeContent(): Promise<HomeFeatured> {
+    return this.request('/home/content');
+  }
+
+  async getAdminHomeContent(): Promise<{ results: HomeContentItem[] }> {
+    return this.request('/admin/home-content');
+  }
+
+  async createHomeContentItem(input: HomeContentInput): Promise<HomeContentItem> {
+    return this.request('/admin/home-content', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async updateHomeContentItem(
+    itemId: string,
+    input: Partial<Omit<HomeContentInput, 'kind'>>,
+  ): Promise<HomeContentItem> {
+    return this.request(`/admin/home-content/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteHomeContentItem(itemId: string): Promise<void> {
+    await this.request(`/admin/home-content/${itemId}`, { method: 'DELETE' });
+  }
+
+  async lookupStaffCustomers(q: string): Promise<{ results: StaffCustomer[] }> {
+    return this.request(`/staff/customers/lookup${toQueryString({ q })}`);
+  }
+
+  async createStaffWalkIn(
+    input: StaffWalkInInput,
+  ): Promise<{
+    booking: { booking_id: string; booking_amount: number; booking_status: string };
+    paid: boolean;
+  }> {
+    return this.request('/staff/bookings/walk-in', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  async raiseStaffTicket(
+    customerUserId: string,
+    input: { category: string; description: string; booking_id?: string | null },
+  ): Promise<{ ticket_id: string }> {
+    return this.request(`/staff/customers/${customerUserId}/tickets`, {
+      method: 'POST',
+      body: JSON.stringify(input),
     });
   }
 

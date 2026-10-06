@@ -3,6 +3,7 @@ import { IST_TODAY_SQL } from '../domain/time';
 import { QueryTypes } from 'sequelize';
 import { isUniqueConstraintError } from '../domain/dbErrors';
 import { sequelize } from '../config/sequelize';
+import { assertWithinAdvanceWindow } from './settingsService';
 import {
   BookingNotFoundError,
   ForbiddenActionError,
@@ -56,6 +57,8 @@ export async function createBooking(input: CreateBookingInput) {
   ) {
     throw new InvalidSlotAlignmentError();
   }
+
+  await assertWithinAdvanceWindow(bookingDate);
 
   const [turf] = await sequelize.query<{ turf_id: string }>(
     "SELECT turf_id FROM turfs WHERE turf_id = :turfId AND turf_status = 'ACTIVE' AND deleted_at IS NULL",

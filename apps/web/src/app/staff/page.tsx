@@ -203,7 +203,7 @@ export default function StaffBookingsPage() {
         </FadeIn>
       )}
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-7">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 mb-5 md:mb-7">
         <StatTile
           label="Bookings today"
           value={bookings.length}
@@ -235,7 +235,7 @@ export default function StaffBookingsPage() {
         />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
+      <div className="flex flex-col md:flex-row md:flex-wrap md:items-center md:justify-between gap-3 md:gap-4 mb-5">
         <SegmentedControl<Filter>
           testIDPrefix="desk-filter"
           value={filter}
@@ -247,7 +247,7 @@ export default function StaffBookingsPage() {
             { value: 'done', label: 'Done', count: counts.done },
           ]}
         />
-        <div className="w-full max-w-[380px]">
+        <div className="w-full md:max-w-[380px]">
           <SearchInput
             value={lookup}
             onChange={setLookup}
@@ -275,7 +275,10 @@ export default function StaffBookingsPage() {
         />
       ) : (
         <ol className="relative space-y-3" data-testid="desk-list">
-          <span aria-hidden className="absolute left-[69px] top-2 bottom-2 w-px bg-border-strong" />
+          <span
+            aria-hidden
+            className="hidden md:block absolute left-[69px] top-2 bottom-2 w-px bg-border-strong"
+          />
           <AnimatePresence initial>
             {visible.map(({ booking: b, phase }, index) => (
               <motion.li
@@ -284,16 +287,16 @@ export default function StaffBookingsPage() {
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: Math.min(index, 10) * 0.05, ease: EASE_OUT }}
-                className="relative flex items-stretch gap-5"
+                className="relative flex items-stretch gap-3 md:gap-5"
                 data-testid={`desk-booking-${b.booking_id}`}
               >
-                <div className="w-[56px] shrink-0 pt-4 text-right">
+                <div className="hidden md:block w-[56px] shrink-0 pt-4 text-right">
                   <p className="font-display text-[20px] leading-none text-ink-black">
                     {hhmm(b.start_time)}
                   </p>
                   <p className="font-ui text-[11px] text-text-tertiary mt-1">{hhmm(b.end_time)}</p>
                 </div>
-                <span className="relative z-[1] mt-[22px] grid h-[11px] w-[11px] shrink-0 place-items-center">
+                <span className="relative z-[1] mt-[22px] hidden md:grid h-[11px] w-[11px] shrink-0 place-items-center">
                   {phase === 'now' && (
                     <span className="absolute inset-0 rounded-[999px] bg-brand-red animate-pulse-ring" />
                   )}
@@ -313,7 +316,7 @@ export default function StaffBookingsPage() {
                   onClick={() => setOpen(b)}
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.995 }}
-                  className={`group flex-1 text-left rounded-lg border bg-surface px-5 py-4 cursor-pointer transition-shadow duration-300 hover:shadow-[0_14px_34px_rgba(0,0,0,0.09)] ${
+                  className={`group flex-1 min-w-0 text-left rounded-lg border bg-surface px-4 md:px-5 py-4 min-h-[64px] cursor-pointer transition-shadow duration-300 hover:shadow-[0_14px_34px_rgba(0,0,0,0.09)] ${
                     phase === 'now'
                       ? 'border-brand-red/40 shadow-[0_8px_26px_rgba(216,0,0,0.12)]'
                       : 'border-border-subtle'
@@ -323,6 +326,13 @@ export default function StaffBookingsPage() {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
+                      <p className="md:hidden font-display text-[22px] leading-none text-brand-red mb-1">
+                        {hhmm(b.start_time)}
+                        <span className="font-ui text-[12px] text-text-tertiary">
+                          {' '}
+                          – {hhmm(b.end_time)}
+                        </span>
+                      </p>
                       <p className="font-ui text-card-title font-bold text-ink-black truncate">
                         {b.turf_name}
                       </p>
