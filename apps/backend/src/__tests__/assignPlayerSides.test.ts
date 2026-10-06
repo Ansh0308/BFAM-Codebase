@@ -59,6 +59,10 @@ jest.mock('../config/sequelize', () => {
             .filter((p) => p.match_id === r.matchId && p.invitation_status !== 'CANT_PLAY')
             .map((p) => ({ player_id: p.player_id }));
         }
+        if (sql.includes("m.scoring_mode = 'TURF_STAFF_MANAGED'")) {
+          // isTurfOperatorForMatch: nobody in these tests is a turf operator.
+          return [];
+        }
         if (sql.includes('mp.player_id, p.bfam_id')) {
           // getPlayingXi — not asserted on directly in these tests.
           return [];

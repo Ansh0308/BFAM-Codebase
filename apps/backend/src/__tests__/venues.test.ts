@@ -40,6 +40,13 @@ interface TurfRow {
 let venues: VenueRow[] = [];
 let turfs: TurfRow[] = [];
 
+// New turfs start PENDING_APPROVAL; players only see ACTIVE ones, so stand in for an admin approving them.
+function approveAllTurfs() {
+  turfs.forEach((t) => {
+    t.turf_status = 'ACTIVE';
+  });
+}
+
 function matchesWhere(row: Record<string, unknown>, where: Record<string, unknown>): boolean {
   return Object.entries(where).every(([k, v]) => row[k] === v);
 }
@@ -320,6 +327,7 @@ describe('Owner Venues (feedback backlog A-2)', () => {
     const playerToken = (await request(app).post('/auth/dev-token').send({ role: 'PLAYER' })).body
       .token;
 
+    approveAllTurfs();
     const detailsRes = await request(app)
       .get(`/turfs/${pitch2.body.turf_id}`)
       .set('Authorization', `Bearer ${playerToken}`);
@@ -473,6 +481,7 @@ describe('Player-facing venue pitch picker (GET /venues/:venueId)', () => {
         pitch_count: 2,
       });
 
+    approveAllTurfs();
     const playerT = await playerToken();
     const res = await request(app)
       .get(`/venues/${venueRes.body.venue_id}`)
