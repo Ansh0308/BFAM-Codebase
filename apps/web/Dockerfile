@@ -30,6 +30,8 @@ RUN npm ci \
       --include-workspace-root
 
 COPY apps/web ./apps/web
+# The portal's tailwind.config.js builds on the colours/fonts shared with the mobile app.
+COPY tailwind.config.shared.js ./
 
 ARG NEXT_PUBLIC_BASE_PATH=/portal
 ARG NEXT_PUBLIC_API_URL=
