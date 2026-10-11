@@ -9,6 +9,7 @@ import { apiClient } from '../../../../src/lib/apiClient';
 import { ScreenContainer } from '../../../../src/components/ScreenContainer';
 import { StatusBadge } from '../../../../src/components/StatusBadge';
 import { Button } from '../../../../src/components/Button';
+import { RsvpButtons } from '../../../../src/components/matches/RsvpButtons';
 import { Avatar } from '../../../../src/components/Avatar';
 import { useAuthStore } from '../../../../src/store/authStore';
 
@@ -156,44 +157,12 @@ export default function GameRoomScreen() {
             <Text className="font-ui font-semibold text-body text-ink-black mb-3">
               You&apos;re invited to this match — will you play?
             </Text>
-            <View className="flex-row">
-              <View className="flex-1 mr-2">
-                <Button
-                  label="Confirm"
-                  onPress={() =>
-                    withBusy(() =>
-                      apiClient.respondToMatch(matchId, 'CONFIRMED').then(() => undefined),
-                    )
-                  }
-                  loading={busy}
-                  testID="respond-confirmed"
-                />
-              </View>
-              <View className="flex-1 mr-2">
-                <Button
-                  label="Maybe"
-                  variant="secondary"
-                  onPress={() =>
-                    withBusy(() => apiClient.respondToMatch(matchId, 'MAYBE').then(() => undefined))
-                  }
-                  loading={busy}
-                  testID="respond-maybe"
-                />
-              </View>
-              <View className="flex-1">
-                <Button
-                  label="Can't Play"
-                  variant="secondary"
-                  onPress={() =>
-                    withBusy(() =>
-                      apiClient.respondToMatch(matchId, 'CANT_PLAY').then(() => undefined),
-                    )
-                  }
-                  loading={busy}
-                  testID="respond-cant-play"
-                />
-              </View>
-            </View>
+            <RsvpButtons
+              busy={busy}
+              onRespond={(value) =>
+                withBusy(() => apiClient.respondToMatch(matchId, value).then(() => undefined))
+              }
+            />
           </View>
         )}
 
