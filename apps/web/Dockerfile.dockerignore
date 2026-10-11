@@ -1,0 +1,29 @@
+# Build context rules for apps/web/Dockerfile (BuildKit uses this file in place of the
+# repo-root .dockerignore, which is written for the backend image and hides apps/web).
+
+# Never send secrets or local state into the image build.
+**/.env
+**/.env.*
+!**/.env.example
+
+**/node_modules
+**/dist
+**/.next
+**/.next-build
+**/.expo
+**/coverage
+.git
+.github
+.husky
+.claude
+deploy
+Images
+*.md
+*.csv
+
+# The portal image only needs the portal and the shared packages. The two other apps
+# contribute just their package.json (npm's lockfile lists every workspace).
+apps/backend/*
+!apps/backend/package.json
+apps/mobile/*
+!apps/mobile/package.json
