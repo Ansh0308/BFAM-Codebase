@@ -44,6 +44,7 @@ import {
   type Tone,
 } from '../ui/kit';
 import { FORMAT_LABEL, STATUS_LABEL, STATUS_TONE, TournamentForm } from './TournamentList';
+import { withBasePath } from '../../lib/basePath';
 
 type Tab = 'teams' | 'fixtures' | 'table' | 'bracket';
 type Confirm = null | 'start' | 'cancel' | 'delete' | 'knockout';
@@ -577,7 +578,7 @@ export function TournamentView({
           setBusy(true);
           try {
             await apiClient.deleteTournament(tournamentId);
-            window.location.assign(backHref);
+            window.location.assign(withBasePath(backHref));
           } catch (err) {
             toast.error(err instanceof BFAMApiError ? err.message : 'Could not delete it.');
             setBusy(false);

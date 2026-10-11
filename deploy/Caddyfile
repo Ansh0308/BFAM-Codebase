@@ -1,7 +1,17 @@
 # SITE_ADDRESS is the public host name, e.g. bfam-beta.centralindia.cloudapp.azure.com.
 # Caddy fetches and renews its HTTPS certificate on its own (ports 80 and 443
 # must be open to the internet), and proxies WebSocket upgrades (Socket.IO) as-is.
+#
+# /portal is the admin web console (apps/web, service "web" in docker-compose.azure.yml);
+# everything else is the API.
 {$SITE_ADDRESS} {
 	encode gzip
-	reverse_proxy backend:5000
+
+	handle /portal* {
+		reverse_proxy web:3000
+	}
+
+	handle {
+		reverse_proxy backend:5000
+	}
 }

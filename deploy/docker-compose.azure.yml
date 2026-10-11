@@ -2,6 +2,8 @@
 #   caddy   — HTTPS (free Let's Encrypt certificate, renewed automatically),
 #             terminates TLS and forwards to the backend, WebSockets included
 #   backend — the BFAM API + Socket.IO (image built by .github/workflows/deploy-backend.yml)
+#   web     — the admin web console, served at /portal (image built by .github/workflows/build-web.yml).
+#             Optional: only started with  --profile portal  (set WEB_IMAGE in .env)
 #   redis   — presence store; the backend runs without it, but live viewer
 #             counts need it, and it is tiny
 #
@@ -36,6 +38,20 @@ services:
       options:
         max-size: 10m
         max-file: '3'
+
+  web:
+    image: ${WEB_IMAGE:-bfam-web:latest}
+    profiles: ['portal']
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      TZ: Asia/Kolkata
+    # The VM is small (about 900 MB): keep the console from ever starving the API.
+    mem_limit: 256m
+    expose:
+      - '3000'
+    logging: *logging
 
   redis:
     image: redis:7-alpine

@@ -486,7 +486,7 @@ export default function ManageTurfScreen() {
       <Text className="font-ui font-bold text-micro text-text-tertiary uppercase mb-2">
         Apply a Default to Every Day
       </Text>
-      <View className="flex-row items-end mb-4">
+      <View className="flex-row items-end">
         <View className="flex-1 mr-2">
           <TextField
             label="Open"
@@ -496,7 +496,7 @@ export default function ManageTurfScreen() {
             testID="default-hours-open"
           />
         </View>
-        <View className="flex-1 mr-2">
+        <View className="flex-1">
           <TextField
             label="Close"
             value={defaultClose}
@@ -505,15 +505,15 @@ export default function ManageTurfScreen() {
             testID="default-hours-close"
           />
         </View>
-        <View style={{ marginBottom: 4 }}>
-          <Button
-            label="Apply to All Days"
-            variant="secondary"
-            fullWidth={false}
-            onPress={applyDefaultToAllDays}
-            testID="apply-default-hours"
-          />
-        </View>
+      </View>
+      {/* On its own row: beside the two time boxes the long label had no room on a phone. */}
+      <View className="mt-2 mb-4">
+        <Button
+          label="Apply to All Days"
+          variant="secondary"
+          onPress={applyDefaultToAllDays}
+          testID="apply-default-hours"
+        />
       </View>
 
       {WEEKDAY_LABELS.map((label, day) => (

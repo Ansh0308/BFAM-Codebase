@@ -144,8 +144,8 @@ export default function OwnerStaffScreen() {
                 />
               </View>
               {s.verification_status === 'PENDING' && s.verification_document_url && (
-                <View className="flex-row mt-3">
-                  <View className="mr-2">
+                <View className="flex-row mt-3" style={{ gap: 8 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
                     <Button
                       label="Approve"
                       onPress={() => review(s.assignment_id, 'APPROVED')}
@@ -153,13 +153,15 @@ export default function OwnerStaffScreen() {
                       testID={`approve-${s.assignment_id}`}
                     />
                   </View>
-                  <Button
-                    label="Reject"
-                    variant="secondary"
-                    onPress={() => review(s.assignment_id, 'REJECTED')}
-                    loading={busy}
-                    testID={`reject-${s.assignment_id}`}
-                  />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Button
+                      label="Reject"
+                      variant="secondary"
+                      onPress={() => review(s.assignment_id, 'REJECTED')}
+                      loading={busy}
+                      testID={`reject-${s.assignment_id}`}
+                    />
+                  </View>
                 </View>
               )}
               {s.verification_status === 'PENDING' && !s.verification_document_url && (

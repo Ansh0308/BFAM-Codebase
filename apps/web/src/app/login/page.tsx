@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth, BFAMApiError } from '../../lib/auth';
 import { EASE_OUT } from '../../components/ui/motion';
+import { withBasePath } from '../../lib/basePath';
 
 const FEATURES = [
   {
@@ -204,7 +205,11 @@ export default function LoginPage() {
         >
           <div className="mb-8">
             <h2 className="mb-5 flex">
-              <img src="/logo-horizontal.png" alt="BFAM" className="h-[52px] w-auto" />
+              <img
+                src={withBasePath('/logo-horizontal.png')}
+                alt="BFAM"
+                className="h-[52px] w-auto"
+              />
             </h2>
             <p className="font-display text-[34px] uppercase leading-none tracking-wide text-ink-black">
               Welcome back
