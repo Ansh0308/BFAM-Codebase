@@ -58,3 +58,26 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # When the image build fails, repeat the same build directly on the runner and print
+      # its last lines as an error annotation: Docker's own output is not readable without
+      # signing in to GitHub.
+      - uses: actions/setup-node@v4
+        if: failure()
+        with:
+          node-version: 20
+      - name: Show why the build failed
+        if: failure()
+        run: |
+          set +e
+          npm ci --workspace=apps/web --workspace=packages/shared-types --workspace=packages/api-client --include-workspace-root > /tmp/ci.log 2>&1
+          ci_code=$?
+          NEXT_PUBLIC_BASE_PATH=/portal NEXT_PUBLIC_API_URL= NEXT_OUTPUT=standalone npm run build --workspace=apps/web > /tmp/build.log 2>&1
+          build_code=$?
+          {
+            echo "npm ci exit ${ci_code}; build exit ${build_code}"
+            echo "--- npm ci (tail)"; tail -n 12 /tmp/ci.log
+            echo "--- build (tail)"; tail -n 30 /tmp/build.log
+          } > /tmp/why.log
+          msg=$(sed -e 's/%/%25/g' /tmp/why.log | sed ':a;N;$!ba;s/\r//g;s/\n/%0A/g')
+          echo "::error title=Portal build output::${msg}"
