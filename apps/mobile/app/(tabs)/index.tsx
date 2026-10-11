@@ -106,7 +106,8 @@ export default function Home() {
                 match: liveMatch,
                 totalRuns: score.innings.total_runs,
                 totalWickets: score.innings.total_wickets,
-                oversCompleted: score.innings.overs_completed,
+                // The server returns this DECIMAL column as text ("3.2"); .toFixed below needs a number.
+                oversCompleted: Number(score.innings.overs_completed),
               }
             : null,
         );
