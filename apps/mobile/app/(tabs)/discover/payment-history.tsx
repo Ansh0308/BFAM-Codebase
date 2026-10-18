@@ -60,8 +60,9 @@ export default function PaymentHistoryScreen() {
                 </View>
                 <Text className="text-text-secondary text-body mt-1">₹{item.amount}</Text>
                 {item.collected_by && (
-                  <Text className="text-text-tertiary text-micro mt-1">
-                    Collected by {item.collected_by}
+                  <Text className="text-text-tertiary text-micro mt-1" testID="collected-by">
+                    {/* Always a name: the server sends one, and an internal id is never shown. */}
+                    Collected by {item.collected_by_name ?? 'the turf'}
                   </Text>
                 )}
                 {item.cash_reference && (

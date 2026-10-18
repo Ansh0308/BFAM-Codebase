@@ -9,6 +9,11 @@ jest.mock('../src/lib/apiClient', () => ({
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
+  useFocusEffect: (callback: () => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ReactForMock = require('react');
+    ReactForMock.useEffect(callback, []);
+  },
 }));
 
 const mockGetMyTurfs = apiClient.getMyTurfs as jest.Mock;

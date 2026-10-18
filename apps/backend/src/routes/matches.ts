@@ -51,6 +51,7 @@ import {
   vacateSpot,
 } from '../services/matchService';
 import { submitReview } from '../services/reviewService';
+import { resolvePlayerIdByBfamId } from '../services/teamService';
 import { listRateableTeammates, submitPlayerRating } from '../services/playerRatingService';
 import { getMessages, sendMessage } from '../services/chatService';
 import {
@@ -64,6 +65,7 @@ import {
   MatchNotFoundError,
   MatchNotYetCompletedError,
   PlayerAlreadyRatedError,
+  PlayerNotFoundByBfamIdError,
   PlayerProfileNotFoundError,
   PlayerRatingNotEligibleError,
   ReplacementNotFoundError,
@@ -78,7 +80,8 @@ function handleMatchError(error: unknown, res: Response) {
     error instanceof MatchNotFoundError ||
     error instanceof MatchInvitationNotFoundError ||
     error instanceof ReplacementNotFoundError ||
-    error instanceof MatchIntroNotFoundError
+    error instanceof MatchIntroNotFoundError ||
+    error instanceof PlayerNotFoundByBfamIdError
   ) {
     return res.status(404).json({ error: { message: error.message, status: 404 } });
   }
@@ -211,14 +214,12 @@ router.post(
     if (!parsed.success) {
       return res
         .status(400)
-        .json({ error: { message: 'Invalid invitation payload', status: 400 } });
+        .json({ error: { message: 'Enter a valid BFAM ID, for example BF1001.', status: 400 } });
     }
     try {
-      const invitation = await inviteToMatch(
-        req.params.matchId,
-        req.auth!.sub,
-        parsed.data.player_id,
-      );
+      const playerId =
+        parsed.data.player_id ?? (await resolvePlayerIdByBfamId(parsed.data.bfam_id as string));
+      const invitation = await inviteToMatch(req.params.matchId, req.auth!.sub, playerId);
       return res.status(201).json(invitation);
     } catch (error) {
       const handled = handleMatchError(error, res);

@@ -67,6 +67,33 @@ export function assertSlotAcceptsNewMatch(
   if (!assessment.can_add_match) throw new InvalidMatchStateError(assessment.reason as string);
 }
 
+// A match can be started (toss, scoring) only once its slot is about to begin: a booking for
+// next week must not let anyone start playing today. A short head start lets a team that
+// arrives early get going.
+export const EARLY_START_GRACE_MINUTES = 15;
+
+export function assertSlotOpenForStart(
+  slot: SlotInput,
+  now: Date = new Date(),
+  graceMinutes: number = EARLY_START_GRACE_MINUTES,
+): void {
+  const { start } = slotWindow(slot);
+  if (now.getTime() >= start.getTime() - graceMinutes * 60_000) return;
+  const when = `${start.toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })} at ${start.toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`;
+  throw new InvalidMatchStateError(
+    `This match is booked for ${when}. You can start it from ${graceMinutes} minutes before then.`,
+  );
+}
+
 // When the match is scheduled to begin: the first one at the slot's start; one created
 // later, once the earlier matches are done, starts as soon as it is created (never before
 // the slot itself begins).

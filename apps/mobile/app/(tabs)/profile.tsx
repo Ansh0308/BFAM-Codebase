@@ -131,7 +131,13 @@ export default function Profile() {
 
   const idText = profile?.bfam_id ?? '';
   // The name leads the page; the BFAM ID sits beneath it, never in its place.
-  const displayName = profile?.full_name?.trim() || 'Player';
+  // "Player" is only right for a player: an owner or staff account with no name set used to be
+  // headed "Player" next to the label TURF OWNER. They are shown by their email's name part, or
+  // simply by their role, until they add a name.
+  const nameFromEmail = profile?.email ? profile.email.split('@')[0] : '';
+  const displayName =
+    profile?.full_name?.trim() ||
+    (isPlayer ? 'Player' : nameFromEmail || roleLabel || 'My account');
 
   const actionIcons = (
     <View className="flex-row items-center">
@@ -305,7 +311,7 @@ export default function Profile() {
             >
               {profile?.phone_number ?? authUser?.user_id ?? ''}
             </Text>
-            {roleLabel ? (
+            {roleLabel && roleLabel !== displayName ? (
               <Reveal delay={320} distance={8}>
                 <Text
                   className="font-ui font-bold uppercase"

@@ -14,17 +14,17 @@ import { TextField } from '../../../../../src/components/TextField';
 // route through the same Razorpay order + Checkout flow (Razorpay's own
 // checkout screen presents UPI as one of its payment tabs) — only the
 // `payment_method` tag differs, for reconciliation. Cash settles
-// immediately. Captain Pays / Split Payment are obligation *structures*
-// (who owes what), not settlement instruments — picking either here just
-// sets up the obligations, then this screen still needs an instrument
-// (UPI/Gateway/Cash) to actually settle them.
-type SelectorMethod = 'UPI' | 'RAZORPAY' | 'CASH' | 'CAPTAIN_PAYS' | 'SPLIT';
+// immediately. Split Payment is an obligation *structure* (who owes what), not
+// a settlement instrument — picking it here just sets up the obligations, then
+// this screen still needs an instrument (UPI/Gateway/Cash) to actually settle
+// them. ("Captain Pays" is not a separate choice: paying the whole amount
+// yourself is what UPI / Gateway / Cash already do.)
+type SelectorMethod = 'UPI' | 'RAZORPAY' | 'CASH' | 'SPLIT';
 
 const METHODS: { key: SelectorMethod; label: string }[] = [
   { key: 'UPI', label: 'UPI' },
   { key: 'RAZORPAY', label: 'Payment Gateway' },
   { key: 'CASH', label: 'Cash' },
-  { key: 'CAPTAIN_PAYS', label: 'Captain Pays' },
   { key: 'SPLIT', label: 'Split Payment' },
 ];
 
@@ -53,7 +53,8 @@ export default function PaymentScreen() {
   // remaining N-1 shares stay PENDING for other players to pay later
   // (module 2.6 wires real players to the rest of the shares via the
   // same obligations endpoint).
-  const [mySplitShareId, setMySplitShareId] = useState<string | null>(null);
+  const [createdSplitShareId, setCreatedSplitShareId] = useState<string | null>(null);
+  const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   // Backlog B-1: promo code / BFAM Coins applied to the payer's own
   // obligation before choosing a payment method — the discount is applied
   // server-side (payment_obligations.amount_due is reduced directly), so
@@ -77,13 +78,27 @@ export default function PaymentScreen() {
       .catch(() => setError('Could not load payment details for this booking.'));
     apiClient
       .getMyProfile()
-      .then((profile) => setCoinBalance(profile.coin_balance))
+      .then((profile) => {
+        setCoinBalance(profile.coin_balance);
+        setMyPlayerId(profile.player_id ?? null);
+      })
       .catch(() => {
         // TURF_OWNER/TURF_STAFF booking on behalf of players (or any
         // profile-load hiccup) — just hide the coins option rather than
         // blocking payment on it.
       });
   }, [loadObligations]);
+
+  // The booker's own share of a split. Remembered in memory while the split is being made, and
+  // looked up again from the booking when the screen is opened later (going back and returning
+  // used to forget it and show the whole booking amount as "due").
+  const mySplitShareId =
+    obligations.length > 1
+      ? (createdSplitShareId ??
+        obligations.find((o) => myPlayerId && o.player_id === myPlayerId)?.obligation_id ??
+        obligations.find((o) => o.player_id !== null)?.obligation_id ??
+        null)
+      : null;
 
   const myUnpaidObligations = (
     mySplitShareId ? obligations.filter((o) => o.obligation_id === mySplitShareId) : obligations
@@ -149,7 +164,7 @@ export default function PaymentScreen() {
       if (selected === 'CASH') {
         setStage('cash-entry');
       } else {
-        await payViaGateway(unpaid, selected === 'CAPTAIN_PAYS' ? 'RAZORPAY' : selected);
+        await payViaGateway(unpaid, selected);
       }
     } catch {
       setError('Something went wrong setting up this payment. Please try again.');
@@ -186,7 +201,7 @@ export default function PaymentScreen() {
       // The booker settles their own share now; the rest stay PENDING for
       // other players to pay later (this module's "partial collection"
       // requirement).
-      setMySplitShareId(results[0]?.obligation_id ?? null);
+      setCreatedSplitShareId(results[0]?.obligation_id ?? null);
       setStage('select-method');
     } catch (err) {
       if (err instanceof BFAMApiError) setError(err.message);

@@ -117,6 +117,22 @@ describe('Profile screen', () => {
     expect(queryByTestId('ratings-section')).toBeNull();
   });
 
+  it('does not call a nameless turf owner "Player"', async () => {
+    useAuthStore.setState({ user: { user_id: 'u2', bfam_id: null, role: 'TURF_OWNER' } });
+    mockGetMyProfile.mockResolvedValue({
+      ...PLAYER,
+      role: 'TURF_OWNER',
+      bfam_id: null,
+      full_name: null,
+      email: 'asha.owner@example.com',
+    });
+
+    const { findAllByText, queryByText } = await render(<Profile />);
+
+    expect((await findAllByText('asha.owner')).length).toBeGreaterThan(0);
+    expect(queryByText('Player')).toBeNull();
+  });
+
   it('logs out and returns to the login screen', async () => {
     const { findByTestId } = await render(<Profile />);
 

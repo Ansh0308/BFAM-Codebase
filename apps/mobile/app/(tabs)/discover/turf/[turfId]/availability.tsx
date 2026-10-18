@@ -31,8 +31,6 @@ function formatDisplayDate(dateStr: string): string {
   });
 }
 
-const PAYMENT_MODES = ['UPI', 'GATEWAY', 'CASH', 'CAPTAIN_PAYS', 'SPLIT_PAYMENT'] as const;
-
 // Turf Availability: calendar/slot grid, visually distinguishing available
 // vs. booked slots (Design §1.2/§1.3 — booked = disabled gray surface,
 // available = brand-red text/dot, never green).
@@ -53,7 +51,6 @@ export default function TurfAvailabilityScreen() {
   // 480, this was purely a missing mobile UI).
   const [pendingIndex, setPendingIndex] = useState<number>(-1);
   const [durationHours, setDurationHours] = useState(1);
-  const [paymentMode, setPaymentMode] = useState<(typeof PAYMENT_MODES)[number]>('UPI');
   const [booking, setBooking] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
 
@@ -94,7 +91,6 @@ export default function TurfAvailabilityScreen() {
   const openSlot = (slot: AvailabilitySlot) => {
     const index = availability?.slots.findIndex((s) => s.start_time === slot.start_time) ?? -1;
     setBookingError(null);
-    setPaymentMode('UPI');
     setPendingSlot(slot);
     setPendingIndex(index);
     setDurationHours(1);
@@ -130,7 +126,6 @@ export default function TurfAvailabilityScreen() {
         booking_date: selectedDate,
         start_time: pendingSlot.start_time,
         duration_minutes: effectiveDurationHours * 60,
-        payment_mode: paymentMode,
       });
       setPendingSlot(null);
       setPendingIndex(-1);
@@ -277,32 +272,15 @@ export default function TurfAvailabilityScreen() {
                   </Text>
                 )}
 
-                <Text className="font-ui font-bold text-text-secondary text-micro uppercase mt-4 mb-2">
-                  Payment Mode
+                {/* How to pay (UPI, card, cash or split) is chosen once, on the payment step right
+                    after booking. It used to be asked here as well, under different names, and the
+                    booking kept this first answer even when the player then paid another way. */}
+                <Text
+                  className="font-ui text-micro text-text-tertiary mt-3"
+                  testID="booking-payment-hint"
+                >
+                  You choose how to pay (UPI, card, cash or split) on the next step.
                 </Text>
-                <View className="flex-row flex-wrap">
-                  {PAYMENT_MODES.map((mode) => {
-                    const selected = mode === paymentMode;
-                    return (
-                      <Pressable
-                        key={mode}
-                        onPress={() => setPaymentMode(mode)}
-                        className={`rounded-sm px-3 py-2 mr-2 mb-2 border ${
-                          selected
-                            ? 'bg-brand-red border-brand-red'
-                            : 'bg-surface border-border-strong'
-                        }`}
-                        testID={`payment-mode-${mode}`}
-                      >
-                        <Text
-                          className={`text-micro ${selected ? 'text-surface' : 'text-text-primary'}`}
-                        >
-                          {mode.replace('_', ' ')}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
 
                 {bookingError && (
                   <Text className="text-brand-red text-body mt-3" testID="booking-error-message">

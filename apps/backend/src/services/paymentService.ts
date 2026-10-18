@@ -71,6 +71,17 @@ export async function createObligationsForBooking(
     ? shares
     : [{ playerId: null, amount: bookingAmount }];
 
+  // In a split, the first share is the booker's own. Naming the booker on it (the other
+  // shares stay open for whoever pays them) is what lets the payment screen find "my share"
+  // again after the booker leaves and comes back.
+  if (resolvedShares.length > 1 && resolvedShares[0].playerId === null) {
+    const [booker] = await sequelize.query<{ player_id: string }>(
+      'SELECT player_id FROM players WHERE user_id = :actorUserId',
+      { type: QueryTypes.SELECT, replacements: { actorUserId } },
+    );
+    if (booker) resolvedShares[0] = { ...resolvedShares[0], playerId: booker.player_id };
+  }
+
   const shareTotal = resolvedShares.reduce((sum, s) => sum + s.amount, 0);
   if (Math.abs(shareTotal - bookingAmount) > 0.01) {
     throw new AllocationExceedsObligationError();
@@ -88,6 +99,11 @@ export async function createObligationsForBooking(
   }));
 
   await sequelize.getQueryInterface().bulkInsert('payment_obligations', rows);
+  if (rows.length > 1) {
+    await sequelize
+      .getQueryInterface()
+      .bulkUpdate('bookings', { payment_mode: 'SPLIT_PAYMENT' }, { booking_id: bookingId });
+  }
   return rows;
 }
 
@@ -104,6 +120,30 @@ export async function getObligationsForBooking(bookingId: string): Promise<Oblig
     'SELECT * FROM payment_obligations WHERE booking_id = :bookingId ORDER BY created_at ASC',
     { type: QueryTypes.SELECT, replacements: { bookingId } },
   );
+}
+
+// The booking's "payment mode" used to be whatever was picked on the booking sheet, before
+// anything was paid, so it often disagreed with how the player really paid. It now follows the
+// payment itself: cash, UPI or gateway. A split booking stays "split payment".
+const BOOKING_MODE_FOR_METHOD: Record<string, string> = {
+  CASH: 'CASH',
+  UPI: 'UPI',
+  RAZORPAY: 'GATEWAY',
+};
+
+export async function syncBookingPaymentMode(obligations: ObligationRow[], paymentMethod: string) {
+  const mode = BOOKING_MODE_FOR_METHOD[paymentMethod];
+  if (!mode) return;
+  for (const bookingId of new Set(obligations.map((o) => o.booking_id))) {
+    const [row] = await sequelize.query<{ count: number }>(
+      'SELECT COUNT(*) AS count FROM payment_obligations WHERE booking_id = :bookingId',
+      { type: QueryTypes.SELECT, replacements: { bookingId } },
+    );
+    if (Number(row?.count) > 1) continue;
+    await sequelize
+      .getQueryInterface()
+      .bulkUpdate('bookings', { payment_mode: mode }, { booking_id: bookingId });
+  }
 }
 
 async function fetchObligations(obligationIds: string[]): Promise<ObligationRow[]> {
@@ -244,6 +284,7 @@ export async function recordCashPayment(
   ]);
 
   await allocatePaymentToObligations(paymentId, obligations);
+  await syncBookingPaymentMode(obligations, 'CASH');
 
   if (collector?.role === 'TURF_STAFF') {
     await recordStaffActivity(
@@ -403,6 +444,7 @@ export async function confirmGatewayPayment(
     const obligations = await fetchObligations(obligationIds);
     if (obligations.length > 0) {
       await allocatePaymentToObligations(payment.payment_id, obligations);
+      await syncBookingPaymentMode(obligations, payment.payment_method);
     }
   } else {
     await sequelize
@@ -417,9 +459,26 @@ export async function confirmGatewayPayment(
   return fetchPayment(payment.payment_id);
 }
 
-export async function listPaymentsForUser(userId: string): Promise<PaymentRow[]> {
-  return sequelize.query<PaymentRow>(
-    'SELECT * FROM payments WHERE payer_id = :userId OR collected_by = :userId ORDER BY initiated_at DESC',
+// Payment History shows who collected a cash payment by name, never by internal id: "You" for the
+// caller, otherwise the collector's player name, otherwise their role.
+export async function listPaymentsForUser(
+  userId: string,
+): Promise<(PaymentRow & { collected_by_name: string | null })[]> {
+  return sequelize.query<PaymentRow & { collected_by_name: string | null }>(
+    `SELECT p.*,
+            CASE
+              WHEN p.collected_by IS NULL THEN NULL
+              WHEN p.collected_by = :userId THEN 'You'
+              ELSE COALESCE(
+                NULLIF(TRIM(pl.full_name), ''),
+                CASE cu.role WHEN 'TURF_OWNER' THEN 'Turf owner' WHEN 'TURF_STAFF' THEN 'Turf staff' ELSE 'A teammate' END
+              )
+            END AS collected_by_name
+     FROM payments p
+     LEFT JOIN users cu ON cu.user_id = p.collected_by
+     LEFT JOIN players pl ON pl.user_id = p.collected_by
+     WHERE p.payer_id = :userId OR p.collected_by = :userId
+     ORDER BY p.initiated_at DESC`,
     { type: QueryTypes.SELECT, replacements: { userId } },
   );
 }

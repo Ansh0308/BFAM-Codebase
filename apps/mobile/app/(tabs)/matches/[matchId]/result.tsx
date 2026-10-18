@@ -207,6 +207,9 @@ export default function MatchResultScreen() {
           <View style={{ position: 'absolute', top: 12, left: 12, zIndex: 5 }}>
             <BackButton
               fallback={`/(tabs)/matches/${matchId}`}
+              // The result is the end of the match: going back must land on the Game Room, never
+              // on the scoring screen the organizer came from (which would let them keep scoring).
+              replaceWith={`/(tabs)/matches/${matchId}`}
               color="#FFFFFF"
               testID="result-back"
             />

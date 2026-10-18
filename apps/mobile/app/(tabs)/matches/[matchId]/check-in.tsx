@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { BallLoader } from '../../../../src/components/BallLoader';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
@@ -22,6 +22,7 @@ import { useAuthStore } from '../../../../src/store/authStore';
 // for barcode scanning) instead of pinning an unmaintained package.
 export default function CheckInScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const [code, setCode] = useState<string | null>(null);
   const [isManager, setIsManager] = useState<boolean | null>(null);
@@ -48,6 +49,15 @@ export default function CheckInScreen() {
       })
       .catch(() => setIsManager(false));
   }, [matchId, user?.user_id]);
+
+  // After a successful check-in, show the confirmation briefly and then go back to the Game Room,
+  // where the attendance count has moved. The confirmation used to be a dead end: nothing
+  // happened after it, so players did not know whether it had worked or what to do next.
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => router.replace(`/(tabs)/matches/${matchId}`), 1800);
+    return () => clearTimeout(timer);
+  }, [success, router, matchId]);
 
   async function submitCode(value: string) {
     if (!value.trim()) return;
@@ -128,6 +138,16 @@ export default function CheckInScreen() {
           <Text className="font-ui font-bold text-title-xl text-ink-black text-center mt-4">
             You&apos;re Checked In
           </Text>
+          <Text className="font-ui text-body text-text-secondary text-center mt-2">
+            Taking you back to the Game Room…
+          </Text>
+          <View className="mt-8 w-full">
+            <Button
+              label="Back to Game Room"
+              onPress={() => router.replace(`/(tabs)/matches/${matchId}`)}
+              testID="check-in-back-to-room"
+            />
+          </View>
         </View>
       </ScreenContainer>
     );

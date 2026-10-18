@@ -39,6 +39,8 @@ export interface AuthSuccessResponse {
 // Player-only fields are null for TURF_OWNER/TURF_STAFF/ADMIN accounts.
 export interface MyProfile {
   user_id: string;
+  // The caller's player record (absent for non-player accounts).
+  player_id?: string | null;
   bfam_id: string | null;
   role: UserRole;
   phone_number: string;
@@ -309,7 +311,8 @@ export interface CreateBookingInput {
   booking_date: string;
   start_time: string;
   duration_minutes: number;
-  payment_mode: string;
+  // Optional: the real mode is recorded when the player pays.
+  payment_mode?: string;
 }
 
 // Backlog G-23: Reschedule Booking — the new slot only; turf and payment
@@ -358,6 +361,8 @@ export interface Payment {
   gateway_order_id: string;
   gateway_payment_id?: string | null;
   collected_by?: string | null;
+  // Who collected a cash payment, as a readable name ("You", a player name, "Turf owner").
+  collected_by_name?: string | null;
   cash_reference?: string | null;
   payment_status: PaymentStatusType;
   initiated_at: string;

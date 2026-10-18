@@ -875,10 +875,13 @@ export class BFAMApiClient {
     return this.request<GameRoom>(`/matches/${matchId}`);
   }
 
-  async inviteToMatch(matchId: string, playerId: string): Promise<{ invitation_id: string }> {
+  // `who` is either a player_id (UUID, from a list or contacts) or a BFAM ID typed by hand
+  // ("BF1001"); the server accepts both.
+  async inviteToMatch(matchId: string, who: string): Promise<{ invitation_id: string }> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(who);
     return this.request<{ invitation_id: string }>(`/matches/${matchId}/invitations`, {
       method: 'POST',
-      body: JSON.stringify({ player_id: playerId }),
+      body: JSON.stringify(isUuid ? { player_id: who } : { bfam_id: who.trim() }),
     });
   }
 
@@ -1976,9 +1979,7 @@ export class BFAMApiClient {
     return this.request(`/staff/customers/lookup${toQueryString({ q })}`);
   }
 
-  async createStaffWalkIn(
-    input: StaffWalkInInput,
-  ): Promise<{
+  async createStaffWalkIn(input: StaffWalkInInput): Promise<{
     booking: { booking_id: string; booking_amount: number; booking_status: string };
     paid: boolean;
   }> {

@@ -50,14 +50,14 @@ describe('Payment screen (module 2.4)', () => {
     mockApplyCheckoutDiscount.mockReset();
   });
 
-  it('offers all 5 payment method options (PRD §12.16)', async () => {
+  it('offers each way to pay once: UPI, gateway, cash and split (no separate Captain Pays)', async () => {
     mockGetObligations.mockResolvedValueOnce({ results: [] });
-    const { findByTestId } = await render(<PaymentScreen />);
+    const { findByTestId, queryByTestId } = await render(<PaymentScreen />);
 
     expect(await findByTestId('payment-method-UPI')).toBeTruthy();
     expect(await findByTestId('payment-method-RAZORPAY')).toBeTruthy();
     expect(await findByTestId('payment-method-CASH')).toBeTruthy();
-    expect(await findByTestId('payment-method-CAPTAIN_PAYS')).toBeTruthy();
+    expect(queryByTestId('payment-method-CAPTAIN_PAYS')).toBeNull();
     expect(await findByTestId('payment-method-SPLIT')).toBeTruthy();
   });
 

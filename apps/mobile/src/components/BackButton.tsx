@@ -10,15 +10,23 @@ export function BackButton({
   fallback = '/(tabs)',
   color = '#0D0D0D',
   testID = 'back-button',
+  replaceWith,
 }: {
   fallback?: Href;
   color?: string;
   testID?: string;
+  // Always go here instead of back one step (for a screen whose "previous" screen must not be
+  // returned to, e.g. the result of a finished match must not lead back into scoring).
+  replaceWith?: Href;
 }) {
   const router = useRouter();
   return (
     <Pressable
-      onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback))}
+      onPress={() => {
+        if (replaceWith) router.replace(replaceWith);
+        else if (router.canGoBack()) router.back();
+        else router.replace(fallback);
+      }}
       hitSlop={10}
       accessibilityRole="button"
       accessibilityLabel="Go back"

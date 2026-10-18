@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { BallLoader } from '../components/BallLoader';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Turf } from '@bfam/shared-types';
@@ -12,6 +12,15 @@ import { apiClient } from '../lib/apiClient';
 // Turf Management/Pricing/Availability/Sound Settings live under each
 // turf card; Today's Bookings/Match Management/Staff Management/Payments
 // are dashboard-level quick links.
+// New turfs wait for an admin's approval before players can see them; say so instead of showing
+// the raw status code.
+const TURF_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: 'Live',
+  PENDING_APPROVAL: 'Waiting for approval',
+  REJECTED: 'Not approved',
+  INACTIVE: 'Hidden',
+};
+
 export function OwnerDashboard() {
   const router = useRouter();
   const [turfs, setTurfs] = useState<Turf[]>([]);
@@ -38,9 +47,13 @@ export function OwnerDashboard() {
     venueGroups.set(t.venue_id, group);
   }
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Reload every time the dashboard is shown again, not just the first time: a turf added from
+  // the Add Turf screen is only in the list if this refreshes when you come back.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
@@ -125,7 +138,7 @@ export function OwnerDashboard() {
               >
                 <Text className="font-ui font-bold text-body text-text-primary">{t.turf_name}</Text>
                 <Text className="font-ui text-micro text-text-tertiary mt-1">
-                  {t.city} · {t.turf_status}
+                  {t.city} · {TURF_STATUS_LABEL[t.turf_status] ?? t.turf_status}
                 </Text>
               </Pressable>
             ))}

@@ -59,6 +59,10 @@ jest.mock('../config/sequelize', () => {
         if (sql.includes('SELECT p.user_id FROM match_players mp')) {
           return [{ user_id: PLAYER_1 }];
         }
+        // startIntro checks the booked slot has begun; a long-past slot means "it has".
+        if (sql.includes('FROM bookings WHERE booking_id')) {
+          return [{ booking_date: '2020-01-01', start_time: '10:00:00', end_time: '11:00:00' }];
+        }
         throw new Error(`Unexpected query in test fake: ${sql}`);
       },
       getQueryInterface: () => ({

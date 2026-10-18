@@ -42,7 +42,7 @@ export default function RoleSelection() {
   }
 
   return (
-    <AuthScreenBackground scroll>
+    <AuthScreenBackground scroll back="/login">
       <View className="items-center mt-12 mb-6">
         <BrandLogo variant="horizontal" height={56} />
         <Text className="font-ui text-micro uppercase tracking-widest text-text-secondary mt-1">

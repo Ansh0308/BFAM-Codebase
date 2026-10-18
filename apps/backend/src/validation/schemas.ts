@@ -511,7 +511,8 @@ export const createBookingSchema = z.object({
   booking_date: dateOnly,
   start_time: timeOnly,
   duration_minutes: z.number().int().min(30).max(480),
-  payment_mode: z.enum(PAYMENT_MODES),
+  // The real mode is recorded when the player pays (see paymentService), so it is optional here.
+  payment_mode: z.enum(PAYMENT_MODES).default('UPI'),
 });
 
 export const cancelBookingSchema = z.object({
@@ -689,9 +690,16 @@ export const updateMatchSetupSchema = z.object({
   extras_count_toward_score: z.boolean().optional(),
 });
 
-export const inviteToMatchSchema = z.object({
-  player_id: uuid,
-});
+// A player can be invited by player_id (picked from a list or contacts) or by the BFAM ID
+// they are known by (e.g. "BF1001", typed into the Invite by BFAM ID box).
+export const inviteToMatchSchema = z
+  .object({
+    player_id: uuid.optional(),
+    bfam_id: z.string().trim().min(1).max(30).optional(),
+  })
+  .refine((data) => data.player_id || data.bfam_id, {
+    message: 'Either player_id or bfam_id is required',
+  });
 
 export const respondToMatchInvitationSchema = z.object({
   response: z.enum(['CONFIRMED', 'MAYBE', 'CANT_PLAY']),
@@ -1028,7 +1036,7 @@ export const convertRoomSchema = z.object({
   booking_date: dateOnly,
   start_time: timeOnly,
   duration_minutes: z.number().int().min(30).max(480),
-  payment_mode: z.enum(PAYMENT_MODES),
+  payment_mode: z.enum(PAYMENT_MODES).default('UPI'),
 });
 
 // GET /owner/bookings — a date range (the service caps its length) and an optional turf.

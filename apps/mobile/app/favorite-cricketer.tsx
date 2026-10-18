@@ -84,7 +84,7 @@ export default function FavoriteCricketer() {
   }
 
   return (
-    <AuthScreenBackground>
+    <AuthScreenBackground back="/login">
       <View className="mt-10 mb-2">
         <BrandLogo variant="horizontal" height={48} />
       </View>

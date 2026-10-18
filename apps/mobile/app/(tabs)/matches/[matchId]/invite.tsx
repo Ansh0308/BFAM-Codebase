@@ -59,14 +59,16 @@ export default function InvitePlayersScreen() {
     <ScreenContainer scroll>
       <View className="pt-4" testID="invite-players-screen">
         <Text className="font-ui font-bold text-text-secondary text-micro uppercase mb-2">
-          Invite by Player ID
+          Invite by BFAM ID
         </Text>
         <TextField
           label=""
           value={playerId}
           onChangeText={setPlayerId}
-          placeholder="Player ID"
+          placeholder="BFAM ID, e.g. BF1001"
           iconLeft={<Feather name="user-plus" size={16} color="#767676" />}
+          autoCapitalize="characters"
+          autoCorrect={false}
           testID="invite-player-id-input"
         />
         <View className="mb-6">

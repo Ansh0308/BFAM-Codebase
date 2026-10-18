@@ -21,9 +21,10 @@ jest.mock('../src/lib/sounds', () => ({
 }));
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ matchId: 'match-1' }),
-  useRouter: () => ({ push: mockPush, back: jest.fn() }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
 }));
 
 const mockGetGameRoom = apiClient.getGameRoom as jest.Mock;
@@ -526,13 +527,22 @@ describe('Scoring Interface (rebuilt)', () => {
       expect(await utils.findByText('Overs complete — 40/2')).toBeTruthy();
     });
 
-    it('Finish Match goes straight to the (automatic) result screen', async () => {
+    it('Finish Match goes straight to the (automatic) result screen, replacing scoring so Back cannot reopen it', async () => {
       mockGetLiveScore.mockResolvedValue(
         liveWith({}, { innings_number: 2, innings_status: 'COMPLETED', target_runs: 51 }),
       );
       const utils = await render(<ScoringInterfaceScreen />);
       await fireEvent.press(await utils.findByTestId('finish-match-button'));
-      expect(mockPush).toHaveBeenCalledWith('/(tabs)/matches/match-1/result');
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/matches/match-1/result');
+      expect(mockPush).not.toHaveBeenCalledWith('/(tabs)/matches/match-1/result');
+    });
+
+    it('opening scoring for an already finished match shows the result instead', async () => {
+      mockGetGameRoom.mockResolvedValue({ ...ROOM, match_status: 'COMPLETED' });
+      await render(<ScoringInterfaceScreen />);
+      await waitFor(() =>
+        expect(mockReplace).toHaveBeenCalledWith('/(tabs)/matches/match-1/result'),
+      );
     });
   });
 });

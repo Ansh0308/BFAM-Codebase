@@ -5,6 +5,7 @@ import { getIo, matchRoom } from '../realtime/io';
 import { sendNotificationToMany } from './notificationService';
 import { notifyFollowersOfMatchStart } from './followService';
 import { assertTournamentHost, isTurfOperatorForMatch } from './turfOperatorAccess';
+import { assertSlotOpenForStart, type SlotInput } from '../domain/matchSlot';
 import {
   ForbiddenActionError,
   InvalidMatchStateError,
@@ -153,6 +154,15 @@ export async function startIntro(matchId: string, actorUserId: string) {
   let intro = await fetchIntro(matchId);
   const isFirstStart = !intro;
   if (!intro) {
+    // Only the first start is held to the booked time; re-entering a match already under
+    // way must always work. (Tournament fixtures have no booking of their own.)
+    if (match.booking_id) {
+      const [slot] = await sequelize.query<SlotInput>(
+        'SELECT booking_date, start_time, end_time FROM bookings WHERE booking_id = :bookingId',
+        { type: QueryTypes.SELECT, replacements: { bookingId: match.booking_id } },
+      );
+      if (slot) assertSlotOpenForStart(slot);
+    }
     const introId = randomUUID();
     const backgroundMusicEnabled = await getStadiumSoundEnabled(match.booking_id);
     await sequelize.getQueryInterface().bulkInsert('match_intro', [

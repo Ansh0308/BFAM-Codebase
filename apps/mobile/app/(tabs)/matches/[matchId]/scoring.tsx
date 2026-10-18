@@ -126,6 +126,12 @@ export default function ScoringInterfaceScreen() {
         apiClient.getLiveScore(matchId),
         apiClient.getScorecard(matchId).catch(() => null),
       ]);
+      // A finished match is not scored any more: show its result instead. This is where Back from
+      // the result, or an old link, would otherwise land the organizer in a live scoring screen.
+      if (gameRoom.match_status === 'COMPLETED') {
+        router.replace(`/(tabs)/matches/${matchId}/result`);
+        return;
+      }
       setRoom(gameRoom);
       setMatchTeams(intro?.matchTeams ?? gameRoom.match_teams ?? []);
       setLive(liveScore);
@@ -187,6 +193,8 @@ export default function ScoringInterfaceScreen() {
     } finally {
       setLoading(false);
     }
+    // router is intentionally not a dependency: its identity can change on every render and would
+    // re-run this load in a loop.
   }, [matchId]);
 
   useEffect(() => {
@@ -879,7 +887,9 @@ export default function ScoringInterfaceScreen() {
           )}
           {inn.innings_number >= 2 && (
             <Pressable
-              onPress={() => router.push(`/(tabs)/matches/${matchId}/result`)}
+              // replace, not push: once the match is finished the scoring screen must not stay
+              // in the history, or Back from the result reopens it.
+              onPress={() => router.replace(`/(tabs)/matches/${matchId}/result`)}
               style={inn.innings_status === 'COMPLETED' ? styles.bigButton : styles.linkButton}
               testID="finish-match-button"
             >
